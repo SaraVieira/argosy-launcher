@@ -368,3 +368,12 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
     dependsOn(verifyQuayPassReleaseConfig)
     dependsOn(verifyReleaseSigningConfig)
 }
+
+val forkApplicationId = "dev.saravieira.argosy"
+val forkRevision = 1
+
+android.defaultConfig {
+    applicationId = forkApplicationId
+    buildConfigField("String", "BASE_APPLICATION_ID", "\"$forkApplicationId\"")
+    versionNameSuffix = if (versionName.orEmpty().contains('-')) ".fork.$forkRevision" else "-fork.$forkRevision"
+}
