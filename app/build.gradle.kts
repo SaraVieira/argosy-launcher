@@ -377,5 +377,7 @@ val forkRevision = 1
 android.defaultConfig {
     applicationId = forkApplicationId
     buildConfigField("String", "BASE_APPLICATION_ID", "\"$forkApplicationId\"")
+    buildConfigField("String", "UPDATE_REPO_OWNER", "\"SaraVieira\"")
+    buildConfigField("String", "UPDATE_REPO_NAME", "\"argosy-launcher\"")
     versionNameSuffix = if (versionName.orEmpty().contains('-')) ".fork.$forkRevision" else "-fork.$forkRevision"
 }
