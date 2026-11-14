@@ -31,4 +31,12 @@ class VersionInfoTest {
         assertTrue(v("2125.1.2") < v("2125.1.3"))
         assertTrue(v("1.9.0") < v("1.10.0"))
     }
+
+    @Test
+    fun `numbered build suffixes order numerically`() {
+        assertTrue(v("3.0.0-fork.1") < v("3.0.0-fork.2"))
+        assertTrue(v("3.0.0-fork.9") < v("3.0.0-fork.10"))
+        assertTrue(v("3.0.0-beta.5.fork.1") < v("3.0.0-beta.5.fork.2"))
+        assertTrue(v("3.0.0-fork.2") < v("3.0.1"))
+    }
 }
