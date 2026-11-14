@@ -31,6 +31,8 @@ data class VersionInfo(
     val patch: Int,
     val prerelease: String? = null
 ) : Comparable<VersionInfo> {
+    val isPrerelease: Boolean get() = isRealPrerelease(prerelease)
+
     override fun compareTo(other: VersionInfo): Int {
         if (major != other.major) return major.compareTo(other.major)
         if (minor != other.minor) return minor.compareTo(other.minor)

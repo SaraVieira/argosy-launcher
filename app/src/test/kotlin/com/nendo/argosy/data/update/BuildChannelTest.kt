@@ -18,6 +18,13 @@ class BuildChannelTest {
     }
 
     @Test
+    fun `a release build with a build suffix that is not a prerelease qualifier is stable`() {
+        assertFalse(BuildChannel.isPrerelease(isDebugBuild = false, versionName = "3.0.0-fork.1"))
+        assertFalse(BuildChannel.isPrerelease(isDebugBuild = false, versionName = "2125.1.2-vanilla"))
+        assertTrue(BuildChannel.isPrerelease(isDebugBuild = false, versionName = "3.0.0-beta.5.fork.1"))
+    }
+
+    @Test
     fun `a debug build is a prerelease whatever its version`() {
         assertTrue(BuildChannel.isPrerelease(isDebugBuild = true, versionName = "3.0.0"))
         assertTrue(BuildChannel.isPrerelease(isDebugBuild = true, versionName = "3.0.0-beta.1"))
