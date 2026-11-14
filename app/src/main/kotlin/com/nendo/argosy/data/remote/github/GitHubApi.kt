@@ -9,15 +9,6 @@ import retrofit2.http.Query
 
 interface GitHubApi {
 
-    @GET("repos/nendotools/argosy-launcher/releases/latest")
-    suspend fun getLatestRelease(): Response<GitHubRelease>
-
-    @GET("repos/nendotools/argosy-launcher/releases")
-    suspend fun getReleases(
-        @Query("per_page") perPage: Int = 10,
-        @Query("page") page: Int = 1
-    ): Response<List<GitHubRelease>>
-
     @GET("repos/{owner}/{repo}/releases/latest")
     suspend fun getRepoLatestRelease(
         @Path("owner") owner: String,
@@ -28,7 +19,8 @@ interface GitHubApi {
     suspend fun getRepoReleases(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
-        @Query("per_page") perPage: Int = 5
+        @Query("per_page") perPage: Int = 5,
+        @Query("page") page: Int = 1
     ): Response<List<GitHubRelease>>
 
     @GET("repos/{owner}/{repo}/tags")
