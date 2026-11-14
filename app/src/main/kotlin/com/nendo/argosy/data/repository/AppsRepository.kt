@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.nendo.argosy.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -151,4 +152,4 @@ class AppsRepository @Inject constructor(
             packageName.startsWith("$ARGOSY_BASE_PACKAGE.")
 }
 
-private const val ARGOSY_BASE_PACKAGE = "com.nendo.argosy"
+private const val ARGOSY_BASE_PACKAGE = BuildConfig.BASE_APPLICATION_ID
