@@ -114,6 +114,8 @@ class UpdateRepository @Inject constructor(
         private const val TAG = "UpdateRepository"
         private const val GITHUB_API_BASE = "https://api.github.com/"
         private const val RELEASES_PER_PAGE = 10
+        private const val UPDATE_REPO_OWNER = BuildConfig.UPDATE_REPO_OWNER
+        private const val UPDATE_REPO_NAME = BuildConfig.UPDATE_REPO_NAME
 
         /**
          * Release asset suffix per version code prefix, as `app/build.gradle.kts` assigns them.
@@ -188,7 +190,7 @@ class UpdateRepository @Inject constructor(
         Log.d(TAG, "Checking for updates, current version: $currentVersion, beta enabled: $betaEnabled")
 
         return try {
-            val response = api.getReleases()
+            val response = api.getRepoReleases(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, perPage = RELEASES_PER_PAGE)
 
             if (!response.isSuccessful) {
                 val error = UpdateState.Error("GitHub API returned ${response.code()}")
@@ -265,7 +267,7 @@ class UpdateRepository @Inject constructor(
     suspend fun listReleases(page: Int): Result<ReleasePage> {
         return try {
             val betaEnabled = userPreferencesRepository.userPreferences.first().betaUpdatesEnabled
-            val response = api.getReleases(perPage = RELEASES_PER_PAGE, page = page)
+            val response = api.getRepoReleases(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, perPage = RELEASES_PER_PAGE, page = page)
             if (!response.isSuccessful) {
                 return Result.failure(Exception("GitHub API returned ${response.code()}"))
             }

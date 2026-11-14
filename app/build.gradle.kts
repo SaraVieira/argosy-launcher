@@ -58,6 +58,8 @@ android {
         buildConfigField("String", "UCDATA_PATH", "\"$ucdataPath\"")
         buildConfigField("String", "DISCORD_APP_ID", "\"${envString("DISCORD_APP_ID")}\"")
         buildConfigField("Boolean", "DISCORD_SDK_ENABLED", envString("DISCORD_SDK_ENABLED", "false"))
+        buildConfigField("String", "UPDATE_REPO_OWNER", "\"${envString("UPDATE_REPO_OWNER", "nendotools")}\"")
+        buildConfigField("String", "UPDATE_REPO_NAME", "\"${envString("UPDATE_REPO_NAME", "argosy-launcher")}\"")
         buildConfigField("String", "SOCIAL_API_URL", "\"https://api.argosy.dev/\"")
         // QuayPass server signing pubkey(s): comma-separated base64 Ed25519
         // public keys. Multiple values supported for zero-downtime rotation.
