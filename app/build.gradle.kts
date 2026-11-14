@@ -32,6 +32,7 @@ android {
 
     defaultConfig {
         applicationId = "com.nendo.argosy"
+        buildConfigField("String", "BASE_APPLICATION_ID", "\"$applicationId\"")
         minSdk = 26
         targetSdk = 35
         versionCode = 384

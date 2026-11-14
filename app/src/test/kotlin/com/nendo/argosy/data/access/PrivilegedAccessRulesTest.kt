@@ -85,7 +85,14 @@ class PrivilegedAccessRulesTest {
         val script = PrivilegedAccessRules.checkScript(userId = 0)
         assertTrue("/data/media/0/Android/data" in script)
         assertTrue("/storage/emulated/0/Android/data" in script)
-        assertTrue("*/com.nendo.argosy*) continue" in script)
+        assertTrue("*/${com.nendo.argosy.BuildConfig.BASE_APPLICATION_ID}*) continue" in script)
         assertTrue(script.trimEnd().endsWith("echo $reached"))
+    }
+
+    @Test
+    fun `the skipped folder prefix covers every build flavour of this app`() {
+        val base = com.nendo.argosy.BuildConfig.BASE_APPLICATION_ID
+        assertTrue(com.nendo.argosy.BuildConfig.APPLICATION_ID.startsWith(base))
+        assertTrue(".debug" !in base)
     }
 }

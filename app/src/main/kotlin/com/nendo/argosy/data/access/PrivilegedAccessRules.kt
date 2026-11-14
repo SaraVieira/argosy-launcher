@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.access
 
+import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.data.model.PrivilegedReach
 import com.nendo.argosy.data.model.PrivilegedRoute
 import com.nendo.argosy.util.RootShell
@@ -8,7 +9,7 @@ internal object PrivilegedAccessRules {
 
     const val REACHED = "PRIVILEGED:reached"
     private const val ROOT_UID = 0
-    private const val OWN_PACKAGE_PREFIX = "com.nendo.argosy"
+    private const val OWN_PACKAGE_PREFIX = BuildConfig.BASE_APPLICATION_ID
 
     fun offeredRoute(vendorRoot: Boolean, magiskInstalled: Boolean, shizukuRunning: Boolean): PrivilegedRoute? = when {
         vendorRoot -> null
