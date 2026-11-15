@@ -171,12 +171,13 @@ class RomScanner @Inject constructor(
     private fun tryParseRom(file: File, parentDir: File): Triple<String, String, String>? {
         val extension = file.extension.lowercase()
         if (extension.isEmpty()) return null
+        if (extension == "png" && !Pico8CartFiles.isCartImage(file.name, parentDir.name)) return null
 
         val platforms = PlatformDefinitions.getPlatformsForExtension(extension)
         if (platforms.isEmpty()) return null
 
         val platform = resolvePlatform(platforms, parentDir, file)
-        val title = cleanRomTitle(file.nameWithoutExtension)
+        val title = cleanRomTitle(Pico8CartFiles.titleStem(file.name))
         val sortTitle = createSortTitle(title)
 
         return Triple(sortTitle, platform.slug, file.absolutePath)

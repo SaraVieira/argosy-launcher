@@ -500,7 +500,8 @@ object EmulatorRegistry {
             supportedPlatforms = setOf("pico8"),
             launchAction = Intent.ACTION_VIEW,
             launchConfig = LaunchConfig.Custom(
-                activityClass = "com.godot.game.GodotAppLauncher"
+                activityClass = "com.godot.game.GodotAppLauncher",
+                defaultDataBinding = RomBindingFormat.ABSOLUTE_PATH
             ),
             downloadUrl = "https://github.com/Macs75/pico8-android/releases",
             releaseSource = ReleaseSource.GitHub("Macs75/pico8-android")
