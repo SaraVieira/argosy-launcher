@@ -77,7 +77,6 @@ class PlaySessionTrackerNoticesTest {
         gameUpdateBus = mockk(relaxed = true),
         emulatorResolver = mockk(relaxed = true),
         fileAccessLayer = mockk(relaxed = true),
-        socialRepository = lazyMock(),
         saveRecoveryGate = SaveRecoveryGate(),
         reconcileAchievementsOnSessionEndUseCase = lazyMock(),
         savePathAuthority = mockk(relaxed = true),

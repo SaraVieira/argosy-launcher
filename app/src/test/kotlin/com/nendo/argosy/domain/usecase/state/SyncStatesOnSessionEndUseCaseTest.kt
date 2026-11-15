@@ -50,13 +50,14 @@ class SyncStatesOnSessionEndUseCaseTest {
     private val serialResolver = mockk<StateSerialResolver>()
     private val fileAccessLayer = mockk<com.nendo.argosy.data.storage.FileAccessLayer>(relaxed = true)
     private val preferences = MutableStateFlow(UserPreferences(secureSaves = false))
+    private val retroarch = EmulatorRegistry.getById("retroarch")!!
 
     private val file = File("slot1.state1")
     private val existing = StateCacheEntity(
         id = 11L,
         gameId = GAME_ID,
         platformSlug = "snes",
-        emulatorId = EmulatorRegistry.BUILTIN_ID,
+        emulatorId = "retroarch",
         slotNumber = 1,
         cachedAt = Instant.ofEpochSecond(1_000),
         stateSize = 1,
@@ -79,7 +80,7 @@ class SyncStatesOnSessionEndUseCaseTest {
         coEvery { emulatorConfigDao.getByGameId(any()) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(any()) } returns null
         every { emulatorDetector.installedEmulators } returns MutableStateFlow(emptyList())
-        every { emulatorDetector.getPreferredEmulator(any(), any()) } returns null
+        every { emulatorDetector.getPreferredEmulator(any()) } returns null
         coEvery { ownershipTracker.claim(any(), any()) } returns StateClaim.Mine
         coEvery { accountSwitchMarkerStore.isSwitching() } returns false
         coEvery {
@@ -101,8 +102,6 @@ class SyncStatesOnSessionEndUseCaseTest {
             emulatorResolver = EmulatorResolver(
                 emulatorDetector = emulatorDetector,
                 emulatorConfigDao = emulatorConfigDao,
-                userPreferencesRepository = preferencesRepository,
-                libretroCoreMgr = mockk(relaxed = true),
                 installedAppResolver = mockk(relaxed = true) { every { isAppInstalled(any()) } returns false }
             ),
             accountSwitchMarkerStore = accountSwitchMarkerStore,
@@ -113,11 +112,10 @@ class SyncStatesOnSessionEndUseCaseTest {
 
     @Test
     fun `session end files states under the emulator that ran, not the configured one`() = runTest {
-        val retroarch = EmulatorRegistry.getById("retroarch")!!
         coEvery { emulatorConfigDao.getByGameId(GAME_ID) } returns EmulatorConfigEntity(
             platformId = PLATFORM_ID,
             gameId = GAME_ID,
-            packageName = EmulatorRegistry.BUILTIN_PACKAGE,
+            packageName = EmulatorRegistry.getById("super_zsnes")!!.packageName,
             displayName = null,
             coreName = null
         )
@@ -142,10 +140,9 @@ class SyncStatesOnSessionEndUseCaseTest {
 
     @Test
     fun `a session with no recorded package files states under the emulator the launch resolves`() = runTest {
-        val retroarch = EmulatorRegistry.getById("retroarch")!!
         val installed = InstalledEmulator(def = retroarch, versionName = "1.0", versionCode = 1L)
         every { emulatorDetector.installedEmulators } returns MutableStateFlow(listOf(installed))
-        every { emulatorDetector.getPreferredEmulator("snes", any()) } returns installed
+        every { emulatorDetector.getPreferredEmulator("snes") } returns installed
 
         useCase(GAME_ID, "", queueUploads = false)
 
@@ -158,7 +155,7 @@ class SyncStatesOnSessionEndUseCaseTest {
     fun `off-session state matching the cached slot is not adopted`() = runTest {
         coEvery { stateCacheManager.hasSameContent(existing, file) } returns true
 
-        useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify(exactly = 0) {
             stateCacheManager.cacheState(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -169,7 +166,7 @@ class SyncStatesOnSessionEndUseCaseTest {
     fun `off-session state that differs from the cached slot is adopted`() = runTest {
         coEvery { stateCacheManager.hasSameContent(existing, file) } returns false
 
-        val result = useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        val result = useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         assertEquals(StateSyncResult.Cached(1, 0), result)
         coVerify { stateCacheManager.markForUpload(42L) }
@@ -183,7 +180,7 @@ class SyncStatesOnSessionEndUseCaseTest {
             serverUpdatedAt = Instant.ofEpochSecond(3_000)
         )
 
-        useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify { stateCacheManager.clearServerLink(existing.id) }
     }
@@ -196,7 +193,7 @@ class SyncStatesOnSessionEndUseCaseTest {
             serverUpdatedAt = Instant.ofEpochSecond(1_500)
         )
 
-        useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify(exactly = 0) { stateCacheManager.clearServerLink(any()) }
     }
@@ -207,7 +204,7 @@ class SyncStatesOnSessionEndUseCaseTest {
             stateCacheManager.discoverStatesForGame(any(), any(), any(), any(), any(), any(), any())
         } returns listOf(DiscoveredState(file, slotNumber = 1, lastModified = Instant.ofEpochSecond(500)))
 
-        useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify(exactly = 0) { stateCacheManager.hasSameContent(any(), any()) }
     }
@@ -216,7 +213,7 @@ class SyncStatesOnSessionEndUseCaseTest {
     fun `nothing is adopted during an account switch`() = runTest {
         coEvery { accountSwitchMarkerStore.isSwitching() } returns true
 
-        val result = useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        val result = useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         assertEquals(StateSyncResult.NotConfigured, result)
         coVerify(exactly = 0) {
@@ -228,7 +225,7 @@ class SyncStatesOnSessionEndUseCaseTest {
     fun `nothing is adopted while Secure Saves is on`() = runTest {
         preferences.value = UserPreferences(secureSaves = true)
 
-        val result = useCase.adoptOffSessionStates(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        val result = useCase.adoptOffSessionStates(GAME_ID, retroarch.packageName, queueUploads = false)
 
         assertEquals(StateSyncResult.NotConfigured, result)
         coVerify(exactly = 0) {
@@ -240,7 +237,7 @@ class SyncStatesOnSessionEndUseCaseTest {
     fun `the game's trusted serials reach the repair and the discovery`() = runTest {
         coEvery { serialResolver.serialsFor(GAME_ID, any()) } returns setOf("SLUS-00001")
 
-        useCase(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify { stateCacheManager.detachForeignSerialStates(GAME_ID, setOf("SLUS-00001")) }
         coVerify {
@@ -257,14 +254,14 @@ class SyncStatesOnSessionEndUseCaseTest {
             stateCacheManager.cacheState(any(), any(), any(), any(), any(), captureNullable(cachedCore), any(), any(), any(), any())
         } returns 42L
 
-        useCase(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase(GAME_ID, retroarch.packageName, queueUploads = false)
 
         assertEquals(cachedCore.captured, lookedUpCore.captured)
     }
 
     @Test
     fun `discovered state files are opened for reading before they are cached`() = runTest {
-        useCase(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase(GAME_ID, retroarch.packageName, queueUploads = false)
 
         io.mockk.coVerifyOrder {
             fileAccessLayer.prepareSaveAccess(*anyVararg())
@@ -274,7 +271,7 @@ class SyncStatesOnSessionEndUseCaseTest {
 
     @Test
     fun `session end still caches a newer slot without comparing content`() = runTest {
-        useCase(GAME_ID, EmulatorRegistry.BUILTIN_PACKAGE, queueUploads = false)
+        useCase(GAME_ID, retroarch.packageName, queueUploads = false)
 
         coVerify(exactly = 0) { stateCacheManager.hasSameContent(any(), any()) }
         coVerify { stateCacheManager.markForUpload(42L) }

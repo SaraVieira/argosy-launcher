@@ -7,7 +7,6 @@ import com.nendo.argosy.DualScreenManagerHolder
 import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.data.permissions.PermissionGrant
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.setup.SetupCoreDownloads
 import com.nendo.argosy.data.setup.SetupStateRepository
 import com.nendo.argosy.domain.model.ArgosyPermission
 import com.nendo.argosy.domain.model.PermissionAvailability
@@ -72,7 +71,6 @@ class SetupViewModel @Inject constructor(
     private val application: Application,
     private val preferencesRepository: UserPreferencesRepository,
     private val setupStateRepository: SetupStateRepository,
-    private val coreDownloads: SetupCoreDownloads,
     private val signIn: RommSignInDelegate,
     private val access: SetupAccessDelegate,
     private val folders: SetupFoldersDelegate,
@@ -89,10 +87,9 @@ class SetupViewModel @Inject constructor(
         },
         folders.state,
         platforms.state,
-        coreDownloads.progress,
         personalize.state
-    ) { base, folderState, platformState, cores, personal ->
-        base.withPersonal(personal).copy(folders = folderState, platforms = platformState, cores = cores)
+    ) { base, folderState, platformState, personal ->
+        base.withPersonal(personal).copy(folders = folderState, platforms = platformState)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SetupUiState())
 
     val buttonCheck: ButtonCheckController get() = personalize.buttonCheck
@@ -151,8 +148,7 @@ class SetupViewModel @Inject constructor(
         signIn = signIn.state.value,
         access = access.state.value,
         folders = folders.state.value,
-        platforms = platforms.state.value,
-        cores = coreDownloads.progress.value
+        platforms = platforms.state.value
     )
 
     private suspend fun openAtFirstMissingItem() {
@@ -446,10 +442,7 @@ class SetupViewModel @Inject constructor(
             platforms.toggle(target.id)
             InputResult.toggled(!enabled)
         }
-        SetupTarget.CoreDownloads -> {
-            platforms.toggleDownloadCores()
-            InputResult.toggled(!state.platforms.downloadCores)
-        }
+        SetupTarget.CoreDownloads -> InputResult.UNHANDLED
         SetupTarget.SelectAllPlatforms -> {
             platforms.toggleAll()
             InputResult.HANDLED
@@ -563,10 +556,7 @@ class SetupViewModel @Inject constructor(
             SetupPage.SAVE_SYNC -> viewModelScope.launch {
                 if (setupStateRepository.answerSaveSync(state.saveSyncOn)) advance()
             }
-            SetupPage.PLATFORMS -> {
-                platforms.startCoreDownloads()
-                advance()
-            }
+            SetupPage.PLATFORMS -> advance()
             SetupPage.DEFAULT_HOME -> if (state.facts.defaultHome) advance() else _effects.tryEmit(SetupEffect.RequestHomeRole)
             SetupPage.SCREENS, SetupPage.CONTROLLER, SetupPage.BUTTON_CHECK,
             SetupPage.THEME, SetupPage.HOME_LAYOUT, SetupPage.LIBRARY_LOOK -> advance()

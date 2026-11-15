@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -16,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.nendo.argosy.R
 import com.nendo.argosy.domain.model.ArgosyPermission
@@ -23,7 +25,7 @@ import com.nendo.argosy.data.preferences.ControlsPreferences
 import com.nendo.argosy.data.preferences.MenuWrapMode
 import com.nendo.argosy.data.preferences.SelectSwapMode
 import com.nendo.argosy.hardware.SystemHotkeyAction
-import com.nendo.argosy.libretro.HotkeyManager
+import com.nendo.argosy.data.libretro.HotkeyManager
 import com.nendo.argosy.ui.common.labelRes
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.Modal
@@ -87,6 +89,7 @@ internal sealed class NavigationItem(
     )
     data object CheckButtons :
         Row("checkButtons", "controller", R.string.settings_navigation_check_buttons_title)
+    data object ControllerOrder : Row("controllerOrder", "controller", R.string.settings_builtin_controls_order_title)
     data object IgnoreControllerTouchpad : Row(
         "ignoreControllerTouchpad",
         "controller",
@@ -186,7 +189,7 @@ internal sealed class NavigationItem(
         val ALL: List<NavigationItem>
             get() = listOf(
                 ControllerHeader,
-                ControllerLayout, SwapAB, SwapXY, SwapStartSelect, ForgetController, CheckButtons,
+                ControllerLayout, SwapAB, SwapXY, SwapStartSelect, ForgetController, CheckButtons, ControllerOrder,
                 IgnoreControllerTouchpad,
                 FeedbackSpacer, FeedbackHeader,
                 HapticFeedback, VibrationStrength,
@@ -330,6 +333,22 @@ fun NavigationSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 subtitle = stringResource(R.string.settings_navigation_check_buttons_subtitle),
                 isFocused = isFocused(item),
                 onClick = { viewModel.openButtonCheck() }
+            )
+
+            is NavigationItem.ControllerOrder -> NavigationPreference(
+                icon = Icons.Default.SortByAlpha,
+                title = stringResource(item.labelRes),
+                subtitle = if (uiState.controllerOrderCount > 0) {
+                    pluralStringResource(
+                        R.plurals.settings_builtin_controls_order_assigned,
+                        uiState.controllerOrderCount,
+                        uiState.controllerOrderCount
+                    )
+                } else {
+                    stringResource(R.string.settings_builtin_controls_order_subtitle)
+                },
+                isFocused = isFocused(item),
+                onClick = { viewModel.showControllerOrderModal() }
             )
 
             is NavigationItem.IgnoreControllerTouchpad -> SwitchPreference(

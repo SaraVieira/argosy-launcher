@@ -167,7 +167,6 @@ class LibraryLaunchHoldTest {
         steamLauncherLinkController = mockk(relaxed = true),
         downloadFileStatusRepository = mockk(relaxed = true),
         siblingChoice = mockk(relaxed = true),
-        socialRepository = mockk(relaxed = true),
         saveListStatusRepository = mockk(relaxed = true),
         libraryDefaultPlatformMigration = mockk(relaxed = true),
         showcaseSource = mockk(relaxed = true),

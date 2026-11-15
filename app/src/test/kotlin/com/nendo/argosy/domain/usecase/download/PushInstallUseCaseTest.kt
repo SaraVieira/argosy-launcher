@@ -8,7 +8,6 @@ import com.nendo.argosy.data.local.entity.GameFileEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.model.VariantCategory
 import com.nendo.argosy.data.platform.LocalPlatformIds
-import com.nendo.argosy.data.preferences.BuiltinEmulatorPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.GameRepository
@@ -19,7 +18,6 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -33,7 +31,6 @@ class PushInstallUseCaseTest {
     private lateinit var platformRepository: PlatformRepository
     private lateinit var gameRepository: GameRepository
     private lateinit var emulatorDetector: EmulatorDetector
-    private lateinit var builtinPreferences: BuiltinEmulatorPreferencesRepository
     private lateinit var downloadGameUseCase: DownloadGameUseCase
     private lateinit var useCase: PushInstallUseCase
     private val emulator: InstalledEmulator = mockk(relaxed = true)
@@ -45,7 +42,6 @@ class PushInstallUseCaseTest {
         platformRepository = mockk(relaxed = true)
         gameRepository = mockk(relaxed = true)
         emulatorDetector = mockk(relaxed = true)
-        builtinPreferences = mockk(relaxed = true)
         downloadGameUseCase = mockk(relaxed = true)
         useCase = PushInstallUseCase(
             romMRepository,
@@ -53,7 +49,6 @@ class PushInstallUseCaseTest {
             platformRepository,
             gameRepository,
             emulatorDetector,
-            builtinPreferences,
             downloadGameUseCase,
             mockk(relaxed = true)
         )
@@ -61,9 +56,8 @@ class PushInstallUseCaseTest {
         coEvery { romMRepository.syncSingleRom(ROM_ID) } returns RomMResult.Success(game())
         coEvery { platformRepository.getAllPlatformIds() } returns setOf(PLATFORM_ID)
         coEvery { gameRepository.validateAndDiscoverGame(GAME_ID) } returns false
-        every { builtinPreferences.isBuiltinLibretroEnabled() } returns flowOf(true)
         coEvery { emulatorDetector.detectEmulators() } returns emptyList()
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns emulator
+        every { emulatorDetector.getPreferredEmulator("nes") } returns emulator
         coEvery { gameFileDao.getFilesForGame(GAME_ID) } returns emptyList()
         coEvery { downloadGameUseCase(any(), any()) } returns DownloadResult.Queued
     }
@@ -99,7 +93,7 @@ class PushInstallUseCaseTest {
 
     @Test
     fun `a platform with no emulator after a fresh detection fails without queueing`() = runTest {
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
         assertEquals(
             PushInstallOutcome.Failed(PushInstallFailure.NO_EMULATOR),
@@ -118,22 +112,10 @@ class PushInstallUseCaseTest {
 
     @Test
     fun `an emulator installed after the cache was filled is found by re-detecting`() = runTest {
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returnsMany listOf(null, emulator)
+        every { emulatorDetector.getPreferredEmulator("nes") } returnsMany listOf(null, emulator)
 
         assertEquals(PushInstallOutcome.Queued, useCase(ROM_ID, emptyList()))
         coVerify(exactly = 1) { emulatorDetector.detectEmulators() }
-    }
-
-    @Test
-    fun `the emulator check honours a disabled built-in emulator`() = runTest {
-        every { builtinPreferences.isBuiltinLibretroEnabled() } returns flowOf(false)
-        every { emulatorDetector.getPreferredEmulator("nes", false) } returns null
-
-        assertEquals(
-            PushInstallOutcome.Failed(PushInstallFailure.NO_EMULATOR),
-            useCase(ROM_ID, emptyList())
-        )
-        verify(exactly = 0) { emulatorDetector.getPreferredEmulator(any(), true) }
     }
 
     @Test
@@ -142,7 +124,7 @@ class PushInstallUseCaseTest {
         coEvery { romMRepository.syncSingleRom(ROM_ID) } returns RomMResult.Success(android)
 
         assertEquals(PushInstallOutcome.Queued, useCase(ROM_ID, emptyList()))
-        verify(exactly = 0) { emulatorDetector.getPreferredEmulator(any(), any()) }
+        verify(exactly = 0) { emulatorDetector.getPreferredEmulator(any()) }
     }
 
     @Test

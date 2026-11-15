@@ -19,7 +19,6 @@ import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.emulator.DiscOption
 import com.nendo.argosy.data.preferences.DisplayRoleOverride
 import com.nendo.argosy.data.preferences.SessionStateStore
-import com.nendo.argosy.data.preferences.EmulatorDisplayTarget
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.SaveCacheManager
 import com.nendo.argosy.hardware.CompanionGuardService
@@ -31,7 +30,6 @@ import com.nendo.argosy.data.remote.ra.RAConsoleIds
 import com.nendo.argosy.ui.common.displayTitleId
 import com.nendo.argosy.ui.common.reportTitleIdRecheck
 import com.nendo.argosy.ui.common.toNotificationText
-import com.nendo.argosy.data.social.ReviewWriteEvent
 import com.nendo.argosy.ui.input.InputDedupBuffer
 import com.nendo.argosy.ui.input.InputSignature
 import com.nendo.argosy.core.game.AchievementUi
@@ -80,7 +78,6 @@ class DualScreenManager(
         com.nendo.argosy.domain.usecase.sync.PrefetchGameSaveDataUseCase,
     internal val platformRepository: PlatformRepository,
     internal val collectionRepository: CollectionRepository,
-    internal val socialRepository: com.nendo.argosy.data.social.SocialRepository,
     internal val downloadQueueDao: DownloadQueueDao,
     internal val downloadQueueRepository: com.nendo.argosy.data.repository.DownloadQueueRepository,
     internal val gameFileDao: GameFileDao,
@@ -115,7 +112,6 @@ class DualScreenManager(
     internal val ambientAudioManager: com.nendo.argosy.ui.audio.AmbientAudioManager,
     internal val emulatorConfigDao: com.nendo.argosy.data.local.dao.EmulatorConfigDao,
     internal val configureEmulatorUseCase: com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase,
-    internal val builtinCoreResolver: com.nendo.argosy.data.emulator.BuiltinCoreResolver,
     internal val saveHandlerRegistry: com.nendo.argosy.data.sync.platform.PlatformSaveHandlerRegistry,
     internal val steamRepository: com.nendo.argosy.data.repository.SteamRepository,
     internal val playSessionTracker: com.nendo.argosy.data.emulator.PlaySessionTracker,
@@ -150,7 +146,7 @@ class DualScreenManager(
     internal val setupStateRepository: com.nendo.argosy.data.setup.SetupStateRepository? = null,
     initialRolesSwapped: Boolean = false,
     private val gameWindowMover: com.nendo.argosy.hardware.GameWindowMover =
-        com.nendo.argosy.hardware.ThorGameWindowMover(context),
+        com.nendo.argosy.hardware.ThorGameWindowMover(),
     private val attachedScreens: () -> List<com.nendo.argosy.util.AttachedScreen> = {
         com.nendo.argosy.util.ScreenCatalog(context.applicationContext).attachedScreens()
     }
@@ -419,10 +415,7 @@ class DualScreenManager(
     private fun applyLayoutRoles(swapped: Boolean) {
         recordOverrideFollowingLayout(swapped)
         if (swapped == _isRolesSwapped.value) return
-        if (sessionStateStore.hasActiveSession()) {
-            moveGameWithRoles(swapped) { commitRoleSwap(swapped) }
-            return
-        }
+        if (sessionStateStore.hasActiveSession()) return
         commitRoleSwap(swapped)
         if (swapped) refocusMain()
     }
@@ -596,7 +589,7 @@ class DualScreenManager(
 
     /**
      * Dedups raw Android input events seen across all dispatch paths (primary activity,
-     * companion activity, libretro activity, and forwarded keys). The first path to
+     * companion activity, and forwarded keys). The first path to
      * [claimInput] wins; parallel deliveries of the same physical event get dropped.
      */
     private val inputDedup = InputDedupBuffer()
@@ -874,7 +867,6 @@ class DualScreenManager(
         fun quickSave()
         fun loadState(slotNumber: Int, savedAtMillis: Long)
         fun screenshot()
-        fun openCheats()
         fun openGameSettings()
         fun quit()
     }
@@ -893,7 +885,7 @@ class DualScreenManager(
         }
 
     /**
-     * Quits the running game from the dashboard. A built-in game quits itself. An external one is
+     * Quits the running game from the dashboard. A stream quits itself. An external one is
      * covered by the launcher on its display, which ends the session the way leaving any game does.
      */
     fun quitSession() {
@@ -1599,87 +1591,12 @@ class DualScreenManager(
                 com.nendo.argosy.ui.dualscreen.PresentationSlot.Fallback
             )
 
-    /**
-     * A running built-in game whose core survives a display move. Called on the main thread around
-     * a move the manager starts; the game reports arrival through [onGameMovedToDisplay].
-     */
-    interface LiveMoveHost {
-        fun beforeDisplayMove()
-        fun displayMoveAbandoned()
-    }
-
-    private class AbandonedMove(val from: Int, val target: Int, val commit: () -> Unit)
-
     private val _taskMoveCapable = MutableStateFlow(false)
-    private val _liveMoveHost = MutableStateFlow<LiveMoveHost?>(null)
-    private val _gameWindowDisplay = MutableStateFlow<Int?>(null)
-
-    @Volatile
-    private var gameMoveInProgress = false
-
-    @Volatile
-    private var abandonedMove: AbandonedMove? = null
-
-    /**
-     * True from the moment a role swap starts carrying the game to another display until the game
-     * has focus there. Session teardown and focus restoring stand down while it holds.
-     */
-    val isMovingGame: Boolean
-        get() = gameMoveInProgress
-
-    fun registerLiveMoveHost(host: LiveMoveHost) {
-        _liveMoveHost.value = host
-    }
-
-    fun unregisterLiveMoveHost(host: LiveMoveHost) {
-        _liveMoveHost.compareAndSet(host, null)
-    }
-
-    /**
-     * Records where the game's window now sits. A move that lands after [relocateGame] gave up on it
-     * still commits its roles, since the game is on that display whether or not the wait saw it.
-     */
-    fun onGameMovedToDisplay(displayId: Int) {
-        _gameWindowDisplay.value = displayId
-        if (gameMoveInProgress) return
-        val late = abandonedMove?.takeIf { it.target == displayId } ?: return
-        abandonedMove = null
-        if (emulatorDisplayId != late.from) return
-        Log.i(TAG, "Game reached display $displayId after the move was abandoned, committing roles")
-        emulatorDisplayId = displayId
-        late.commit()
-        focusGameDisplay(displayId)
-    }
-
-    /**
-     * Whether a role swap right now carries the running game to the display its role lands on.
-     */
-    val liveSwapAvailable: StateFlow<Boolean> =
-        kotlinx.coroutines.flow.combine(
-            _taskMoveCapable,
-            _liveMoveHost,
-            _swappedIsGameActive,
-            _emulatorDisplay,
-            _isRolesSwapped
-        ) { capable, host, gameActive, gameDisplay, swapped ->
-            capable && host != null && gameActive &&
-                liveMoveTarget(gameDisplay, swapped, !swapped) != null
-        }.stateIn(activityIndependentScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     /**
      * Whether this device can carry a task to another display without relaunching it.
      */
     val taskMoveAvailable: StateFlow<Boolean> = _taskMoveCapable.asStateFlow()
-
-    /**
-     * The display a role swap would carry the running built-in game to right now; null when
-     * [liveSwapAvailable] is false.
-     */
-    fun liveMoveTargetDisplayId(): Int? {
-        if (!liveSwapAvailable.value) return null
-        val swapped = _isRolesSwapped.value
-        return liveMoveTarget(emulatorDisplayId, swapped, !swapped)
-    }
 
     /**
      * Carries background task [taskId] to [displayId] as it is, for when it next comes forward.
@@ -1693,72 +1610,6 @@ class DualScreenManager(
     private fun probeTaskMover() {
         if (_taskMoveCapable.value) return
         activityIndependentScope.launch { _taskMoveCapable.value = gameWindowMover.isAvailable() }
-    }
-
-    private fun liveMoveTarget(gameDisplay: Int?, swapped: Boolean, newSwapped: Boolean): Int? {
-        if (gameDisplay == null || displayAffinityHelper.isDockedDark) return null
-        val roles = displayAffinityHelper.getRoleDisplayIds(swapped) ?: return null
-        val role = when (gameDisplay) {
-            roles.first -> EmulatorDisplayTarget.PRIMARY
-            roles.second -> EmulatorDisplayTarget.PRESENTATION
-            else -> return null
-        }
-        return DisplayAffinityHelper.resolveDisplayTargetId(
-            target = role,
-            roleDisplayIds = displayAffinityHelper.getRoleDisplayIds(newSwapped),
-            appScreenDisplayId = displayAffinityHelper.appScreenDisplayId(newSwapped)
-        )?.takeIf { it != gameDisplay }?.let(displayAffinityHelper::usableDisplayId)
-    }
-
-    private fun moveGameWithRoles(newSwapped: Boolean, commit: () -> Unit) {
-        if (gameMoveInProgress || !_taskMoveCapable.value) return
-        val host = _liveMoveHost.value ?: return
-        val from = emulatorDisplayId ?: return
-        val target = liveMoveTarget(from, _isRolesSwapped.value, newSwapped) ?: return
-        gameMoveInProgress = true
-        abandonedMove = null
-        activityIndependentScope.launch {
-            try {
-                if (!relocateGame(host, from, target)) {
-                    abandonedMove = AbandonedMove(from, target, commit)
-                    return@launch
-                }
-                commit()
-                focusGameDisplay(target)
-            } finally {
-                gameMoveInProgress = false
-            }
-        }
-    }
-
-    private suspend fun relocateGame(host: LiveMoveHost, from: Int, target: Int): Boolean {
-        host.beforeDisplayMove()
-        _gameWindowDisplay.value = null
-        emulatorDisplayId = target
-        val requested = gameWindowMover.moveGame(target)
-        val arrived = requested && withTimeoutOrNull(GAME_MOVE_CONFIRM_MS) {
-            _gameWindowDisplay.first { it == target }
-        } != null
-        if (!arrived) {
-            Log.w(TAG, "Game did not reach display $target (requested=$requested), keeping it on $from")
-            emulatorDisplayId = from
-            host.displayMoveAbandoned()
-        }
-        return arrived
-    }
-
-    private fun focusGameDisplay(displayId: Int) {
-        if (isKeyguardShowing) return
-        try {
-            FocusDirectorActivity.launchOnDisplay(appContext, displayId)
-        } catch (e: SecurityException) {
-            val a11y = FocusAccessibilityService.instance
-            if (a11y != null) {
-                a11y.tapOnDisplay(displayId)
-            } else {
-                Log.w(TAG, "Game focus blocked on display $displayId (device restriction)")
-            }
-        }
     }
 
     private var companionWatchdogJob: Job? = null
@@ -1895,9 +1746,7 @@ class DualScreenManager(
 
     private fun isEmulatorStillOnScreen(context: Context, launcherDisplay: Int): Boolean {
         val emulatorPackage = sessionStateStore.getEmulatorPackage() ?: return false
-        if (emulatorPackage == com.nendo.argosy.data.emulator.EmulatorRegistry.BUILTIN_PACKAGE) {
-            return isBuiltInGameAlive(context)
-        }
+        if (emulatorPackage == com.nendo.argosy.data.emulator.EmulatorRegistry.BUILTIN_PACKAGE) return false
         return permissionHelper.isPackageOnScreenOrRecent(context, emulatorPackage)
             ?: (expectedGameDisplay() != launcherDisplay)
     }
@@ -1906,12 +1755,6 @@ class DualScreenManager(
         emulatorDisplayId
             ?: sessionStateStore.getEmulatorDisplayId()
             ?: displayAffinityHelper.getEmulatorDisplayId(_isRolesSwapped.value)
-
-    private fun isBuiltInGameAlive(context: Context): Boolean {
-        val activityManager = context.getSystemService(android.app.ActivityManager::class.java)
-            ?: return true
-        return com.nendo.argosy.hardware.builtInGameTask(activityManager) != null
-    }
 
     /**
      * Whether the emulator has left the display a launcher surface just took focus on. Focus on the
@@ -1938,20 +1781,6 @@ class DualScreenManager(
             checks = EMULATOR_SETTLE_CHECKS,
             intervalMs = EMULATOR_SETTLE_MS
         )
-    }
-
-    private suspend fun closeBackgroundedBuiltInGame(activity: android.app.Activity) {
-        val builtIn = com.nendo.argosy.data.emulator.EmulatorRegistry.BUILTIN_PACKAGE
-        if (sessionStateStore.getEmulatorPackage() != builtIn) return
-        if (!sessionEndCoordinator.stopsAfterLeavingScreen(builtIn)) return
-        if (isSessionSettling()) {
-            delay(EMULATOR_SETTLE_MS)
-            if (!activity.hasWindowFocus() || launchProgressTracker.launchLive.value) return
-        }
-        val activityManager = activity.getSystemService(android.app.ActivityManager::class.java) ?: return
-        val gameTask = com.nendo.argosy.hardware.builtInGameAppTask(activityManager) ?: return
-        Log.d(TAG, "Launcher focused while the built-in game is in the background, closing it")
-        runCatching { gameTask.finishAndRemoveTask() }
     }
 
     private fun isSessionSettling(): Boolean {
@@ -1994,9 +1823,7 @@ class DualScreenManager(
     /**
      * A launcher window gaining focus on the display its game ran on is the launcher's signal that
      * the game closed. The session ends once [emulatorLeftScreen] confirms it; a game on another
-     * display keeps running. A built-in game left paused in the background is closed first when games
-     * do not stay open, and its own teardown ends the session; one that stays open keeps running and
-     * only its session ends. While a launch is live the focus gain is a launcher surface returning
+     * display keeps running. While a launch is live the focus gain is a launcher surface returning
      * before its game window exists, not the game closing; the check waits for the launch to clear.
      * A launch that goes live while the check is settling stops it the same way.
      */
@@ -2004,14 +1831,13 @@ class DualScreenManager(
         val ownDisplay = activity.window.decorView.display?.displayId ?: return
         focusedLaunchers[ownDisplay] = java.lang.ref.WeakReference(activity)
         if (launchProgressTracker.launchLive.value) return
-        if (isMovingGame || focusCheck?.isActive == true) return
+        if (focusCheck?.isActive == true) return
         val gameDisplay = emulatorDisplayId
         if (gameDisplay != null && gameDisplay != ownDisplay) return
         focusCheck = scope.launch {
             val live = playSessionTracker.activeSession.value
             if (live?.isStream == true) return@launch
             if (live == null && preferencesRepository.getPersistedSession()?.takeUnless { it.isStream } == null) return@launch
-            closeBackgroundedBuiltInGame(activity)
             val left = emulatorLeftScreen(
                 activity,
                 launcherDisplay = ownDisplay,
@@ -2142,7 +1968,6 @@ class DualScreenManager(
             displayPresent = display != null,
             displayOn = display?.state == android.view.Display.STATE_ON,
             deviceInteractive = isDeviceInteractive(),
-            gameMoving = isMovingGame,
             sessionActive = hasLiveSession() || sessionStateStore.hasActiveSession(),
             gameBoundForThisDisplay = emulatorDisplayId == displayId
         )
@@ -2335,13 +2160,7 @@ class DualScreenManager(
         lastSwapTimeMs = now
 
         val newSwapped = !_isRolesSwapped.value
-        if (sessionStateStore.hasActiveSession()) {
-            moveGameWithRoles(newSwapped) {
-                mirrorOverrideTo(DisplayRoleOverride.matching(newSwapped))
-                applyUserRoleChange(newSwapped)
-            }
-            return
-        }
+        if (sessionStateStore.hasActiveSession()) return
         mirrorOverrideTo(DisplayRoleOverride.matching(newSwapped))
         applyUserRoleChange(newSwapped)
     }
@@ -2362,10 +2181,7 @@ class DualScreenManager(
         activityIndependentScope.launch { preferencesRepository.setDisplayRoleOverride(override) }
         val resolved = DisplayRoleResolver(displayAffinityHelper, sessionStateStore).isSwapped
         if (resolved == _isRolesSwapped.value) return
-        if (sessionStateStore.hasActiveSession()) {
-            moveGameWithRoles(resolved) { applyUserRoleChange(resolved) }
-            return
-        }
+        if (sessionStateStore.hasActiveSession()) return
         applyUserRoleChange(resolved)
     }
 
@@ -2402,7 +2218,7 @@ class DualScreenManager(
         _mediaInfoRequest.value = null
         onRoleSwapped?.invoke(newSwapped)
         eachCompanion { it.onRoleSwapped(newSwapped) }
-        if (!newSwapped && !gameMoveInProgress) controlCompanion?.refocusSelf()
+        if (!newSwapped) controlCompanion?.refocusSelf()
     }
 
     fun broadcastOpenOverlay(eventName: String) {
@@ -2413,10 +2229,9 @@ class DualScreenManager(
         if (isKeyguardShowing) return
         val displayId = emulatorDisplayId ?: return
         if (!sessionStateStore.hasActiveSession()) return
-        if (gameMoveInProgress) return
         scope.launch {
             delay(200)
-            if (isKeyguardShowing || gameMoveInProgress) return@launch
+            if (isKeyguardShowing) return@launch
             val a11y = FocusAccessibilityService.instance
             if (a11y != null) {
                 Log.d(TAG, "Restoring emulator focus via accessibility tap on display $displayId")
@@ -2582,7 +2397,6 @@ class DualScreenManager(
         private const val COMPANION_LAUNCH_VERIFY_MS = 8000L
         private const val MAX_COMPANION_LAUNCH_ATTEMPTS = 3
         private const val SWAP_DEBOUNCE_MS = 500L
-        private const val GAME_MOVE_CONFIRM_MS = 2_000L
 
         /**
          * How long a playback launch waits before directing focus to the player's display. Long
@@ -2709,13 +2523,13 @@ class DualScreenManager(
     }
 
     fun refocusSession() {
-        if (isKeyguardShowing || gameMoveInProgress) return
+        if (isKeyguardShowing) return
         if (!sessionStateStore.hasActiveSession()) return
         sessionRefocus?.invoke()
     }
 
     private fun refocusMain() {
-        if (isKeyguardShowing || gameMoveInProgress) return
+        if (isKeyguardShowing) return
         if (emulatorDisplayId == android.view.Display.DEFAULT_DISPLAY &&
             sessionStateStore.hasActiveSession()
         ) return

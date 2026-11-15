@@ -26,12 +26,10 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FeaturedPlayList
 import androidx.compose.material.icons.filled.ViewCarousel
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
-import com.nendo.argosy.ui.quaypass.QuayPassIcons
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,13 +46,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.nendo.argosy.R
-import com.nendo.argosy.data.social.SocialUser
 import com.nendo.argosy.ui.ACCOUNTS_SECTION_NAME
 import com.nendo.argosy.ui.DRAWER_ACCOUNT_ROW_INDEX
 import com.nendo.argosy.ui.DRAWER_NAV_ITEM_OFFSET
 import com.nendo.argosy.ui.DrawerItem
 import com.nendo.argosy.ui.DrawerState
-import com.nendo.argosy.ui.components.friends.SocialAvatar
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalArgosyTheme
 import com.nendo.argosy.ui.navigation.Screen
@@ -76,8 +72,6 @@ fun MainDrawer(
         ) {
             DrawerStatusBar(
                 isRommConnected = drawerState.rommConnected,
-                localUser = drawerState.localUser,
-                localAvatarDoodle = drawerState.localAvatarDoodle,
                 rommUsername = drawerState.rommUsername,
                 rommAvatarUrl = drawerState.rommAvatarUrl,
                 isFocused = drawerState.navFocusIndex == DRAWER_ACCOUNT_ROW_INDEX,
@@ -167,8 +161,6 @@ private fun NavigationContent(
 @Composable
 private fun DrawerStatusBar(
     isRommConnected: Boolean,
-    localUser: SocialUser?,
-    localAvatarDoodle: String? = null,
     rommUsername: String? = null,
     rommAvatarUrl: String? = null,
     isFocused: Boolean = false,
@@ -190,21 +182,11 @@ private fun DrawerStatusBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        if (localUser != null) {
-            SocialAvatar(
-                displayName = localUser.displayName,
-                avatarColor = localUser.avatarColor,
-                size = Dimens.iconLg,
-                avatarDoodle = localAvatarDoodle,
-                userId = localUser.id
-            )
-        } else {
-            AccountAvatar(
-                name = rommUsername,
-                avatarUrl = rommAvatarUrl,
-                size = Dimens.iconLg
-            )
-        }
+        AccountAvatar(
+            name = rommUsername,
+            avatarUrl = rommAvatarUrl,
+            size = Dimens.iconLg
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = rommUsername ?: stringResource(R.string.ui_drawer_account_none),
@@ -322,7 +304,6 @@ private fun DrawerBadge(count: Int) {
 
 internal fun getIconForRoute(route: String): ImageVector = when (route) {
     Screen.Home.route -> Icons.Filled.FeaturedPlayList
-    Screen.Social.route -> Icons.Default.Groups
     Screen.Library.route -> Icons.Default.VideoLibrary
     Screen.Collections.route -> Icons.Default.CollectionsBookmark
     Screen.MediaLibrary.route -> Icons.Default.Movie
@@ -331,7 +312,6 @@ internal fun getIconForRoute(route: String): ImageVector = when (route) {
     Screen.SaveSync.route -> Icons.Default.CloudSync
     Screen.Apps.route -> Icons.Default.Apps
     Screen.Running.route -> Icons.Default.ViewCarousel
-    Screen.QuayPass.route -> QuayPassIcons.Encounter
     Screen.Settings.route -> Icons.Default.Settings
     else -> Icons.Default.Apps
 }

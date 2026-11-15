@@ -42,8 +42,6 @@ class RouteRestoreTest {
     @Test
     fun `flows that cannot resume are never carried`() {
         assertNull(RouteRestore.concreteRoute(Screen.FirstRun.route, emptyMap(), identity))
-        assertNull(RouteRestore.concreteRoute(Screen.AvatarDoodle.route, emptyMap(), identity))
-        assertNull(RouteRestore.concreteRoute(Screen.PostEditor.route, emptyMap(), identity))
     }
 
     @Test
@@ -67,7 +65,5 @@ class RouteRestoreTest {
         )
         assertEquals(listOf("game/42", "save_timeline/42"), RouteRestore.restoreStack("save_timeline/42"))
         assertEquals(listOf("media_library", "media_item/abc"), RouteRestore.restoreStack("media_item/abc"))
-        assertEquals(listOf("social", "social/profile/u1"), RouteRestore.restoreStack("social/profile/u1"))
-        assertEquals(listOf("social"), RouteRestore.restoreStack("social"))
     }
 }

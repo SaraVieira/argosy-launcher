@@ -12,7 +12,6 @@ import com.nendo.argosy.data.local.ALauncherDatabase
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.SessionStateStore
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.data.storage.StorageAttributionRepository
 import com.nendo.argosy.data.storage.StorageCategory
 import com.nendo.argosy.util.AppPaths
@@ -82,7 +81,6 @@ class DatabaseAdminRepository @Inject constructor(
     private val downloadManager: Lazy<DownloadManager>,
     private val emulatorDownloadManager: Lazy<EmulatorDownloadManager>,
     private val mediaDownloadManager: Lazy<MediaDownloadManager>,
-    private val socialRepository: Lazy<SocialRepository>,
     private val sfxCacheCleaner: Lazy<SfxCacheCleaner>,
     private val hardResetRecorder: HardResetRecorder,
     private val gameRepository: Lazy<GameRepository>
@@ -131,7 +129,6 @@ class DatabaseAdminRepository @Inject constructor(
         if (!emulatorDownloadManager.get().clearApkCache()) {
             Log.w(TAG, "hardReset: emulator APK cache skipped, download became active mid-reset")
         }
-        socialRepository.get().clearPresenceCovers()
         attributionRepository.refresh(force = true, deep = true)
         null
     }

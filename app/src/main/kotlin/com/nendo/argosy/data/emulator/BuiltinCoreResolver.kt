@@ -6,7 +6,7 @@ import com.nendo.argosy.data.local.dao.FirmwareDao
 import com.nendo.argosy.data.local.dao.getDownloadedForPlatformFamily
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.LibretroCoreRegistry
+import com.nendo.argosy.data.libretro.LibretroCoreRegistry
 import com.nendo.argosy.util.AppPaths
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers

@@ -257,24 +257,11 @@ class UserPreferencesRepository @Inject constructor(
             newBadgePlacement = display.newBadgePlacement,
             socialSessionToken = sync.socialSessionToken,
             socialUserId = sync.socialUserId,
-            socialUsername = sync.socialUsername,
-            socialDisplayName = sync.socialDisplayName,
-            socialAvatarColor = sync.socialAvatarColor,
             socialAvatarDoodle = sync.socialAvatarDoodle,
             socialAvatarUseDoodle = sync.socialAvatarUseDoodle,
-            socialOnlineStatusEnabled = sync.socialOnlineStatusEnabled,
-            socialShowNowPlaying = sync.socialShowNowPlaying,
-            socialNotifyFriendOnline = sync.socialNotifyFriendOnline,
-            socialNotifyFriendPlaying = sync.socialNotifyFriendPlaying,
-            socialSuppressNotificationsInGame = sync.socialSuppressNotificationsInGame,
-            discordRichPresenceEnabled = sync.discordRichPresenceEnabled,
             lastPlaySessionSync = sync.lastPlaySessionSync,
             lastStateValidation = sync.lastStateValidation,
             quayPassEnabled = sync.quayPassEnabled,
-            quayPassAvatarSyncPending = sync.quayPassAvatarSyncPending,
-            quayPassMessageSyncPending = sync.quayPassMessageSyncPending,
-            quayPassGreeting = sync.quayPassGreeting,
-            quayPassTicketBalance = sync.quayPassTicketBalance,
             mediaStoragePath = storage.mediaStoragePath,
             jellyfinServerUrl = jellyfin.serverUrl,
             jellyfinDeviceId = jellyfin.deviceId,
@@ -500,31 +487,8 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setSaveDebugLoggingEnabled(enabled: Boolean) = syncPrefs.setSaveDebugLoggingEnabled(enabled)
     suspend fun setImageCachePath(path: String?) = syncPrefs.setImageCachePath(path)
 
-    // --- Social delegates ---
-
-    suspend fun setSocialCredentials(
-        sessionToken: String,
-        userId: String,
-        username: String,
-        displayName: String?,
-        avatarColor: String?
-    ) = syncPrefs.setSocialCredentials(sessionToken, userId, username, displayName, avatarColor)
-    suspend fun clearSocialCredentials() = syncPrefs.clearSocialCredentials()
-    suspend fun setSocialAvatarUseDoodle(enabled: Boolean) = syncPrefs.setSocialAvatarUseDoodle(enabled)
-    suspend fun setSocialOnlineStatusEnabled(enabled: Boolean) = syncPrefs.setSocialOnlineStatusEnabled(enabled)
-    suspend fun setSocialShowNowPlaying(enabled: Boolean) = syncPrefs.setSocialShowNowPlaying(enabled)
-    suspend fun setSocialNotifyFriendOnline(enabled: Boolean) = syncPrefs.setSocialNotifyFriendOnline(enabled)
-    suspend fun setSocialNotifyFriendPlaying(enabled: Boolean) = syncPrefs.setSocialNotifyFriendPlaying(enabled)
-    suspend fun setSocialSuppressNotificationsInGame(enabled: Boolean) = syncPrefs.setSocialSuppressNotificationsInGame(enabled)
-    suspend fun setDiscordRichPresenceEnabled(enabled: Boolean) = syncPrefs.setDiscordRichPresenceEnabled(enabled)
     suspend fun setLastPlaySessionSyncTime(time: Instant) = syncPrefs.setLastPlaySessionSyncTime(time)
     suspend fun setQuayPassEnabled(enabled: Boolean) = syncPrefs.setQuayPassEnabled(enabled)
-    suspend fun setQuayPassAvatarSyncPending(pending: Boolean) = syncPrefs.setQuayPassAvatarSyncPending(pending)
-    suspend fun setQuayPassMessageSyncPending(pending: Boolean) = syncPrefs.setQuayPassMessageSyncPending(pending)
-    suspend fun setQuayPassGreetingFromServer(greeting: String) = syncPrefs.setQuayPassGreetingFromServer(greeting)
-    suspend fun setSocialAvatarFromServer(doodle: String?) = syncPrefs.setSocialAvatarFromServer(doodle)
-    suspend fun setQuayPassGreeting(greeting: String) = syncPrefs.setQuayPassGreeting(greeting)
-    suspend fun setQuayPassTicketBalance(balance: Int) = syncPrefs.setQuayPassTicketBalance(balance)
 
     // --- Controls delegates ---
 
@@ -631,75 +595,14 @@ class UserPreferencesRepository @Inject constructor(
 
     // --- Builtin emulator delegates ---
 
-    suspend fun setBuiltinShader(shader: String) = builtinPrefs.setBuiltinShader(shader)
-    suspend fun setBuiltinShaderChain(chainJson: String) = builtinPrefs.setBuiltinShaderChain(chainJson)
-    suspend fun setBuiltinFilter(filter: String) = builtinPrefs.setBuiltinFilter(filter)
-    suspend fun setBuiltinLibretroEnabled(enabled: Boolean) = builtinPrefs.setBuiltinLibretroEnabled(enabled)
-    suspend fun setBuiltinAspectRatio(aspectRatio: String) = builtinPrefs.setBuiltinAspectRatio(aspectRatio)
-    suspend fun setBuiltinPortraitPosition(value: String) = builtinPrefs.setBuiltinPortraitPosition(value)
-    suspend fun setBuiltinSkipDuplicateFrames(enabled: Boolean) = builtinPrefs.setBuiltinSkipDuplicateFrames(enabled)
-    suspend fun setBuiltinLowLatencyAudio(enabled: Boolean) = builtinPrefs.setBuiltinLowLatencyAudio(enabled)
-    suspend fun setBuiltinForceSoftwareTiming(enabled: Boolean) = builtinPrefs.setBuiltinForceSoftwareTiming(enabled)
-    suspend fun setBuiltinRumbleEnabled(enabled: Boolean) = builtinPrefs.setBuiltinRumbleEnabled(enabled)
-    suspend fun setBuiltinMotionEnabled(enabled: Boolean) = builtinPrefs.setBuiltinMotionEnabled(enabled)
-    suspend fun setBuiltinGyroAimInvertX(enabled: Boolean) = builtinPrefs.setBuiltinGyroAimInvertX(enabled)
-    suspend fun setBuiltinGyroAimInvertY(enabled: Boolean) = builtinPrefs.setBuiltinGyroAimInvertY(enabled)
-    suspend fun setBuiltinGyroAimSensitivity(percent: Int) = builtinPrefs.setBuiltinGyroAimSensitivity(percent)
-    suspend fun setBuiltinBlackFrameInsertion(enabled: Boolean) = builtinPrefs.setBuiltinBlackFrameInsertion(enabled)
-    suspend fun setBuiltinLimitHotkeysToPlayer1(enabled: Boolean) = builtinPrefs.setBuiltinLimitHotkeysToPlayer1(enabled)
-    suspend fun setBuiltinAnalogAsDpad(enabled: Boolean) = builtinPrefs.setBuiltinAnalogAsDpad(enabled)
-    suspend fun setBuiltinDpadAsAnalog(enabled: Boolean) = builtinPrefs.setBuiltinDpadAsAnalog(enabled)
-    suspend fun setBuiltinCoreForPlatform(platformSlug: String, coreId: String) = builtinPrefs.setBuiltinCoreForPlatform(platformSlug, coreId)
-    suspend fun setBuiltinFastForwardEnabled(enabled: Boolean) = builtinPrefs.setBuiltinFastForwardEnabled(enabled)
-    suspend fun setBuiltinFastForwardSpeed(speed: Int) = builtinPrefs.setBuiltinFastForwardSpeed(speed)
-    suspend fun setBuiltinFastForwardMode(mode: com.nendo.argosy.data.local.entity.FastForwardMode) = builtinPrefs.setBuiltinFastForwardMode(mode)
-    suspend fun setBuiltinSelectAsBack(mode: com.nendo.argosy.data.local.entity.SelectAsBackMode) = builtinPrefs.setBuiltinSelectAsBack(mode)
-    suspend fun setBuiltinDualScreenMatchSize(enabled: Boolean) = builtinPrefs.setBuiltinDualScreenMatchSize(enabled)
-    suspend fun setBuiltinFastForwardPreservePitch(enabled: Boolean) = builtinPrefs.setBuiltinFastForwardPreservePitch(enabled)
-    suspend fun setBuiltinRotation(rotation: Int) = builtinPrefs.setBuiltinRotation(rotation)
-    suspend fun setBuiltinOverscanCrop(crop: Int) = builtinPrefs.setBuiltinOverscanCrop(crop)
-    suspend fun setBuiltinRewindEnabled(enabled: Boolean) = builtinPrefs.setBuiltinRewindEnabled(enabled)
-    suspend fun setBuiltinRewindSpeed(speed: Int) = builtinPrefs.setBuiltinRewindSpeed(speed)
-    suspend fun setBuiltinRewindBufferDuration(duration: Int) = builtinPrefs.setBuiltinRewindBufferDuration(duration)
-    suspend fun setBuiltinFramesEnabled(enabled: Boolean) = builtinPrefs.setBuiltinFramesEnabled(enabled)
-    suspend fun setBuiltinAutoSaveState(enabled: Boolean) = builtinPrefs.setBuiltinAutoSaveState(enabled)
-    suspend fun setBuiltinAutoRestoreState(enabled: Boolean) = builtinPrefs.setBuiltinAutoRestoreState(enabled)
-    suspend fun setBuiltinAutoRestoreStateMode(mode: String) = builtinPrefs.setBuiltinAutoRestoreStateMode(mode)
-    suspend fun setBuiltinPreferNewerServerSave(enabled: Boolean) = builtinPrefs.setBuiltinPreferNewerServerSave(enabled)
     suspend fun setBuiltinCustomSavePath(path: String?) = builtinPrefs.setBuiltinCustomSavePath(path)
     suspend fun setBuiltinCustomStatePath(path: String?) = builtinPrefs.setBuiltinCustomStatePath(path)
     suspend fun setBuiltinMigrationComplete() = builtinPrefs.setBuiltinMigrationComplete()
-    suspend fun setArchitectureOverride(abi: String?) = builtinPrefs.setArchitectureOverride(abi)
-    suspend fun setTouchControlsShowWhenNoGamepad(enabled: Boolean) = builtinPrefs.setTouchControlsShowWhenNoGamepad(enabled)
-    suspend fun setTouchControlsOpacityLandscape(opacity: Float) = builtinPrefs.setTouchControlsOpacityLandscape(opacity)
-    suspend fun setTouchControlsOpacityPortrait(opacity: Float) = builtinPrefs.setTouchControlsOpacityPortrait(opacity)
-    suspend fun setTouchControlsSizeScale(scale: Float) = builtinPrefs.setTouchControlsSizeScale(scale)
-    suspend fun setTouchControlsHaptic(enabled: Boolean) = builtinPrefs.setTouchControlsHaptic(enabled)
-    suspend fun setTouchControlsFadeOnIdle(enabled: Boolean) = builtinPrefs.setTouchControlsFadeOnIdle(enabled)
-    suspend fun setTouchControlsSwapHanded(enabled: Boolean) = builtinPrefs.setTouchControlsSwapHanded(enabled)
-    suspend fun setTouchControlsLockOrientation(enabled: Boolean) = builtinPrefs.setTouchControlsLockOrientation(enabled)
-    suspend fun setTouchControlsMirror180(enabled: Boolean) = builtinPrefs.setTouchControlsMirror180(enabled)
-    suspend fun setTouchControlsAllowLongPressEdit(enabled: Boolean) = builtinPrefs.setTouchControlsAllowLongPressEdit(enabled)
-    suspend fun setTouchControlsColouredFaceButtons(enabled: Boolean) = builtinPrefs.setTouchControlsColouredFaceButtons(enabled)
-    suspend fun setTouchControlsGenesis6Button(enabled: Boolean) = builtinPrefs.setTouchControlsGenesis6Button(enabled)
 
     suspend fun setHudEnabled(enabled: Boolean) = builtinPrefs.setHudEnabled(enabled)
 
-    suspend fun setHudCorner(corner: String) = builtinPrefs.setHudCorner(corner)
-
-    suspend fun setHudShowBattery(enabled: Boolean) = builtinPrefs.setHudShowBattery(enabled)
-
-    suspend fun setHudShowClock(enabled: Boolean) = builtinPrefs.setHudShowClock(enabled)
-
-    suspend fun setHudShowPlaytime(enabled: Boolean) = builtinPrefs.setHudShowPlaytime(enabled)
-
-    suspend fun setHudShowFps(enabled: Boolean) = builtinPrefs.setHudShowFps(enabled)
-
-    suspend fun setHudShowLastSave(enabled: Boolean) = builtinPrefs.setHudShowLastSave(enabled)
-    fun getArchitectureOverride(): Flow<String?> = builtinPrefs.getArchitectureOverride()
     fun getBuiltinEmulatorSettings(): Flow<BuiltinEmulatorSettings> = builtinPrefs.getBuiltinEmulatorSettings()
     fun getBuiltinCoreSelections(): Flow<Map<String, String>> = builtinPrefs.getBuiltinCoreSelections()
-    suspend fun removeBuiltinCoreSelectionsByCore(coreId: String) = builtinPrefs.removeBuiltinCoreSelectionsByCore(coreId)
     fun isBuiltinMigrationComplete(): Flow<Boolean> = builtinPrefs.isBuiltinMigrationComplete()
     fun isPs2StandalonePinDone(): Flow<Boolean> = builtinPrefs.isPs2StandalonePinDone()
     suspend fun setPs2StandalonePinDone() = builtinPrefs.setPs2StandalonePinDone()
@@ -824,21 +727,6 @@ data class BuiltinEmulatorSettings(
     val hudShowFps: Boolean = false,
     val hudShowLastSave: Boolean = false
 ) {
-    val shaderConfig: com.swordfish.libretrodroid.ShaderConfig
-        get() = when (shader) {
-            "CRT" -> com.swordfish.libretrodroid.ShaderConfig.CRT
-            "LCD" -> com.swordfish.libretrodroid.ShaderConfig.LCD
-            "Sharp" -> com.swordfish.libretrodroid.ShaderConfig.Sharp
-            "CUT" -> com.swordfish.libretrodroid.ShaderConfig.CUT()
-            "CUT2" -> com.swordfish.libretrodroid.ShaderConfig.CUT2()
-            "CUT3" -> com.swordfish.libretrodroid.ShaderConfig.CUT3()
-            "Custom" -> com.swordfish.libretrodroid.ShaderConfig.Default
-            else -> com.swordfish.libretrodroid.ShaderConfig.Default
-        }
-
-    val shaderChainConfig: com.nendo.argosy.libretro.shader.ShaderChainConfig
-        get() = com.nendo.argosy.libretro.shader.ShaderChainConfig.fromJson(shaderChainJson)
-
     val filterMode: Int
         get() = when (filter) {
             "Nearest" -> 0
@@ -1084,26 +972,13 @@ data class UserPreferences(
     val newBadgePlacement: NewBadgePlacement = NewBadgePlacement.RIGHT,
     val socialSessionToken: String? = null,
     val socialUserId: String? = null,
-    val socialUsername: String? = null,
-    val socialDisplayName: String? = null,
-    val socialAvatarColor: String? = null,
     val socialAvatarDoodle: String? = null,
     val socialAvatarUseDoodle: Boolean = false,
-    val socialOnlineStatusEnabled: Boolean = true,
-    val socialShowNowPlaying: Boolean = true,
-    val socialNotifyFriendOnline: Boolean = true,
-    val socialNotifyFriendPlaying: Boolean = true,
-    val socialSuppressNotificationsInGame: Boolean = false,
-    val discordRichPresenceEnabled: Boolean = true,
     val lastPlaySessionSync: Instant? = null,
     val lastStateValidation: Instant? = null,
     val weeklyIntegrityCheckEnabled: Boolean = true,
     val lastIntegrityCheckTime: Long? = null,
     val quayPassEnabled: Boolean = false,
-    val quayPassAvatarSyncPending: Boolean = false,
-    val quayPassMessageSyncPending: Boolean = false,
-    val quayPassGreeting: String? = null,
-    val quayPassTicketBalance: Int = 0,
     val mediaStoragePath: String? = null,
     val jellyfinServerUrl: String? = null,
     val jellyfinDeviceId: String? = null,

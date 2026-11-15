@@ -16,11 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cached
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Movie
@@ -140,10 +138,6 @@ internal sealed class StorageItem(
     data object ImageCache : Row("imageCache", "locations", R.string.settings_storage_image_cache_title)
     data object MusicLocation : Row("musicLocation", "locations", R.string.settings_storage_music_location_title)
     data object BiosFolder : Row("biosFolder", "locations", R.string.settings_storage_bios_folder_title)
-    data object BuiltinSavePath :
-        Row("builtinSavePath", "locations", R.string.settings_storage_builtin_save_path_title)
-    data object BuiltinStatePath :
-        Row("builtinStatePath", "locations", R.string.settings_storage_builtin_state_path_title)
 
     data object MaxDownloads : Row("maxDownloads", "downloads", R.string.settings_storage_max_downloads_title)
     data object RemoteInstalls : Row(
@@ -179,7 +173,7 @@ internal sealed class StorageItem(
             get() = listOf(
                 VolumeHero, RecomputeRow, GamesTile, MediaTile, MusicTile, CachesTile, SteamTile,
                 LocationsSpacer, LocationsHeader,
-                GlobalRomPath, ImageCache, MusicLocation, BiosFolder, BuiltinSavePath, BuiltinStatePath,
+                GlobalRomPath, ImageCache, MusicLocation, BiosFolder,
                 DownloadsSpacer, DownloadsHeader, MaxDownloads, RemoteInstalls, RemoteInstallsLocked,
                 AutoStartDownloads,
                 Threshold, InternalStaging,
@@ -221,8 +215,6 @@ internal fun StorageItem.isResettableFolder(state: SettingsUiState): Boolean = w
         state.syncSettings.imageCachePath != null && !state.syncSettings.isImageCacheMigrating
     StorageItem.MusicLocation -> state.ambientAudio.isCustomMusicLocation
     StorageItem.BiosFolder -> state.bios.customBiosPath != null && !state.bios.isBiosMigrating
-    StorageItem.BuiltinSavePath -> state.builtinVideo.isCustomSavePath
-    StorageItem.BuiltinStatePath -> state.builtinVideo.isCustomStatePath
     else -> false
 }
 
@@ -231,8 +223,6 @@ internal fun resetStorageFolder(item: StorageItem, viewModel: SettingsViewModel)
         StorageItem.ImageCache -> viewModel.resetImageCacheToDefault()
         StorageItem.MusicLocation -> viewModel.resetMusicLocation()
         StorageItem.BiosFolder -> viewModel.resetBiosToDefault()
-        StorageItem.BuiltinSavePath -> viewModel.resetBuiltinSavePath()
-        StorageItem.BuiltinStatePath -> viewModel.resetBuiltinStatePath()
         else -> Unit
     }
 }
@@ -630,34 +620,6 @@ fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 isFocused = isFocused(item),
                 isEnabled = !uiState.bios.isBiosMigrating,
                 onClick = { viewModel.openBiosFolderPicker() },
-                showResetButton = item.isResettableFolder(uiState),
-                onReset = { resetStorageFolder(item, viewModel) }
-            )
-
-            is StorageItem.BuiltinSavePath -> ActionPreference(
-                icon = Icons.Default.Save,
-                title = stringResource(item.labelRes),
-                subtitle = if (uiState.builtinVideo.isCustomSavePath) {
-                    formatStoragePath(uiState.builtinVideo.savePath)
-                } else {
-                    stringResource(R.string.settings_storage_builtin_save_path_internal)
-                },
-                isFocused = isFocused(item),
-                onClick = { viewModel.openBuiltinSavePathBrowser() },
-                showResetButton = item.isResettableFolder(uiState),
-                onReset = { resetStorageFolder(item, viewModel) }
-            )
-
-            is StorageItem.BuiltinStatePath -> ActionPreference(
-                icon = Icons.Default.History,
-                title = stringResource(item.labelRes),
-                subtitle = if (uiState.builtinVideo.isCustomStatePath) {
-                    formatStoragePath(uiState.builtinVideo.statePath)
-                } else {
-                    stringResource(R.string.settings_storage_builtin_state_path_internal)
-                },
-                isFocused = isFocused(item),
-                onClick = { viewModel.openBuiltinStatePathBrowser() },
                 showResetButton = item.isResettableFolder(uiState),
                 onReset = { resetStorageFolder(item, viewModel) }
             )

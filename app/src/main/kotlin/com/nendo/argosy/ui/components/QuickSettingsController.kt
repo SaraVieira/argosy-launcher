@@ -8,8 +8,6 @@ import com.nendo.argosy.data.preferences.MenuWrapMode
 import com.nendo.argosy.data.preferences.ScreenOrientationMode
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.SocialConnectionState
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.hardware.BrightnessController
 import com.nendo.argosy.hardware.DevicePerformance
 import com.nendo.argosy.hardware.DevicePerformanceResolver
@@ -21,7 +19,6 @@ import com.nendo.argosy.hardware.PerformanceModeStore
 import com.nendo.argosy.hardware.VolumeController
 import com.nendo.argosy.ui.components.activity.QuickActivityController
 import com.nendo.argosy.ui.components.activity.QuickActivityState
-import com.nendo.argosy.ui.components.friends.QuickFriendsController
 import com.nendo.argosy.ui.components.power.PowerCommand
 import com.nendo.argosy.ui.components.power.QuickPowerController
 import com.nendo.argosy.ui.components.power.QuickPowerState
@@ -48,7 +45,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -116,10 +112,8 @@ class QuickSettingsController(
     private val performanceStore: PerformanceModeStore,
     private val refreshController: DisplayRefreshController,
     private val hardwareStatsReader: HardwareStatsReader,
-    socialRepository: SocialRepository,
     private val hapticManager: HapticFeedbackManager,
     private val soundManager: SoundFeedbackManager,
-    private val quickFriends: QuickFriendsController,
     val power: QuickPowerController,
     val activity: QuickActivityController,
     private val wrapMode: () -> MenuWrapMode,
@@ -190,10 +184,9 @@ class QuickSettingsController(
     val state: StateFlow<QuickSettingsState> = combine(
         combine(preferencesRepository.userPreferences, activeControllerProfiles.active, ::Pair),
         hudEnabled,
-        socialRepository.connectionState,
         combine(device, levels, dualScreen, hardware, ::DeviceReadings),
         combine(power.state, activityWhileOpen, ::PageReadings)
-    ) { (prefs, activeController), hud, social, (deviceSettings, displayLevels, screens, hardwareStats), (powerState, activityState) ->
+    ) { (prefs, activeController), hud, (deviceSettings, displayLevels, screens, hardwareStats), (powerState, activityState) ->
         val controllerProfile = activeController.profile
         QuickSettingsState(
             themeMode = prefs.themeMode,
@@ -221,9 +214,6 @@ class QuickSettingsController(
             isDualScreenActive = screens.active,
             isRolesSwapped = screens.rolesSwapped,
             hudEnabled = hud,
-            isSocialLinked = prefs.isSocialLinked,
-            isSocialConnected = social is SocialConnectionState.Connected,
-            quayPassEnabled = prefs.quayPassEnabled,
             hardwareStats = hardwareStats,
             powerRoute = powerState.route,
             powerSleepAvailable = powerState.sleepAvailable,
@@ -240,12 +230,10 @@ class QuickSettingsController(
         _isOpen.update { open }
         if (open) {
             _focusIndex.update { 0 }
-            quickFriends.resetFocus()
             loadDeviceSettings()
             refreshDisplayLevels()
             power.refreshRoute()
         } else {
-            quickFriends.dismissModal()
             power.dismiss()
         }
     }
@@ -293,7 +281,6 @@ class QuickSettingsController(
         if (page == activePage()) return
         _page.update { page }
         _focusIndex.update { 0 }
-        quickFriends.resetFocus()
     }
 
     fun cyclePage(delta: Int): InputResult {
@@ -348,13 +335,6 @@ class QuickSettingsController(
 
     fun swapDisplays() {
         DualScreenManagerHolder.instance?.swapRoles()
-    }
-
-    fun toggleQuayPass() {
-        scope.launch {
-            val prefs = preferencesRepository.userPreferences.first()
-            preferencesRepository.setQuayPassEnabled(!prefs.quayPassEnabled)
-        }
     }
 
     fun setSystemVolume(volume: Float) {

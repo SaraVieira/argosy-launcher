@@ -58,13 +58,7 @@ class SettingsSearchRegistryTest {
     fun `index ids are unique across every source`() {
         val ui = SettingsUiState(
             display = DisplayState(ambientLedAvailable = true, hasPhysicalSecondaryDisplay = true),
-            emulators = EmulatorState(platforms = listOf(platform(1, "SNES", enabled = true))),
-            settingsSearch = SettingsSearchState(
-                coreOptions = listOf(
-                    SettingsSearchCoreOption("snes9x", "Snes9x", "snes9x_region", "Console Region"),
-                    SettingsSearchCoreOption("snes9x", "Snes9x", "snes9x_aspect", "Preferred Aspect Ratio")
-                )
-            )
+            emulators = EmulatorState(platforms = listOf(platform(1, "SNES", enabled = true)))
         )
         val ids = buildSettingsSearchIndex(ui).map { it.target.id }
         val repeated = ids.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
@@ -123,20 +117,6 @@ class SettingsSearchRegistryTest {
         val targets = enabledPlatformEntries(ui).map { it.target }
 
         assertEquals(listOf<SettingsSearchTarget>(SettingsSearchTarget.Platform(1)), targets)
-    }
-
-    @Test
-    fun `core option rows follow the built-in emulator switch`() {
-        val option = SettingsSearchCoreOption("snes9x", "Snes9x", "snes9x_region", "Console Region")
-        val on = SettingsUiState(
-            emulators = EmulatorState(builtinLibretroEnabled = true),
-            settingsSearch = SettingsSearchState(coreOptions = listOf(option))
-        )
-        val off = on.copy(emulators = EmulatorState(builtinLibretroEnabled = false))
-        val target = SettingsSearchTarget.CoreOption("snes9x", "snes9x_region")
-
-        assertTrue(buildSettingsSearchIndex(on).any { it.target == target })
-        assertFalse(buildSettingsSearchIndex(off).any { it.target == target })
     }
 
     @Test

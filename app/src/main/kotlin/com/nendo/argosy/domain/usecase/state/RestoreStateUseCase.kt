@@ -7,7 +7,7 @@ import com.nendo.argosy.data.emulator.StatePathRegistry
 import com.nendo.argosy.data.emulator.StateSerialResolver
 import com.nendo.argosy.data.emulator.VersionValidationResult
 import com.nendo.argosy.data.repository.StateCacheManager
-import com.nendo.argosy.libretro.LibretroStateFormat
+import com.nendo.argosy.data.libretro.LibretroStateFormat
 import java.io.File
 import javax.inject.Inject
 

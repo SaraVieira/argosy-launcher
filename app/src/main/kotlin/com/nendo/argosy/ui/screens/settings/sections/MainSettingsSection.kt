@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.CloudQueue
@@ -20,7 +18,6 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Memory
@@ -49,7 +46,6 @@ import com.nendo.argosy.ui.screens.settings.ConnectionStatus
 import com.nendo.argosy.ui.screens.settings.ControlsState
 import com.nendo.argosy.ui.screens.settings.EmulatorState
 import com.nendo.argosy.ui.screens.settings.SettingsSection
-import com.nendo.argosy.ui.screens.settings.SocialAuthStatus
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import androidx.compose.foundation.layout.Spacer
@@ -108,12 +104,6 @@ internal sealed class MainSettingsItem(
         "launcher"
     )
 
-    data object BuiltinEmulator : MainSettingsItem(
-        "builtin_emulator",
-        Icons.Default.Build,
-        R.string.settings_main_builtin_emulator_title,
-        "gameplay"
-    )
     data object Saves :
         MainSettingsItem("saves", Icons.Default.Save, R.string.settings_main_saves_title, "gameplay")
     data object RetroAchievements : MainSettingsItem(
@@ -124,12 +114,6 @@ internal sealed class MainSettingsItem(
     )
     data object Bios :
         MainSettingsItem("bios", Icons.Default.Memory, R.string.settings_main_bios_title, "gameplay")
-    data object Drivers : MainSettingsItem(
-        "drivers",
-        Icons.Default.DeveloperBoard,
-        R.string.settings_main_drivers_title,
-        "gameplay"
-    )
 
     data object Platforms : MainSettingsItem(
         "platforms",
@@ -166,8 +150,6 @@ internal sealed class MainSettingsItem(
         R.string.settings_main_jellyfin_title,
         "connections"
     )
-    data object Social :
-        MainSettingsItem("social", Icons.Default.Group, R.string.settings_main_social_title, "connections")
 
     data object Permissions : MainSettingsItem(
         "permissions",
@@ -191,11 +173,11 @@ internal sealed class MainSettingsItem(
                 Header("launcherHeader", "launcher", R.string.settings_main_section_launcher),
                 Theme, Interface, Navigation, Audio, Displays,
                 Header("gameplayHeader", "gameplay", R.string.settings_main_section_gameplay),
-                BuiltinEmulator, Saves, RetroAchievements, Bios, Drivers,
+                Saves, RetroAchievements, Bios,
                 Header("libraryHeader", "library", R.string.settings_main_section_library),
                 Platforms, Storage, PlayTime,
                 Header("connectionsHeader", "connections", R.string.settings_main_section_connections),
-                NetworkBluetooth, RomM, Steam, Jellyfin, Social,
+                NetworkBluetooth, RomM, Steam, Jellyfin,
                 Header("systemHeader", "system", R.string.settings_main_section_system),
                 Permissions, ManagedInstallers, DeviceSettings, About
             )
@@ -283,13 +265,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
             uiState.emulators.platforms.size,
             uiState.emulators.platforms.size
         )
-        MainSettingsItem.BuiltinEmulator -> if (uiState.emulators.builtinLibretroEnabled) {
-            context.getString(R.string.settings_main_builtin_emulator_subtitle_on)
-        } else {
-            context.getString(R.string.settings_main_builtin_emulator_subtitle_off)
-        }
         MainSettingsItem.Bios -> uiState.bios.summaryText.resolve(context)
-        MainSettingsItem.Drivers -> uiState.drivers.summary.resolve(context)
         MainSettingsItem.Steam -> if (uiState.steam.username != null) {
             uiState.steam.username
         } else {
@@ -302,14 +278,6 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 ?.let { context.getString(R.string.settings_main_jellyfin_subtitle_signed_in_as, it) }
                 ?: context.getString(R.string.settings_main_jellyfin_subtitle_signed_in)
             else -> context.getString(R.string.settings_main_jellyfin_subtitle_signed_out)
-        }
-        MainSettingsItem.Social -> when (uiState.social.authStatus) {
-            SocialAuthStatus.CONNECTED -> context.getString(
-                R.string.settings_main_social_subtitle_linked,
-                uiState.social.displayName ?: uiState.social.username
-            )
-            SocialAuthStatus.CONNECTING -> context.getString(R.string.settings_main_social_subtitle_connecting)
-            else -> context.getString(R.string.settings_main_social_subtitle_unlinked)
         }
         MainSettingsItem.Permissions -> if (uiState.permissions.allGranted) {
             context.getString(R.string.settings_main_permissions_subtitle_all)
@@ -345,12 +313,9 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
             MainSettingsItem.Audio -> viewModel.navigateToSection(SettingsSection.AUDIO)
             MainSettingsItem.Displays -> viewModel.navigateToSection(SettingsSection.DISPLAYS)
             MainSettingsItem.Platforms -> viewModel.navigateToSection(SettingsSection.PLATFORMS)
-            MainSettingsItem.BuiltinEmulator -> viewModel.navigateToSection(SettingsSection.BUILTIN_EMULATOR)
             MainSettingsItem.Bios -> viewModel.navigateToSection(SettingsSection.BIOS)
-            MainSettingsItem.Drivers -> viewModel.navigateToSection(SettingsSection.DRIVERS)
             MainSettingsItem.Steam -> viewModel.navigateToSection(SettingsSection.STEAM_SETTINGS)
             MainSettingsItem.Jellyfin -> viewModel.navigateToSection(SettingsSection.JELLYFIN)
-            MainSettingsItem.Social -> viewModel.navigateToSection(SettingsSection.SOCIAL)
             MainSettingsItem.Permissions -> viewModel.navigateToSection(SettingsSection.PERMISSIONS)
             MainSettingsItem.About -> viewModel.navigateToSection(SettingsSection.ABOUT)
         }
@@ -422,8 +387,6 @@ private fun updatesBadge(item: MainSettingsItem, emulators: EmulatorState): Stri
     val (pluralRes, count) = when (item) {
         MainSettingsItem.Platforms ->
             R.plurals.settings_main_platforms_updates_badge to emulators.outdatedEmulatorCount
-        MainSettingsItem.BuiltinEmulator ->
-            R.plurals.settings_main_builtin_updates_badge to emulators.coreUpdatesAvailable
         else -> return null
     }
     return if (count > 0) pluralStringResource(pluralRes, count, count) else null

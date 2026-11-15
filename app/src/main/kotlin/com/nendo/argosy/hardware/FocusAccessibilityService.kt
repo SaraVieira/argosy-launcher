@@ -24,9 +24,7 @@ import com.nendo.argosy.core.input.forDevice
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.emulator.background.BackgroundGames
-import com.nendo.argosy.libretro.slot.ResumedGameRouter
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.LibretroActivity
 import com.nendo.argosy.ui.quickpanel.QuickPanelOverlay
 import com.nendo.argosy.ui.screens.running.ResumeOverlay
 import com.nendo.argosy.ui.screens.player.PlayerActivity
@@ -60,7 +58,6 @@ class FocusAccessibilityService : AccessibilityService() {
     @Volatile private var quickPanelEnabled = false
     @Volatile private var homeButtonInGames = true
     @Volatile private var systemHotkeysFor: (Int) -> SystemHotkeyConfig = { SystemHotkeyConfig.DISABLED }
-    private var homeRoutedToGame = false
     private var homeClosedResume = false
     private var homeTakenFromGame = false
     private var homeHoldFired = false
@@ -174,7 +171,6 @@ class FocusAccessibilityService : AccessibilityService() {
         val systemHome = HomeKeys.isSystemHome(event)
         return when {
             systemHome && closesResumeOverlay(event) -> true
-            systemHome && routesHomeToGame(event) -> true
             systemHome && takesHomeFromExternalGame(event) -> true
             systemHome && takesHomeFromArgosy(event) -> true
             else -> keyFilter.onKey(event.keyCode, event.action, event.repeatCount, event.deviceId)
@@ -252,23 +248,9 @@ class FocusAccessibilityService : AccessibilityService() {
                 homeClosedResume = true
                 resumeOverlay.hide()
             }
-            homeClosedResume || (resumeOverlay.isOpen.value && !homeRoutedToGame)
+            homeClosedResume || resumeOverlay.isOpen.value
         }
         KeyEvent.ACTION_UP -> homeClosedResume.also { homeClosedResume = false }
-        else -> false
-    }
-
-    private fun routesHomeToGame(event: KeyEvent): Boolean = when (event.action) {
-        KeyEvent.ACTION_DOWN -> {
-            if (event.repeatCount == 0) {
-                homeRoutedToGame = ResumedGameRouter.deliverGuideKey(pressed = true)
-            }
-            homeRoutedToGame
-        }
-        KeyEvent.ACTION_UP -> homeRoutedToGame.also { routed ->
-            homeRoutedToGame = false
-            if (routed) ResumedGameRouter.deliverGuideKey(pressed = false)
-        }
         else -> false
     }
 
@@ -350,7 +332,6 @@ class FocusAccessibilityService : AccessibilityService() {
 
         private val ARGOSY_INPUT_SURFACES = setOf(
             ArgosyActivity::class.java.name,
-            LibretroActivity::class.java.name,
             PlayerActivity::class.java.name
         )
 

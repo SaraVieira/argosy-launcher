@@ -84,7 +84,6 @@ class SteamLibraryManager @Inject constructor(
     private val cachedLicenseDao: CachedLicenseDao,
     private val imageCacheManager: ImageCacheManager,
     private val steamRepository: dagger.Lazy<SteamRepository>,
-    private val steamIgdbResolver: dagger.Lazy<com.nendo.argosy.data.repository.SteamIgdbResolver>,
     private val preferencesRepository: com.nendo.argosy.data.preferences.UserPreferencesRepository,
     private val syncPreferencesRepository: com.nendo.argosy.data.preferences.SyncPreferencesRepository,
     private val steamLibraryRepair: dagger.Lazy<SteamLibraryRepair>,
@@ -479,7 +478,6 @@ class SteamLibraryManager @Inject constructor(
                 steamLibraryRepair.get().restoreSources()
                 steamLibraryRepair.get().repairCovers()
                 enrichIncompleteGames()
-                steamIgdbResolver.get().requestResolutionForUnresolved(force = wasForceSync)
             }
         }
     }

@@ -116,7 +116,6 @@ class ArgosyActivity : ComponentActivity() {
     @Inject lateinit var configureEmulatorUseCase: com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
     @Inject lateinit var platformRepository: PlatformRepository
     @Inject lateinit var collectionRepository: CollectionRepository
-    @Inject lateinit var socialRepositoryForDual: com.nendo.argosy.data.social.SocialRepository
     @Inject lateinit var downloadQueueDao: DownloadQueueDao
     @Inject lateinit var downloadQueueRepository: com.nendo.argosy.data.repository.DownloadQueueRepository
     @Inject lateinit var gamepadInputHandler: GamepadInputHandler
@@ -169,15 +168,12 @@ class ArgosyActivity : ComponentActivity() {
     @Inject lateinit var homeGridPageRepository: com.nendo.argosy.data.repository.HomeGridPageRepository
     @Inject lateinit var pageChooserEntrySource: com.nendo.argosy.ui.home.grid.PageChooserEntrySource
     @Inject lateinit var emulatorConfigDao: com.nendo.argosy.data.local.dao.EmulatorConfigDao
-    @Inject lateinit var builtinCoreResolver: com.nendo.argosy.data.emulator.BuiltinCoreResolver
     @Inject lateinit var saveHandlerRegistry: com.nendo.argosy.data.sync.platform.PlatformSaveHandlerRegistry
     @Inject lateinit var steamRepository: com.nendo.argosy.data.repository.SteamRepository
     @Inject lateinit var playSessionTracker: com.nendo.argosy.data.emulator.PlaySessionTracker
     @Inject lateinit var keepAlivePolicy: com.nendo.argosy.data.emulator.background.KeepAlivePolicy
     @Inject lateinit var repairImageCacheUseCase: com.nendo.argosy.domain.usecase.cache.RepairImageCacheUseCase
     @Inject lateinit var downloadFileStatusRepository: com.nendo.argosy.data.repository.DownloadFileStatusRepository
-    @Inject lateinit var presenceManager: com.nendo.argosy.data.social.PresenceManager
-    @Inject lateinit var discordPresenceManager: com.nendo.argosy.data.social.discord.DiscordPresenceManager
     @Inject lateinit var gradientExtractionDelegate: com.nendo.argosy.ui.screens.common.GradientExtractionDelegate
     @Inject lateinit var filePickerFlowUseCase: com.nendo.argosy.domain.usecase.download.FilePickerFlowUseCase
     @Inject lateinit var mediaRepository: com.nendo.argosy.data.repository.MediaRepository
@@ -274,8 +270,6 @@ class ArgosyActivity : ComponentActivity() {
         keepAwakeWhileUserActive()
         dimWhileMediaIdle()
 
-        discordPresenceManager.init(this)
-
         displayAffinityHelper.dualScreenEnabled = sessionStateStore.isDualScreenEnabled()
         displayAffinityHelper.secondaryDisplayUsable = sessionStateStore.isSecondaryDisplayUsable()
 
@@ -293,7 +287,6 @@ class ArgosyActivity : ComponentActivity() {
                 activeSaveRepository = activeSaveRepository,
                 platformRepository = platformRepository,
                 collectionRepository = collectionRepository,
-                socialRepository = socialRepositoryForDual,
                 downloadQueueDao = downloadQueueDao,
                 downloadQueueRepository = downloadQueueRepository,
                 gameFileDao = gameFileDao,
@@ -321,7 +314,6 @@ class ArgosyActivity : ComponentActivity() {
                 ambientAudioManager = ambientAudioManager,
                 emulatorConfigDao = emulatorConfigDao,
                 configureEmulatorUseCase = configureEmulatorUseCase,
-                builtinCoreResolver = builtinCoreResolver,
                 saveHandlerRegistry = saveHandlerRegistry,
                 steamRepository = steamRepository,
                 playSessionTracker = playSessionTracker,
@@ -361,7 +353,7 @@ class ArgosyActivity : ComponentActivity() {
         attachedToDsmHolder = true
 
         dualScreenManager.onRoleSwapped = { swapped ->
-            if (swapped && !dualScreenManager.isMovingGame) refocusSelf()
+            if (swapped) refocusSelf()
         }
         dualScreenManager.onOverlayFocusChanged = { _ -> }
         dualScreenManager.onEmulatorDispatcherChanged = { }

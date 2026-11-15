@@ -27,10 +27,6 @@ import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
 import com.nendo.argosy.ui.input.HapticFeedbackManager
 import com.nendo.argosy.ui.input.HapticPattern
-import com.nendo.argosy.libretro.LaunchMode
-import com.nendo.argosy.libretro.LibretroActivity
-import com.nendo.argosy.core.input.controllerIdOf
-import com.nendo.argosy.core.input.isPhysicalGamepad
 import com.nendo.argosy.R
 import com.nendo.argosy.core.notification.NotificationManager
 import com.nendo.argosy.core.notification.NotificationText
@@ -81,7 +77,6 @@ data class DiscPickerState(
     val gameId: Long,
     val discs: List<DiscOption>,
     val channelName: String? = null,
-    val launchMode: LaunchMode? = null,
     val origin: LaunchOrigin = LaunchOrigin.INTERNAL,
     val start: GameStart
 )
@@ -90,7 +85,6 @@ data class VariantPickerState(
     val gameId: Long,
     val variants: List<com.nendo.argosy.data.emulator.VariantOption>,
     val channelName: String? = null,
-    val launchMode: LaunchMode? = null,
     val origin: LaunchOrigin = LaunchOrigin.INTERNAL,
     val start: GameStart
 )
@@ -101,13 +95,11 @@ data class MemcardPickerState(
     val platformName: String,
     val cards: List<com.nendo.argosy.data.sync.platform.MemcardInfo>,
     val channelName: String? = null,
-    val launchMode: LaunchMode? = null,
     val origin: LaunchOrigin = LaunchOrigin.INTERNAL,
     val start: GameStart
 )
 
 class GameLaunchDelegate @Inject constructor(
-    private val slotRegistry: com.nendo.argosy.libretro.slot.SlotRegistry,
     private val application: Application,
     private val gameRepository: GameRepository,
     private val emulatorResolver: EmulatorResolver,
@@ -124,12 +116,9 @@ class GameLaunchDelegate @Inject constructor(
     private val activeSaveRepository: com.nendo.argosy.data.repository.ActiveSaveRepository,
     private val variantResolver: com.nendo.argosy.data.emulator.VariantResolver,
     private val emulatorSaveConfigRepository: com.nendo.argosy.data.repository.EmulatorSaveConfigRepository,
-    private val retroAchievementsRepository: com.nendo.argosy.data.repository.RetroAchievementsRepository,
-    private val getUnifiedSavesUseCase: com.nendo.argosy.domain.usecase.save.GetUnifiedSavesUseCase,
     private val launchProgressTracker: LaunchProgressTracker,
     private val launchHandoff: LaunchHandoff,
     private val resolveSnapshotConflict: com.nendo.argosy.domain.usecase.savechannel.ResolveSnapshotConflictUseCase,
-    private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker,
     private val preLaunchRecapStep: PreLaunchRecapStep,
     private val backgroundGameLaunch: BackgroundGameLaunch,
     private val permissionWatch: com.nendo.argosy.data.permissions.PermissionWatch
@@ -156,40 +145,6 @@ class GameLaunchDelegate @Inject constructor(
             LaunchPromptOption.REVERT_LOCAL
         )
     }
-
-    /**
-     * Whether the active save is hardcore, resolved over the unified cache+server view so a
-     * server-only cloud save (the common freshly-synced case) is not missed. Requires an active row
-     * for the current owner: the unified entry pool is not owner-scoped, so resolving with no
-     * coordinates would fall through to the newest save across all owners. Feeds the launch-mode
-     * [LaunchMode.RESUME_HARDCORE] decision.
-     */
-    private suspend fun isActiveSaveHardcore(gameId: Long): Boolean {
-        val activeRow = activeSaveRepository.getActiveRow(gameId) ?: return false
-        return getUnifiedSavesUseCase.resolveActive(
-            gameId = gameId,
-            activeChannel = activeRow.channelName,
-            activeSaveTimestamp = activeRow.cachedAt.toEpochMilli(),
-            includeServer = com.nendo.argosy.util.NetworkUtils.isOnline(application)
-        )?.isHardcore == true
-    }
-
-    /**
-     * "Default to Hardcore": a built-in game resumes in hardcore by default when the setting is on
-     * and RetroAchievements is signed in. Centralized here so every launch entry point (home,
-     * library, game detail, dual-screen) honors it uniformly. Requires the game to actually have
-     * achievements: hardcore mode disables save states, rewind, and cheats regardless of whether an
-     * RA session resolves, so forcing it on an achievement-less game only removes features (and its
-     * hardcore-tagged save would then ratchet future resumes into hardcore).
-     */
-    private suspend fun shouldDefaultToHardcore(
-        emulatorPackage: String?,
-        game: com.nendo.argosy.data.local.entity.GameEntity
-    ): Boolean =
-        emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE &&
-            game.achievementCount > 0 &&
-            preferencesRepository.getBuiltinEmulatorSettings().first().defaultToHardcore == "hardcore" &&
-            retroAchievementsRepository.isLoggedIn()
 
     val syncOverlayState: StateFlow<SyncOverlayState?> = sessionEndCoordinator.syncOverlayState
 
@@ -221,14 +176,10 @@ class GameLaunchDelegate @Inject constructor(
         ticket: LaunchProgressTracker.Ticket,
         emulatorPackage: String?,
         alreadyStopped: String?,
-        noTrackedSession: Boolean,
-        platformSlug: String?
+        noTrackedSession: Boolean
     ): Boolean {
         if (emulatorPackage == null || emulatorPackage == alreadyStopped) return true
         if (emulatorPackage == application.packageName) return true
-        if (emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE) {
-            return backgroundGameLaunch.makeRoomForBuiltIn(ticket, platformSlug)
-        }
         val requiresKill = noTrackedSession && emulatorResolver.resolveEmulatorId(emulatorPackage)
             ?.let { EmulatorRegistry.getById(it) }?.launchConfig?.requiresEmulatorKill == true
         if (!requiresKill && !withContext(Dispatchers.IO) { RootShell.isAvailable }) return true
@@ -291,7 +242,6 @@ class GameLaunchDelegate @Inject constructor(
         discId: Long? = null,
         channelName: String? = null,
         skipPreLaunchSync: Boolean = false,
-        overrideLaunchMode: LaunchMode? = null,
         allowVariantPrompt: Boolean = true,
         origin: LaunchOrigin = LaunchOrigin.INTERNAL,
         start: GameStart,
@@ -375,7 +325,7 @@ class GameLaunchDelegate @Inject constructor(
 
                 if (canResume) {
                     val result = launchGameUseCase(gameId, discId, forResume = true, variantFileId = resolvedVariantId, allowVariantPrompt = false, prefetchedGame = game, sessionAtWindow = true)
-                    dispatchPrimaryLaunchResult(result, ticket, channelName, discId, overrideLaunchMode, origin, start, onLaunchFailed)
+                    dispatchPrimaryLaunchResult(result, ticket, channelName, discId, origin, start, onLaunchFailed)
                     return@launch
                 }
 
@@ -395,8 +345,7 @@ class GameLaunchDelegate @Inject constructor(
                         ticket,
                         emulatorPackage,
                         stoppedPackage,
-                        noTrackedSession = activeSession == null || activeSession.isStream,
-                        platformSlug = game?.platformSlug
+                        noTrackedSession = activeSession == null || activeSession.isStream
                     )
                 ) {
                     onLaunchFailed()
@@ -533,17 +482,8 @@ class GameLaunchDelegate @Inject constructor(
                     return@launch
                 }
 
-                val launchMode = when {
-                    !prefs.secureSaves -> overrideLaunchMode?.takeUnless { it.isHardcore }
-                    hardcoreConflictChoice == HardcoreConflictChoice.KEEP_HARDCORE -> LaunchMode.RESUME_HARDCORE
-                    overrideLaunchMode != null -> overrideLaunchMode
-                    isActiveSaveHardcore(gameId) -> LaunchMode.RESUME_HARDCORE
-                    shouldDefaultToHardcore(emulatorPackage, game) -> LaunchMode.RESUME_HARDCORE
-                    else -> null
-                }
-
                 val result = launchGameUseCase(gameId, discId, variantFileId = resolvedVariantId, allowVariantPrompt = allowVariantPrompt, prefetchedGame = game, origin = origin, savesPrepared = true, sessionAtWindow = true)
-                dispatchPrimaryLaunchResult(result, ticket, channelName, discId, launchMode, origin, start, onLaunchFailed)
+                dispatchPrimaryLaunchResult(result, ticket, channelName, discId, origin, start, onLaunchFailed)
             } finally {
                 if (!ticket.isFinished) launchProgressTracker.finish(ticket, launched = false)
             }
@@ -555,7 +495,6 @@ class GameLaunchDelegate @Inject constructor(
         ticket: LaunchProgressTracker.Ticket,
         channelName: String?,
         discId: Long?,
-        launchMode: LaunchMode?,
         origin: LaunchOrigin,
         start: GameStart,
         onLaunchFailed: () -> Unit
@@ -563,7 +502,7 @@ class GameLaunchDelegate @Inject constructor(
         when (result) {
             is LaunchResult.Success -> launchHandoff.handOff(
                 ticket,
-                applyLaunchExtras(result.intent, launchMode, origin),
+                applyLaunchExtras(result.intent, origin),
                 start,
                 result.session
             )
@@ -572,7 +511,6 @@ class GameLaunchDelegate @Inject constructor(
                     gameId = result.gameId,
                     discs = result.discs,
                     channelName = channelName,
-                    launchMode = launchMode,
                     origin = origin,
                     start = start
                 )
@@ -583,13 +521,12 @@ class GameLaunchDelegate @Inject constructor(
                     .sortedBy { com.nendo.argosy.data.model.VariantCategory.fromKey(it.category).sortOrder }
                 if (launchable.size <= 1) {
                     val retry = launchGameUseCase(result.gameId, discId, allowVariantPrompt = false, origin = origin, savesPrepared = true, sessionAtWindow = true)
-                    dispatchPrimaryLaunchResult(retry, ticket, channelName, discId, launchMode, origin, start, onLaunchFailed)
+                    dispatchPrimaryLaunchResult(retry, ticket, channelName, discId, origin, start, onLaunchFailed)
                 } else {
                     _variantPickerState.value = VariantPickerState(
                         gameId = result.gameId,
                         variants = launchable,
                         channelName = channelName,
-                        launchMode = launchMode,
                         origin = origin,
                         start = start
                     )
@@ -602,7 +539,6 @@ class GameLaunchDelegate @Inject constructor(
                     platformName = result.platformName,
                     cards = result.cards,
                     channelName = channelName,
-                    launchMode = launchMode,
                     origin = origin,
                     start = start
                 )
@@ -672,26 +608,9 @@ class GameLaunchDelegate @Inject constructor(
         onLaunchFailed()
     }
 
-    private fun applyLaunchExtras(intent: Intent, launchMode: LaunchMode?, origin: LaunchOrigin): Intent {
-        if (launchMode != null) intent.putExtra(LaunchMode.EXTRA_LAUNCH_MODE, launchMode.name)
+    private fun applyLaunchExtras(intent: Intent, origin: LaunchOrigin): Intent {
         if (origin != LaunchOrigin.INTERNAL) intent.putExtra(LaunchOrigin.EXTRA_LAUNCH_ORIGIN, origin.name)
-        if (intent.component?.className == LibretroActivity::class.java.name) {
-            connectedControllerTracker.activeDevice()
-                ?.takeIf { it.isPhysicalGamepad() }
-                ?.let { pad ->
-                    intent.putExtra(LibretroActivity.EXTRA_LAUNCH_CONTROLLER_ID, controllerIdOf(pad))
-                }
-            if (launchMode?.isHardcore != true) placeInSlot(intent)
-        }
         return intent
-    }
-
-    private fun placeInSlot(intent: Intent) {
-        val platformSlug = intent.getStringExtra(LibretroActivity.EXTRA_PLATFORM_SLUG)
-        val slot = slotRegistry.freeSlotFor(platformSlug) ?: return
-        val activity = com.nendo.argosy.libretro.slot.GameSlots.activities[slot - 1]
-        intent.setClass(application, activity)
-        android.util.Log.d("GameLaunchDelegate", "Built-in game goes to slot $slot (${activity.simpleName})")
     }
 
     fun selectDisc(scope: CoroutineScope, discPath: String) {
@@ -712,7 +631,7 @@ class GameLaunchDelegate @Inject constructor(
                 when (result) {
                     is LaunchResult.Success -> launchHandoff.handOff(
                         ticket,
-                        applyLaunchExtras(result.intent, state.launchMode, state.origin),
+                        applyLaunchExtras(result.intent, state.origin),
                         state.start,
                         result.session
                     )
@@ -759,7 +678,7 @@ class GameLaunchDelegate @Inject constructor(
                 } else {
                     launchGameUseCase(gameId = state.gameId, skipVariantPrompt = true, origin = state.origin, savesPrepared = true, sessionAtWindow = true)
                 }
-                dispatchPrimaryLaunchResult(result, ticket, state.channelName, null, state.launchMode, state.origin, state.start, onFailed)
+                dispatchPrimaryLaunchResult(result, ticket, state.channelName, null, state.origin, state.start, onFailed)
             }
         }
     }
@@ -788,7 +707,7 @@ class GameLaunchDelegate @Inject constructor(
                 when (result) {
                     is LaunchResult.Success -> launchHandoff.handOff(
                         ticket,
-                        applyLaunchExtras(result.intent, state.launchMode, state.origin),
+                        applyLaunchExtras(result.intent, state.origin),
                         state.start,
                         result.session
                     )
@@ -814,7 +733,6 @@ class GameLaunchDelegate @Inject constructor(
         variantFileId: Long? = null,
         skipVariantPrompt: Boolean = false,
         allowVariantPrompt: Boolean = true,
-        launchMode: LaunchMode? = null,
         origin: LaunchOrigin = LaunchOrigin.INTERNAL,
         callbacks: LaunchResultCallbacks
     ) {
@@ -843,22 +761,11 @@ class GameLaunchDelegate @Inject constructor(
                 val emulatorPackage = game?.let {
                     emulatorResolver.getEmulatorPackageForGame(it.id, it.platformId, it.platformSlug)
                 }
-                if (game != null && emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE &&
-                    !backgroundGameLaunch.closeSlotHolding(
-                        game.id,
-                        variantFileId ?: variantResolver.resolveVariant(game)?.id
-                    )
-                ) {
-                    notificationManager.showError(NotificationText.Res(R.string.notif_gamelaunch_running_copy_not_closed))
-                    callbacks.onLaunchFailed()
-                    return@launch
-                }
                 val cleared = game == null || emulatorClearedForLaunch(
                     ticket,
                     emulatorPackage,
                     stoppedPackage,
-                    noTrackedSession = activeSession == null || activeSession.isStream,
-                    platformSlug = game.platformSlug
+                    noTrackedSession = activeSession == null || activeSession.isStream
                 )
                 if (!cleared) {
                     callbacks.onLaunchFailed()
@@ -884,7 +791,7 @@ class GameLaunchDelegate @Inject constructor(
                     origin = origin,
                     sessionAtWindow = true
                 )
-                dispatchSimpleResult(result, ticket, launchMode, origin, callbacks)
+                dispatchSimpleResult(result, ticket, origin, callbacks)
             } finally {
                 if (!ticket.isFinished) launchProgressTracker.finish(ticket, launched = false)
             }
@@ -894,14 +801,13 @@ class GameLaunchDelegate @Inject constructor(
     private suspend fun dispatchSimpleResult(
         result: LaunchResult,
         ticket: LaunchProgressTracker.Ticket,
-        launchMode: LaunchMode?,
         origin: LaunchOrigin,
         callbacks: LaunchResultCallbacks
     ) {
         when (result) {
             is LaunchResult.Success -> launchHandoff.handOff(
                 ticket,
-                applyLaunchExtras(result.intent, launchMode, origin),
+                applyLaunchExtras(result.intent, origin),
                 callbacks.start,
                 result.session
             )
@@ -921,7 +827,6 @@ class GameLaunchDelegate @Inject constructor(
                     emulatorId = result.emulatorId,
                     platformName = result.platformName,
                     cards = result.cards,
-                    launchMode = launchMode,
                     origin = origin,
                     start = callbacks.start
                 )

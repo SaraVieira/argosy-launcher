@@ -26,7 +26,7 @@ class RASettingsDelegateWebApiKeyTest {
     private val delegate = RASettingsDelegate(
         raRepository = mockk(),
         prefsRepository = mockk(),
-        libretroSettingsRepo = mockk(),
+        builtinEmulatorPrefs = mockk(),
         webApiKeyRepository = keyRepository,
         keyHealth = com.nendo.argosy.data.repository.RAWebKeyHealth(),
         clipboard = clipboard,

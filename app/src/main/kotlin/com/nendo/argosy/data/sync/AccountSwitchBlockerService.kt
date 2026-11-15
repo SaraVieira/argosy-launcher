@@ -5,8 +5,6 @@ import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.MediaDownloadManager
 import com.nendo.argosy.data.emulator.EmulatorDownloadManager
 import com.nendo.argosy.data.emulator.EmulatorRegistry
-import com.nendo.argosy.data.netplay.NetplayJoinService
-import com.nendo.argosy.data.netplay.NetplayJoinState
 import com.nendo.argosy.data.preferences.AccountSwitchMarkerStore
 import com.nendo.argosy.data.preferences.SessionStateStore
 import com.nendo.argosy.util.Logger
@@ -24,10 +22,8 @@ private const val TAG = "AccountSwitchBlockers"
  * Decides whether it is safe to start tearing down one account's saves.
  *
  * Matches the hard-reset blocker set and adds the switch's own: a library sync mid-drain would
- * upsert rows under whichever identity it started with, a netplay join is a live peer
- * relationship the swap would silently reassign, and an externally launched emulator holds save
- * bytes Argosy is about to archive. An in-game netplay session lives inside the emulator
- * activity and so is covered by the active-session check rather than separately.
+ * upsert rows under whichever identity it started with, and an externally launched emulator
+ * holds save bytes Argosy is about to archive.
  *
  * Pending uploads are deliberately NOT a blocker. Queue rows carry the account that owns them
  * and drain under it later, and blocking on them would make an offline switch impossible --
@@ -41,7 +37,6 @@ class AccountSwitchBlockerService @Inject constructor(
     private val emulatorDownloadManager: Lazy<EmulatorDownloadManager>,
     private val mediaDownloadManager: Lazy<MediaDownloadManager>,
     private val platformSyncQueue: Lazy<PlatformSyncQueue>,
-    private val netplayJoinService: Lazy<NetplayJoinService>,
     private val permissionHelper: PermissionHelper
 ) {
     private val sessionStateStore by lazy { SessionStateStore(context) }
@@ -68,9 +63,6 @@ class AccountSwitchBlockerService @Inject constructor(
             platformSyncQueue.get().queuedPlatformIds.value.isNotEmpty()
         ) {
             return@withContext AccountSwitchBlocker.LibrarySyncRunning
-        }
-        if (netplayJoinService.get().state.value != NetplayJoinState.Idle) {
-            return@withContext AccountSwitchBlocker.NetplaySession
         }
 
         recentlyForegroundEmulator()

@@ -5,8 +5,8 @@ import com.nendo.argosy.data.model.PlayTimeSnapshot
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.data.repository.PlatformRepository
 import com.nendo.argosy.data.repository.PlayStatsRepository
-import com.nendo.argosy.data.social.uploader.PlaySessionBackfill
-import com.nendo.argosy.data.social.uploader.PlaySessionPull
+import com.nendo.argosy.data.playsession.PlaySessionBackfill
+import com.nendo.argosy.data.playsession.PlaySessionPull
 import com.nendo.argosy.ui.common.DisplayText
 import com.nendo.argosy.ui.common.playSessionDeviceLabelRes
 import com.nendo.argosy.ui.components.recap.MonthlyRecapController

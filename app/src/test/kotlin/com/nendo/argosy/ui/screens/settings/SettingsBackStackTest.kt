@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.settings
 
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinEmulatorItem
+import com.nendo.argosy.ui.screens.settings.sections.AudioItem
+import com.nendo.argosy.ui.screens.settings.sections.audioFocusIndexOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -12,28 +13,28 @@ class SettingsBackStackTest {
 
     @Test
     fun `back returns to the row the section was entered from`() {
-        val entered = at(SettingsSection.BUILTIN_EMULATOR, BuiltinEmulatorItem.CORE_OPTIONS.focusIndex)
-            .pushedSection(SettingsSection.CORE_OPTIONS)
+        val entered = at(SettingsSection.AUDIO, audioFocusIndexOf(AudioItem.Music))
+            .pushedSection(SettingsSection.THEME_MUSIC)
 
-        assertEquals(SettingsSection.CORE_OPTIONS, entered.currentSection)
+        assertEquals(SettingsSection.THEME_MUSIC, entered.currentSection)
         assertEquals(0, entered.focusedIndex)
 
         val back = entered.poppedSection()!!
-        assertEquals(SettingsSection.BUILTIN_EMULATOR, back.currentSection)
-        assertEquals(BuiltinEmulatorItem.CORE_OPTIONS.focusIndex, back.focusedIndex)
+        assertEquals(SettingsSection.AUDIO, back.currentSection)
+        assertEquals(audioFocusIndexOf(AudioItem.Music), back.focusedIndex)
         assertEquals(emptyList<SettingsNavEntry>(), back.backStack)
     }
 
     @Test
     fun `the same section backs out to whichever parent opened it`() {
-        val fromBuiltin = at(SettingsSection.BUILTIN_EMULATOR, BuiltinEmulatorItem.VIDEO.focusIndex)
-            .pushedSection(SettingsSection.BUILTIN_VIDEO)
-        val fromPlatform = at(SettingsSection.PLATFORM_DETAIL, 7)
-            .pushedSection(SettingsSection.BUILTIN_VIDEO)
+        val fromMain = at(SettingsSection.MAIN, 4)
+            .pushedSection(SettingsSection.STEAM_SETTINGS)
+        val fromStorage = at(SettingsSection.STORAGE, 7)
+            .pushedSection(SettingsSection.STEAM_SETTINGS)
 
-        assertEquals(SettingsSection.BUILTIN_EMULATOR, fromBuiltin.poppedSection()!!.currentSection)
-        assertEquals(SettingsSection.PLATFORM_DETAIL, fromPlatform.poppedSection()!!.currentSection)
-        assertEquals(7, fromPlatform.poppedSection()!!.focusedIndex)
+        assertEquals(SettingsSection.MAIN, fromMain.poppedSection()!!.currentSection)
+        assertEquals(SettingsSection.STORAGE, fromStorage.poppedSection()!!.currentSection)
+        assertEquals(7, fromStorage.poppedSection()!!.focusedIndex)
     }
 
     @Test
@@ -43,7 +44,7 @@ class SettingsBackStackTest {
             .let { it.copy(focusedIndex = 5) }
             .pushedSection(SettingsSection.PLATFORM_DETAIL)
             .let { it.copy(focusedIndex = 2) }
-            .pushedSection(SettingsSection.CORE_OPTIONS)
+            .pushedSection(SettingsSection.BIOS)
 
         val first = deep.poppedSection()!!
         assertEquals(SettingsSection.PLATFORM_DETAIL, first.currentSection)

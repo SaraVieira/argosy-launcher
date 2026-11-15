@@ -1,6 +1,5 @@
 package com.nendo.argosy.ui.screens.settings
 
-import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.ui.common.DisplayText
 import com.nendo.argosy.ui.common.resolve
 import com.nendo.argosy.ui.screens.settings.search.SettingsSearchEntry
@@ -10,7 +9,6 @@ import com.nendo.argosy.ui.screens.settings.search.SettingsSearchTarget
 import com.nendo.argosy.ui.screens.settings.search.buildSettingsSearchIndex
 import com.nendo.argosy.ui.screens.settings.search.settingsSearchSource
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 internal const val SETTINGS_SEARCH_FIELD_INDEX = 0
 
@@ -48,19 +46,11 @@ internal fun routeOpenSettingsSearch(vm: SettingsViewModel) {
     vm._uiState.update {
         it.copy(
             focusedIndex = SETTINGS_SEARCH_FIELD_INDEX,
-            settingsSearch = it.settingsSearch.copy(keyboardOpen = true)
-        )
-    }
-    vm.viewModelScope.launch {
-        val coreOptions = loadDownloadedCoreOptionsForSearch(vm)
-        vm._uiState.update { state ->
-            val withCores = state.copy(settingsSearch = state.settingsSearch.copy(coreOptions = coreOptions))
-            withCores.copy(
-                settingsSearch = withCores.settingsSearch.copy(
-                    results = searchResultsFor(vm, withCores, withCores.settingsSearch.query)
-                )
+            settingsSearch = it.settingsSearch.copy(
+                keyboardOpen = true,
+                results = searchResultsFor(vm, it, it.settingsSearch.query)
             )
-        }
+        )
     }
 }
 
@@ -109,7 +99,6 @@ internal fun routeOpenSettingsSearchResult(vm: SettingsViewModel, resultIndex: I
     when (val target = result.entry.target) {
         is SettingsSearchTarget.Row -> openRow(vm, target)
         is SettingsSearchTarget.Platform -> openPlatform(vm, target.platformId, target.rowKey)
-        is SettingsSearchTarget.CoreOption -> routeOpenCoreOption(vm, target.coreId, target.optionKey)
     }
 }
 

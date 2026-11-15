@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Gamepad
@@ -81,7 +80,7 @@ data class MenuLayoutState(
     val hasDescription: Boolean = false,
     val hasScreenshots: Boolean = false,
     val hasAchievements: Boolean = false,
-    val hasSocialAccount: Boolean = false,
+    val hasIgdbId: Boolean = false,
     val hasSaveSync: Boolean = false,
     val hasRelated: Boolean = false,
     val hasPerGameSettings: Boolean = false,
@@ -108,14 +107,13 @@ sealed class MenuItem(
 
     data object Saves : MenuItem("saves", visibleWhen = { it.hasSaveSync })
     data object Favorite : MenuItem("favorite")
-    data object Privacy : MenuItem("privacy", visibleWhen = { it.hasSocialAccount })
+    data object Privacy : MenuItem("privacy", visibleWhen = { it.hasIgdbId })
     data object PerGameSettings : MenuItem("per_game_settings", visibleWhen = { it.hasPerGameSettings })
     data object Options : MenuItem("options")
     data object Details : MenuItem("details")
     data object Description : MenuItem("description", visibleWhen = { it.hasDescription })
     data object Screenshots : MenuItem("screenshots", visibleWhen = { it.hasScreenshots })
     data object Documents : MenuItem("documents", visibleWhen = { it.hasDocuments })
-    data object Reviews : MenuItem("reviews", visibleWhen = { it.hasSocialAccount })
     data object Achievements : MenuItem("achievements", visibleWhen = { it.hasAchievements })
     data object RelatedGames : MenuItem("related", visibleWhen = { it.hasRelated })
     data object CloseGame : MenuItem("close_game", visibleWhen = { it.isRunning })
@@ -126,7 +124,7 @@ sealed class MenuItem(
         val ALL: List<MenuItem>
             get() = listOf<MenuItem>(Play, Stream) + List(MOVE_TARGET_SLOTS) { MoveToDisplay(it) } + listOf(
                 Saves, Favorite, Privacy, PerGameSettings, Options, Details,
-                Description, Screenshots, Documents, Reviews, Achievements, RelatedGames, CloseGame
+                Description, Screenshots, Documents, Achievements, RelatedGames, CloseGame
             )
     }
 }
@@ -340,16 +338,6 @@ fun GameDetailMenu(
                     IconTextMenuItem(
                         label = stringResource(R.string.gamedetail_menu_documents),
                         icon = Icons.AutoMirrored.Filled.MenuBook,
-                        isFocused = isFocused,
-                        isCompact = isCompact,
-                        onClick = { onFocusChange(focusIndex); onItemClick(item) }
-                    )
-                }
-
-                MenuItem.Reviews -> {
-                    IconTextMenuItem(
-                        label = stringResource(R.string.gamedetail_menu_reviews),
-                        icon = Icons.Default.ThumbUp,
                         isFocused = isFocused,
                         isCompact = isCompact,
                         onClick = { onFocusChange(focusIndex); onItemClick(item) }

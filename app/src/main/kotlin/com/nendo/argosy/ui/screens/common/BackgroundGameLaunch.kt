@@ -10,19 +10,13 @@ import com.nendo.argosy.data.emulator.LaunchProgressTracker
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.emulator.background.BackgroundGames
 import com.nendo.argosy.data.emulator.background.RunningApp
-import com.nendo.argosy.data.emulator.background.TaskSnapshots
 import com.nendo.argosy.data.emulator.startExternal
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.repository.GameRepository
-import com.nendo.argosy.data.repository.SaveCacheManager
 import com.nendo.argosy.domain.model.LaunchPromptOption
 import com.nendo.argosy.domain.model.LaunchStep
-import com.nendo.argosy.domain.model.MakeRoomCandidate
-import com.nendo.argosy.domain.model.MakeRoomStage
 import com.nendo.argosy.domain.model.RunningGameQuestion
-import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import com.nendo.argosy.util.Logger
-import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 /**
@@ -34,9 +28,7 @@ class BackgroundGameLaunch @Inject constructor(
     private val emulatorResolver: EmulatorResolver,
     private val playSessionTracker: PlaySessionTracker,
     private val launchProgressTracker: LaunchProgressTracker,
-    private val gameRepository: GameRepository,
-    private val taskSnapshots: TaskSnapshots,
-    private val saveCacheManager: SaveCacheManager
+    private val gameRepository: GameRepository
 ) {
     enum class Resume { RESUMED, FRESH_LAUNCH, CANCELLED }
 
@@ -49,7 +41,7 @@ class BackgroundGameLaunch @Inject constructor(
 
     /**
      * Brings [game] back in the task [live] holds, with no save check: the emulator still has the
-     * save open. A built-in game opens its own session when its screen returns.
+     * save open.
      */
     suspend fun resume(
         ticket: LaunchProgressTracker.Ticket,
@@ -58,17 +50,12 @@ class BackgroundGameLaunch @Inject constructor(
         origin: LaunchOrigin
     ): Resume {
         if (ticket.isCancelled) return Resume.CANCELLED
-        val builtIn = live.packageName == EmulatorRegistry.BUILTIN_PACKAGE
-        if (!builtIn) DualScreenManagerHolder.instance?.setEmulatorDisplay(live.displayId)
+        DualScreenManagerHolder.instance?.setEmulatorDisplay(live.displayId)
         if (!backgroundGames.bringToFront(live.taskId)) {
-            if (!builtIn) DualScreenManagerHolder.instance?.setEmulatorDisplay(null)
+            DualScreenManagerHolder.instance?.setEmulatorDisplay(null)
             return Resume.FRESH_LAUNCH
         }
         launchProgressTracker.finish(ticket, launched = true)
-        if (builtIn) {
-            Logger.debug(TAG, "resumed gameId=${game.id} in the built-in game's task ${live.taskId}")
-            return Resume.RESUMED
-        }
         playSessionTracker.startExternal(
             ExternalSessionStart(
                 gameId = game.id,
@@ -100,78 +87,6 @@ class BackgroundGameLaunch @Inject constructor(
         return Clear.CLOSED
     }
 
-    /**
-     * True once a built-in [platformSlug] game has room to start, after asking the player which
-     * open game to close for as long as room is short. False when the player declines or a closed
-     * slot never frees up.
-     */
-    suspend fun makeRoomForBuiltIn(ticket: LaunchProgressTracker.Ticket, platformSlug: String?): Boolean {
-        while (!backgroundGames.hasRoomFor(platformSlug)) {
-            val open = backgroundGames.builtInApps()
-                .filter { (it.slotIndex ?: 0) > 0 && it.game != null }
-                .sortedBy { it.slotIndex }
-            if (open.isEmpty()) return true
-            val question = makeRoomQuestion(ticket.gameTitle, open)
-            val chosenTaskId = ticket.chooseGameToClose(question) ?: return false
-            val chosen = open.firstOrNull { it.taskId == chosenTaskId } ?: return false
-            ticket.step(question.copy(stage = MakeRoomStage.SAVING, chosenTaskId = chosenTaskId))
-            backgroundGames.close(chosen)
-            if (!awaitSlotClosed(chosen)) return false
-            ticket.step(question.copy(stage = MakeRoomStage.CLOSED, chosenTaskId = chosenTaskId))
-            delay(ComponentDefaults.LaunchOverlay.makeRoomClosedHoldMs.toLong())
-        }
-        return true
-    }
-
-    /**
-     * Saves and closes the game slot already running [gameId] (and [variantFileId]), so a fresh
-     * start never runs beside it. True when no slot holds the game or the slot closed; false when
-     * it did not close in time.
-     */
-    suspend fun closeSlotHolding(gameId: Long, variantFileId: Long?): Boolean {
-        val held = backgroundGames.builtInApps().firstOrNull { app ->
-            (app.slotIndex ?: 0) > 0 && app.game?.gameId == gameId && app.game.variantFileId == variantFileId
-        } ?: return true
-        Logger.info(TAG, "closing slot ${held.slotIndex} holding gameId=$gameId before a fresh start")
-        backgroundGames.close(held)
-        return awaitSlotClosed(held)
-    }
-
-    private suspend fun makeRoomQuestion(launchingTitle: String?, open: List<RunningApp>): LaunchStep.MakeRoom {
-        val snapshots = taskSnapshots.fetch(open.map { it.taskId })
-        val candidates = open.mapNotNull { app ->
-            val game = app.game ?: return@mapNotNull null
-            val snapshot = snapshots[app.taskId]
-            MakeRoomCandidate(
-                taskId = app.taskId,
-                slotIndex = app.slotIndex ?: return@mapNotNull null,
-                gameId = game.gameId,
-                title = gameRepository.getById(game.gameId)?.title,
-                snapshotPath = snapshot?.path,
-                snapshotTakenAtMillis = snapshot?.takenAtMillis ?: 0L,
-                lastSavedAtMillis = saveCacheManager.getMostRecentSave(game.gameId)?.cachedAt?.toEpochMilli()
-            )
-        }
-        val oldestTaskId = open.minByOrNull { it.runStartedAtMillis ?: Long.MAX_VALUE }?.taskId
-        return LaunchStep.MakeRoom(
-            launchingTitle = launchingTitle,
-            candidates = candidates,
-            initialFocus = candidates.indexOfFirst { it.taskId == oldestTaskId }.coerceAtLeast(0),
-            stage = MakeRoomStage.CHOOSE,
-            chosenTaskId = null
-        )
-    }
-
-    private suspend fun awaitSlotClosed(app: RunningApp): Boolean {
-        val deadline = System.currentTimeMillis() + SLOT_CLOSE_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            if (backgroundGames.builtInApps().none { it.slotIndex == app.slotIndex }) return true
-            delay(SLOT_CLOSE_POLL_MS)
-        }
-        Logger.warn(TAG, "slot ${app.slotIndex} did not close within ${SLOT_CLOSE_TIMEOUT_MS}ms")
-        return false
-    }
-
     suspend fun keepsAlive(emulatorPackage: String): Boolean = backgroundGames.keepsAlive(emulatorPackage)
 
     suspend fun remember(session: ActiveSession) = backgroundGames.remember(session)
@@ -181,7 +96,5 @@ class BackgroundGameLaunch @Inject constructor(
 
     private companion object {
         const val TAG = "BackgroundGameLaunch"
-        const val SLOT_CLOSE_TIMEOUT_MS = 20_000L
-        const val SLOT_CLOSE_POLL_MS = 200L
     }
 }

@@ -17,7 +17,6 @@ import com.nendo.argosy.core.notification.PadBatteryWatch
 import com.nendo.argosy.core.notification.PadNotice
 import com.nendo.argosy.core.notification.PadNoticeKind
 import com.nendo.argosy.core.notification.padBatteryNoticeKey
-import com.nendo.argosy.libretro.slot.ResumedGameRouter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -77,7 +76,7 @@ class ControllerNoticePoster @Inject constructor(
 
     private fun post(event: ControllerEvent) {
         val pad = event.controller
-        if (pad.builtIn || ResumedGameRouter.hasGameInFront) return
+        if (pad.builtIn) return
         val kind = if (event.change == ControllerChange.CONNECTED) PadNoticeKind.CONNECTED else PadNoticeKind.DISCONNECTED
         val card = burst.add(
             PadNotice(pad.controllerId, pad.name, kind),
@@ -98,7 +97,6 @@ class ControllerNoticePoster @Inject constructor(
 
     private fun postBattery(pads: List<ConnectedPad>) {
         val low = batteryWatch.newlyLow(pads)
-        if (ResumedGameRouter.hasGameInFront) return
         low.forEach { pad ->
             notificationManager.show(
                 title = NotificationText.Res(R.string.notif_controller_battery_low_title),

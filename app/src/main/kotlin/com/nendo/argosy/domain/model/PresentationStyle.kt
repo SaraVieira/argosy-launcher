@@ -27,8 +27,7 @@ enum class PresentationStat {
     DIFFICULTY,
     PLAY_TIME,
     TIME_TO_BEAT,
-    ACHIEVEMENTS,
-    FRIENDS
+    ACHIEVEMENTS
 }
 
 const val PRESENTATION_SCRIM_MIN = 0

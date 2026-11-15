@@ -17,7 +17,6 @@ data class DashboardQuickState(
  */
 data class SessionControls(
     val quickStates: List<DashboardQuickState> = emptyList(),
-    val cheatsAvailable: Boolean = false,
     val settingsAvailable: Boolean = false,
     val screenshotAvailable: Boolean = true,
     val discSwapAvailable: Boolean = false,

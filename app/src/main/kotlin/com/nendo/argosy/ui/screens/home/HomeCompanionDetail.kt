@@ -1,10 +1,9 @@
 package com.nendo.argosy.ui.screens.home
 
-import com.nendo.argosy.data.social.FriendActivity
 import com.nendo.argosy.ui.dualscreen.CompanionDetail
 import com.nendo.argosy.ui.dualscreen.CompanionGameStats
 
-fun HomeGameUi.toCompanionDetail(friends: List<FriendActivity> = emptyList()): CompanionDetail =
+fun HomeGameUi.toCompanionDetail(): CompanionDetail =
     CompanionDetail(
         title = title,
         subtitle = platformDisplayName,
@@ -32,7 +31,6 @@ fun HomeGameUi.toCompanionDetail(friends: List<FriendActivity> = emptyList()): C
             timeToBeatCompletionistSec = timeToBeatCompletionistSec,
             status = status,
             achievementCount = achievementCount,
-            earnedAchievementCount = earnedAchievementCount,
-            friends = friends
+            earnedAchievementCount = earnedAchievementCount
         )
     )

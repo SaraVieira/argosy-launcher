@@ -68,7 +68,7 @@ class MediaAvailabilityVerifier @Inject constructor(
     private var verifiedFingerprint: String? = null
 
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) startMainProcessWork()
+        startMainProcessWork()
     }
 
     private fun startMainProcessWork() {

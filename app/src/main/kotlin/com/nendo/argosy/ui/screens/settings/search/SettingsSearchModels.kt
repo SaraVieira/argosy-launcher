@@ -13,10 +13,6 @@ sealed interface SettingsSearchTarget {
     data class Platform(val platformId: Long, val rowKey: String? = null) : SettingsSearchTarget {
         override val id: String get() = if (rowKey == null) "platform:$platformId" else "platform:$platformId:$rowKey"
     }
-
-    data class CoreOption(val coreId: String, val optionKey: String) : SettingsSearchTarget {
-        override val id: String get() = "coreOption:$coreId:$optionKey"
-    }
 }
 
 data class SettingsSearchEntry(
@@ -32,18 +28,10 @@ data class SettingsSearchResult(
     val matchLength: Int
 )
 
-data class SettingsSearchCoreOption(
-    val coreId: String,
-    val coreName: String,
-    val optionKey: String,
-    val optionName: String
-)
-
 data class SettingsSearchState(
     val query: String = "",
     val keyboardOpen: Boolean = false,
-    val results: List<SettingsSearchResult> = emptyList(),
-    val coreOptions: List<SettingsSearchCoreOption> = emptyList()
+    val results: List<SettingsSearchResult> = emptyList()
 ) {
     val isActive: Boolean get() = query.isNotBlank()
 }

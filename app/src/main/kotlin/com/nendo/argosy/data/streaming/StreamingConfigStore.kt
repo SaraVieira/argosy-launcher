@@ -48,13 +48,11 @@ class StreamingConfigStore @Inject constructor(
     val availability: StateFlow<StreamingAvailability> = _availability.asStateFlow()
 
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) {
-            scope.launch { connectionManager.capabilityRefreshes.collect { refresh() } }
-            scope.launch {
-                connectionManager.connectionState.collect { state ->
-                    if (state is ConnectionState.Connected) refresh()
-                    if (state is ConnectionState.Disconnected) _availability.value = StreamingAvailability()
-                }
+        scope.launch { connectionManager.capabilityRefreshes.collect { refresh() } }
+        scope.launch {
+            connectionManager.connectionState.collect { state ->
+                if (state is ConnectionState.Connected) refresh()
+                if (state is ConnectionState.Disconnected) _availability.value = StreamingAvailability()
             }
         }
     }

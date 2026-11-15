@@ -15,10 +15,7 @@ import com.nendo.argosy.util.LogLevel
 import com.nendo.argosy.data.preferences.LibraryLayout
 import com.nendo.argosy.data.preferences.LibraryListStyle
 import com.nendo.argosy.domain.model.HomeLayoutKind
-import com.nendo.argosy.ui.common.hudCornerFromStored
-import com.nendo.argosy.ui.components.HudCorner
 import com.nendo.argosy.ui.components.isHomeLayoutFieldAtBound
-import com.nendo.argosy.ui.screens.settings.ARCHITECTURE_OPTIONS
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.stepOption
@@ -33,7 +30,6 @@ import com.nendo.argosy.ui.screens.settings.sections.adjustPresentationItem
 import com.nendo.argosy.ui.screens.settings.sections.presentationItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.presentationSections
 import com.nendo.argosy.ui.screens.settings.sections.BiosItem
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinEmulatorItem
 import com.nendo.argosy.ui.screens.settings.sections.NavigationItem
 import com.nendo.argosy.ui.screens.settings.sections.ControllerGripItem
 import com.nendo.argosy.ui.screens.settings.sections.GRIP_RESERVE_PERCENT_STEP
@@ -64,7 +60,6 @@ import com.nendo.argosy.ui.screens.settings.sections.savesItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.savesSections
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenSections
-import com.nendo.argosy.ui.screens.settings.sections.socialSections
 import com.nendo.argosy.ui.screens.settings.sections.SteamItem
 import com.nendo.argosy.ui.screens.settings.sections.steamItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.steamSections
@@ -149,8 +144,6 @@ internal class LightSectionsInput(
             SettingsSection.STEAM_SETTINGS -> handleSteamLeftRight(direction)
             SettingsSection.JELLYFIN -> handleJellyfinLeftRight(direction)
             SettingsSection.ABOUT -> handleAboutLeftRight(direction)
-            SettingsSection.BUILTIN_EMULATOR -> handleBuiltinEmulatorLeftRight(direction)
-            SettingsSection.CORE_MANAGEMENT -> handleCoreManagementLeftRight(direction)
             else -> InputResult.UNHANDLED
         }
     }
@@ -480,30 +473,6 @@ internal class LightSectionsInput(
         return InputResult.HANDLED
     }
 
-    private fun handleBuiltinEmulatorLeftRight(direction: Int): InputResult {
-        val state = viewModel.uiState.value
-        if (!state.emulators.builtinLibretroEnabled) return InputResult.UNHANDLED
-        return when (state.focusedIndex) {
-            BuiltinEmulatorItem.ARCHITECTURE.focusIndex -> stepOption(
-                ARCHITECTURE_OPTIONS,
-                state.emulators.architectureDisplay,
-                direction,
-                viewModel::setBuiltinArchitecture
-            )
-            BuiltinEmulatorItem.HUD_CORNER.focusIndex -> stepOption(
-                HudCorner.entries,
-                hudCornerFromStored(state.emulators.hudCorner),
-                direction
-            ) { viewModel.setHudCorner(it.name) }
-            else -> InputResult.UNHANDLED
-        }
-    }
-
-    private fun handleCoreManagementLeftRight(direction: Int): InputResult {
-        viewModel.moveCoreManagementCoreFocus(direction)
-        return InputResult.HANDLED
-    }
-
     private fun handleSectionJump(direction: Int): InputResult {
         val state = viewModel.uiState.value
         val sections = when (state.currentSection) {
@@ -525,7 +494,6 @@ internal class LightSectionsInput(
             } else {
                 jellyfinSections(JellyfinLayoutState.from(state))
             }
-            SettingsSection.SOCIAL -> socialSections(hasAvatarDoodle = state.social.avatarDoodle != null)
             SettingsSection.NAVIGATION -> navigationSections(state.controls)
             SettingsSection.AUDIO -> audioSections()
             SettingsSection.ABOUT -> aboutSections(state.fileLoggingPath != null, aboutHasChangelog(state.updateCheck))

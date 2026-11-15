@@ -8,8 +8,7 @@ import com.nendo.argosy.data.preferences.SelectSwapMode
 
 /**
  * The Select gesture that swaps screens right now, or null when no swap is available. A swap is
- * available on a dual-screen device with a presentation screen, and while a game runs only when
- * the game can follow the swap to its new display.
+ * available on a dual-screen device with a presentation screen while no game is running.
  */
 fun activeSelectSwapMode(): SelectSwapMode? =
     DualScreenManagerHolder.instance?.let {
@@ -17,7 +16,6 @@ fun activeSelectSwapMode(): SelectSwapMode? =
             it.isDualScreenDevice.value,
             it.hasPresentationScreen.value,
             it.swappedIsGameActive.value,
-            it.liveSwapAvailable.value,
             it.selectSwapMode.value
         )
     }
@@ -42,15 +40,13 @@ fun selectSwapModeState(): SelectSwapMode? {
     val dualScreen by manager.isDualScreenDevice.collectAsState()
     val hasPresentation by manager.hasPresentationScreen.collectAsState()
     val gameActive by manager.swappedIsGameActive.collectAsState()
-    val liveSwap by manager.liveSwapAvailable.collectAsState()
     val mode by manager.selectSwapMode.collectAsState()
-    return swapRule(dualScreen, hasPresentation, gameActive, liveSwap, mode)
+    return swapRule(dualScreen, hasPresentation, gameActive, mode)
 }
 
 private fun swapRule(
     dualScreen: Boolean,
     hasPresentation: Boolean,
     gameActive: Boolean,
-    liveSwap: Boolean,
     mode: SelectSwapMode
-): SelectSwapMode? = mode.takeIf { dualScreen && hasPresentation && (!gameActive || liveSwap) }
+): SelectSwapMode? = mode.takeIf { dualScreen && hasPresentation && !gameActive }

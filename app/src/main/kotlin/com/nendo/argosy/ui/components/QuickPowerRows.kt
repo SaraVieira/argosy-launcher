@@ -107,14 +107,13 @@ private fun OpenGamesBlock(games: List<QuickOpenGame>) {
         )
         return
     }
-    val builtIn = stringResource(R.string.ui_quick_settings_power_open_game_builtin)
     Column {
         games.forEach { game ->
             key(game.taskId) {
                 QuickStatusRow(
                     icon = Icons.Default.SportsEsports,
                     label = game.title,
-                    valueText = if (game.isBuiltIn) builtIn else game.emulatorLabel.orEmpty()
+                    valueText = game.emulatorLabel.orEmpty()
                 )
             }
         }

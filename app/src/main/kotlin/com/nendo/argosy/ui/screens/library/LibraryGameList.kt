@@ -188,9 +188,6 @@ internal fun LibraryGameList(
                                     needsInstall = game.needsInstall,
                                     isFocused = isFocused,
                                     downloadIndicator = indicator,
-                                    friends = game.listDetails.igdbId
-                                        ?.let { uiState.friendsActivity[it.toInt()] }
-                                        .orEmpty(),
                                     saveState = uiState.saveStates[game.id],
                                     onCoverLoadFailed = { path -> viewModel.repairCoverImage(game.id, path) },
                                     onClick = onClick,

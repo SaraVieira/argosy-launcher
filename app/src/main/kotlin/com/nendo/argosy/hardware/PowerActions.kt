@@ -111,15 +111,7 @@ class PowerActions @Inject constructor(
         runAfterSavePush(R.string.ui_quick_settings_power_failed_off) { RootScriptRunner.shutdown() }
     }
 
-    /**
-     * Saves and closes every built-in game, then opens the system power menu through the
-     * accessibility service.
-     */
     fun openSystemPowerMenu(): Deferred<Boolean> = scope.async {
-        val builtIn = runningGames.refresh()
-            .filter { it.packageName == EmulatorRegistry.BUILTIN_PACKAGE }
-            .map { it.taskId }
-        if (!runningGames.close(builtIn)) Logger.warn(TAG, "a built-in game outlived its close before the power menu")
         val opened = globalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
         if (!opened) notifyFailure(R.string.ui_quick_settings_power_failed_menu)
         opened

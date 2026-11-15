@@ -3,7 +3,7 @@ package com.nendo.argosy.domain.usecase.recap
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlaySessionDao
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.uploader.PlaySessionPullScheduler
+import com.nendo.argosy.data.playsession.PlaySessionPullScheduler
 import com.nendo.argosy.domain.model.PreLaunchRecap
 import kotlinx.coroutines.flow.first
 import java.time.Instant

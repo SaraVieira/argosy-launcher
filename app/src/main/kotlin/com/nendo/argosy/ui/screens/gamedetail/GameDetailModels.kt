@@ -104,7 +104,6 @@ data class GameDetailUi(
     val isMultiDisc: Boolean = false,
     val lastPlayedDiscId: Long? = null,
     val isRetroArchEmulator: Boolean = false,
-    val isBuiltInEmulator: Boolean = false,
     val hasMultipleCores: Boolean = false,
     val selectedCoreName: String? = null,
     val canManageSaves: Boolean = false,
@@ -236,7 +235,6 @@ fun buildMoreOptions(ctx: MoreOptionsContext): List<MoreOptionAction> = buildLis
     if (ctx.canManageSaves || ctx.canManageStates) add(MoreOptionAction.ManageSaves)
     if (canTrackProgress) add(MoreOptionAction.RatingsStatus)
     if (ctx.isSteamGame) add(MoreOptionAction.ChangeSteamLauncher)
-    if (isEmulatedGame) add(MoreOptionAction.SpeedrunSplits)
     if (usesTitleId && isEmulatedGame) add(MoreOptionAction.RefreshTitleId)
     if (ctx.isMultiDisc) add(MoreOptionAction.SelectDisc)
     if (ctx.hasVariants && isEmulatedGame) add(MoreOptionAction.SelectVariant)
@@ -270,7 +268,6 @@ sealed class MoreOptionAction {
     data object RefreshData : MoreOptionAction()
     data object AddToCollection : MoreOptionAction()
     data object RefreshTitleId : MoreOptionAction()
-    data object SpeedrunSplits : MoreOptionAction()
     data object Artwork : MoreOptionAction()
     data object Delete : MoreOptionAction()
     data object RemoveFromLibrary : MoreOptionAction()
@@ -292,14 +289,6 @@ data class GameDetailUiState(
     val documentFocusIndex: Int = 0,
     val launchDisplayNumbers: List<Int> = emptyList(),
     val launchDisplayIndex: Int = 0,
-    val showPlayOptions: Boolean = false,
-    val playOptionsFocusIndex: Int = 0,
-    val hasCasualSaves: Boolean = false,
-    val hasHardcoreSave: Boolean = false,
-    val hasRASupport: Boolean = false,
-    val hardcoreAvailable: Boolean = false,
-    val statesAvailable: Boolean = false,
-    val isOnline: Boolean = false,
     val canSearchCovers: Boolean = false,
     val isLoading: Boolean = true,
     val isRefreshingGameData: Boolean = false,
@@ -352,15 +341,8 @@ data class GameDetailUiState(
     val showCreateCollectionDialog: Boolean = false,
     val showAchievementList: Boolean = false,
     val achievementListFocusIndex: Int = 0,
-    val reviewSummary: com.nendo.argosy.data.social.ReviewSummary? = null,
-    val friendsActivity: List<com.nendo.argosy.data.social.FriendActivity> = emptyList(),
-    val reviewPage: com.nendo.argosy.data.social.GameReviewsPage? = null,
-    val showReviewList: Boolean = false,
-    val reviewListFocusIndex: Int = 0,
-    val reviewEditor: ReviewEditorState? = null,
     val hasVariants: Boolean = false,
     val hasSiblingGroup: Boolean = false,
-    val hasSocialAccount: Boolean = false,
     val isPrivate: Boolean = false,
     val perGameSettings: com.nendo.argosy.ui.screens.gamedetail.delegates.PerGameSettingsState =
         com.nendo.argosy.ui.screens.gamedetail.delegates.PerGameSettingsState(),
@@ -370,9 +352,6 @@ data class GameDetailUiState(
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1
-
-    val reviewListHasWriteRow: Boolean
-        get() = hasSocialAccount && game?.igdbId != null && reviewPage?.myReview == null
 
     // Convenience accessors for backward compatibility
     val showSaveCacheDialog: Boolean get() = saveChannel.isVisible
@@ -395,7 +374,7 @@ data class GameDetailUiState(
                 hasDescription = !game?.description.isNullOrBlank(),
                 hasScreenshots = game?.screenshots?.isNotEmpty() == true,
                 hasAchievements = game?.achievements?.isNotEmpty() == true,
-                hasSocialAccount = hasSocialAccount,
+                hasIgdbId = game?.igdbId != null,
                 hasSaveSync = hasSaveSync,
                 hasRelated = relatedGames.isNotEmpty(),
                 hasPerGameSettings = game != null && !game.isSteamGame && !game.isAndroidApp &&

@@ -23,14 +23,11 @@ class EmulatorDisplayTargetWriteTest {
         soundManager = mockk(relaxed = true),
         emulatorSaveConfigRepository = mockk(relaxed = true),
         emulatorConfigRepo = mockk(relaxed = true),
-        coreManager = mockk(relaxed = true),
-        coreVersionRepository = mockk(relaxed = true),
         emulatorUpdateManager = mockk(relaxed = true),
         emulatorDownloadManager = mockk(relaxed = true),
         emulatorUpdateRepository = mockk(relaxed = true),
         saveHandlerRegistry = mockk(relaxed = true),
-        savePathAuthority = mockk(relaxed = true),
-        builtinCoreSummaryLoader = mockk(relaxed = true)
+        savePathAuthority = mockk(relaxed = true)
     )
 
     @Test

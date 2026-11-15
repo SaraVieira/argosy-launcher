@@ -8,7 +8,6 @@ import com.nendo.argosy.data.local.entity.SaveOwnershipEntity
 import com.nendo.argosy.data.local.entity.StateOwnershipEntity
 import com.nendo.argosy.data.preferences.AccountPreferenceStoreRegistry
 import com.nendo.argosy.data.preferences.AccountSwitchMarkerStore
-import com.nendo.argosy.data.quaypass.QuayPassKeystore
 import com.nendo.argosy.data.repository.RomMAccountRepository
 import com.nendo.argosy.util.AppPaths
 import com.nendo.argosy.util.Logger
@@ -26,33 +25,16 @@ private const val TAG = "AccountRemoval"
 data class AccountPendingWork(
     val queuedSyncOperations: Int,
     val savesAwaitingUpload: Int,
-    val queuedSocialEvents: Int,
-    val queuedQuayPassReports: Int,
     val unfinishedDownloads: Int
 ) {
     val isEmpty: Boolean
         get() = queuedSyncOperations == 0 &&
             savesAwaitingUpload == 0 &&
-            queuedSocialEvents == 0 &&
-            queuedQuayPassReports == 0 &&
             unfinishedDownloads == 0
-
-    /**
-     * Narrower than [isEmpty]: social rows are telemetry a device offline from the social
-     * backend keeps forever, so counting them would make signing out impossible. [isEmpty] stays
-     * whole, and the tally still reports and discards them.
-     */
-    val blocksRemoval: Boolean
-        get() = queuedSyncOperations > 0 ||
-            savesAwaitingUpload > 0 ||
-            queuedQuayPassReports > 0 ||
-            unfinishedDownloads > 0
 
     fun describe(): String? = buildList {
         if (queuedSyncOperations > 0) add("$queuedSyncOperations queued sync operations")
         if (savesAwaitingUpload > 0) add("$savesAwaitingUpload saves awaiting upload")
-        if (queuedSocialEvents > 0) add("$queuedSocialEvents queued social events")
-        if (queuedQuayPassReports > 0) add("$queuedQuayPassReports queued QuayPass reports")
         if (unfinishedDownloads > 0) add("$unfinishedDownloads unfinished downloads")
     }.takeIf { it.isNotEmpty() }?.joinToString(", ")
 }
@@ -100,7 +82,6 @@ class AccountRemovalService @Inject constructor(
     private val stateService: AccountSwitchStateService,
     private val rommAccountRepository: RomMAccountRepository,
     private val preferenceStores: AccountPreferenceStoreRegistry,
-    private val quayPassKeystore: QuayPassKeystore,
     private val downloadManager: dagger.Lazy<DownloadManager>
 ) {
 
@@ -126,7 +107,7 @@ class AccountRemovalService @Inject constructor(
         val ownerUserId = account.rommUserId
 
         val pending = pendingWorkFor(ownerUserId)
-        if (unflushed == UnflushedQueuePolicy.REFUSE && pending.blocksRemoval) {
+        if (unflushed == UnflushedQueuePolicy.REFUSE && !pending.isEmpty) {
             Logger.info(TAG, "Removal of user $ownerUserId refused: $pending")
             return@withContext AccountRemovalResult.Refused(pending)
         }
@@ -162,7 +143,6 @@ class AccountRemovalService @Inject constructor(
         deleteRows(ownerUserId)
         deleteCacheDirectories(ownerUserId)
         preferenceStores.clearFor(ownerUserId)
-        quayPassKeystore.clear(QuayPassKeystore.aliasFor(ownerUserId))
         rommAccountRepository.forget(accountId)
 
         Logger.info(
@@ -175,8 +155,6 @@ class AccountRemovalService @Inject constructor(
     private suspend fun pendingWorkFor(ownerUserId: Long) = AccountPendingWork(
         queuedSyncOperations = database.pendingSyncQueueDao().countUnflushedForOwner(ownerUserId),
         savesAwaitingUpload = database.saveCacheDao().countNeedingRemoteSyncForOwner(ownerUserId),
-        queuedSocialEvents = database.pendingSocialSyncDao().countPendingForOwner(ownerUserId),
-        queuedQuayPassReports = database.quayPassPendingReportDao().countForOwner(ownerUserId),
         unfinishedDownloads = database.downloadQueueDao().countUnfinishedForOwner(ownerUserId)
     )
 

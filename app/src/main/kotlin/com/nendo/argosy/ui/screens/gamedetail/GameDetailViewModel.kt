@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.download.ZipExtractor
-import com.nendo.argosy.data.emulator.BuiltinCoreResolver
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.LaunchConfig
@@ -65,7 +64,6 @@ import com.nendo.argosy.ui.screens.gamedetail.delegates.PerGameSettingsDelegate
 import com.nendo.argosy.ui.screens.gamedetail.delegates.PerGameSettingsRow
 import com.nendo.argosy.ui.screens.gamedetail.delegates.PickerModalDelegate
 import com.nendo.argosy.ui.screens.gamedetail.delegates.PickerSelection
-import com.nendo.argosy.ui.screens.gamedetail.delegates.PlayOptionsDelegate
 import com.nendo.argosy.ui.screens.gamedetail.delegates.RatingsStatusDelegate
 import com.nendo.argosy.ui.screens.gamedetail.delegates.SaveManagementDelegate
 import com.nendo.argosy.ui.screens.gamedetail.delegates.ScreenshotDelegate
@@ -104,7 +102,6 @@ class GameDetailViewModel @Inject constructor(
     private val stateSupportResolver: com.nendo.argosy.data.emulator.StateSupportResolver,
     private val prefetchGameSaveDataUseCase:
         com.nendo.argosy.domain.usecase.sync.PrefetchGameSaveDataUseCase,
-    private val builtinCoreResolver: BuiltinCoreResolver,
     private val notificationManager: NotificationManager,
     private val gameRepository: GameRepository,
     private val activeSaveRepository: com.nendo.argosy.data.repository.ActiveSaveRepository,
@@ -131,11 +128,9 @@ class GameDetailViewModel @Inject constructor(
     private val screenshotDelegate: ScreenshotDelegate,
     private val ratingsStatus: RatingsStatusDelegate,
     private val artworkDelegate: ArtworkDelegate,
-    private val playOptionsDelegate: PlayOptionsDelegate,
     private val moreOptionsDelegate: MoreOptionsDelegate,
     private val perGameSettingsDelegate: PerGameSettingsDelegate,
-    val speedrunSplitsDelegate: com.nendo.argosy.ui.screens.gamedetail.delegates.SpeedrunSplitsDelegate,
-    private val socialRepository: com.nendo.argosy.data.social.SocialRepository,
+    private val privateGamesRepository: com.nendo.argosy.data.repository.PrivateGamesRepository,
     private val steamLauncherLinkController: com.nendo.argosy.data.steam.SteamLauncherLinkController,
     private val variantScanner: com.nendo.argosy.data.scanner.VariantScanner,
     private val variantResolver: com.nendo.argosy.data.emulator.VariantResolver,
@@ -291,7 +286,7 @@ class GameDetailViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.map { state -> state.game?.toCompanionDetail(state.friendsActivity) }
+            _uiState.map { state -> state.game?.toCompanionDetail() }
                 .distinctUntilChanged()
                 .collect { publishCompanionDetail(it) }
         }
@@ -434,22 +429,6 @@ class GameDetailViewModel @Inject constructor(
             }
         }
 
-        viewModelScope.launch {
-            playOptionsDelegate.state.collect { poState ->
-                _uiState.update {
-                    it.copy(
-                        showPlayOptions = poState.showPlayOptions,
-                        playOptionsFocusIndex = poState.playOptionsFocusIndex,
-                        hasCasualSaves = poState.hasCasualSaves,
-                        hasHardcoreSave = poState.hasHardcoreSave,
-                        hasRASupport = poState.hasRASupport,
-                        hardcoreAvailable = poState.hardcoreAvailable,
-                        statesAvailable = poState.statesAvailable,
-                        isOnline = poState.isOnline
-                    )
-                }
-            }
-        }
 
         viewModelScope.launch {
             moreOptionsDelegate.state.collect { moState ->
@@ -495,69 +474,12 @@ class GameDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             combine(
-                socialRepository.hiddenGameIds,
+                privateGamesRepository.privateIgdbIds,
                 _uiState.map { it.game?.igdbId }.distinctUntilChanged()
-            ) { hiddenIds, igdbId ->
-                igdbId != null && igdbId.toInt() in hiddenIds
+            ) { privateIds, igdbId ->
+                igdbId != null && igdbId.toInt() in privateIds
             }.distinctUntilChanged().collect { isPrivate ->
                 _uiState.update { it.copy(isPrivate = isPrivate) }
-            }
-        }
-
-        viewModelScope.launch {
-            socialRepository.connectionState.collect { state ->
-                _uiState.update {
-                    it.copy(hasSocialAccount = state is com.nendo.argosy.data.social.SocialConnectionState.Connected)
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            combine(
-                socialRepository.friendsActivity,
-                _uiState.map { it.game?.igdbId }.distinctUntilChanged()
-            ) { activity, igdbId ->
-                igdbId?.let { activity[it.toInt()] }.orEmpty()
-            }.distinctUntilChanged().collect { friends ->
-                _uiState.update { it.copy(friendsActivity = friends) }
-            }
-        }
-
-        viewModelScope.launch {
-            combine(
-                socialRepository.reviewSummaries,
-                _uiState.map { it.game?.igdbId }.distinctUntilChanged()
-            ) { summaries, igdbId ->
-                igdbId?.let { summaries[it.toInt()] }
-            }.distinctUntilChanged().collect { summary ->
-                _uiState.update { it.copy(reviewSummary = summary) }
-            }
-        }
-
-        viewModelScope.launch {
-            combine(
-                socialRepository.gameReviews,
-                _uiState.map { it.game?.igdbId }.distinctUntilChanged()
-            ) { pages, igdbId ->
-                igdbId?.let { pages[it.toInt()] }
-            }.distinctUntilChanged().collect { page ->
-                _uiState.update { it.copy(reviewPage = page) }
-            }
-        }
-
-        viewModelScope.launch {
-            socialRepository.reviewWriteEvents.collect { event ->
-                _uiState.update { state ->
-                    val editor = state.reviewEditor ?: return@update state
-                    if (editor.igdbId != event.igdbId) return@update state
-                    when (event) {
-                        is com.nendo.argosy.data.social.ReviewWriteEvent.Failed ->
-                            state.copy(reviewEditor = editor.settled())
-                        is com.nendo.argosy.data.social.ReviewWriteEvent.Saved,
-                        is com.nendo.argosy.data.social.ReviewWriteEvent.Deleted ->
-                            state.copy(reviewEditor = null)
-                    }
-                }
             }
         }
     }
@@ -634,34 +556,27 @@ class GameDetailViewModel @Inject constructor(
             val platform = platformRepository.getById(game.platformId)
 
             val gameSpecificConfig = emulatorConfigDao.getByGameId(gameId)
+                ?.takeUnless { it.packageName == EmulatorRegistry.BUILTIN_PACKAGE }
             val platformDefaultConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
+                ?.takeUnless { it.packageName == EmulatorRegistry.BUILTIN_PACKAGE }
 
             val prefs = preferencesRepository.userPreferences.first()
 
             val emulatorName = gameSpecificConfig?.displayName
                 ?: platformDefaultConfig?.displayName
-                ?: emulatorDetector.getPreferredEmulator(game.platformSlug, prefs.builtinLibretroEnabled)?.def?.displayName
+                ?: emulatorDetector.getPreferredEmulator(game.platformSlug)?.def?.displayName
 
             val configuredPackage = gameSpecificConfig?.packageName ?: platformDefaultConfig?.packageName
             val emulatorDef = configuredPackage?.let { emulatorDetector.getByPackage(it) }
-                ?: emulatorDetector.getPreferredEmulator(game.platformSlug, prefs.builtinLibretroEnabled)?.def
+                ?: emulatorDetector.getPreferredEmulator(game.platformSlug)?.def
             val isCoreSelectable = emulatorDef?.launchConfig?.isCoreSelectable == true
-            val isBuiltInEmulator = emulatorDef?.launchConfig is LaunchConfig.BuiltIn
 
-            val platformCores = EmulatorRegistry.getSelectableCores(game.platformSlug, isBuiltInEmulator)
+            val platformCores = EmulatorRegistry.getSelectableCores(game.platformSlug, false)
             val hasMultipleCores = isCoreSelectable && platformCores.size > 1
 
-            val selectedCoreId = if (isBuiltInEmulator) {
-                builtinCoreResolver.resolveCoreId(
-                    gameId = gameId,
-                    platformId = game.platformId,
-                    platformSlug = game.platformSlug
-                )
-            } else {
-                gameSpecificConfig?.coreName
-                    ?: platformDefaultConfig?.coreName
-                    ?: EmulatorRegistry.getDefaultSelectableCore(game.platformSlug, isBuiltInEmulator)?.id
-            }
+            val selectedCoreId = gameSpecificConfig?.coreName
+                ?: platformDefaultConfig?.coreName
+                ?: EmulatorRegistry.getDefaultSelectableCore(game.platformSlug, false)?.id
             val selectedCoreName = if (isCoreSelectable) {
                 platformCores.find { it.id == selectedCoreId }?.displayName
             } else null
@@ -759,13 +674,7 @@ class GameDetailViewModel @Inject constructor(
             val screenshotRows = gameRepository.getScreenshotsWithGallery(gameId)
 
             val isPrivate = game.igdbId != null &&
-                game.igdbId.toInt() in socialRepository.hiddenGameIds.value
-            val hasSocial = socialRepository.connectionState.value is
-                com.nendo.argosy.data.social.SocialConnectionState.Connected
-
-            if (hasSocial && game.igdbId != null) {
-                socialRepository.requestReviewSummary(game.igdbId.toInt())
-            }
+                game.igdbId.toInt() in privateGamesRepository.privateIgdbIds.value
 
             _uiState.update { state ->
                 state.copy(
@@ -777,7 +686,6 @@ class GameDetailViewModel @Inject constructor(
                         emulatorName = emulatorName,
                         canPlay = canPlay,
                         isRetroArch = emulatorDef?.launchConfig is LaunchConfig.RetroArch,
-                        isBuiltIn = isBuiltInEmulator,
                         hasMultipleCores = hasMultipleCores,
                         selectedCoreName = selectedCoreName,
                         achievements = cachedAchievements,
@@ -798,7 +706,6 @@ class GameDetailViewModel @Inject constructor(
                     siblingGameIds = siblingIds,
                     currentGameIndex = currentIndex,
                     isPrivate = isPrivate,
-                    hasSocialAccount = hasSocial,
                     syncScreenshotsEnabled = prefs.syncScreenshotsEnabled
                 )
             }
@@ -1245,14 +1152,7 @@ class GameDetailViewModel @Inject constructor(
         if (origin != LaunchOrigin.INTERNAL) pendingLaunchOrigin = origin
 
         viewModelScope.launch {
-            val currentGame = _uiState.value.game ?: return@launch
-
-            if (currentGame.isBuiltInEmulator) {
-                if (playOptionsDelegate.shouldShowModeSelection(currentGameId, true, true)) {
-                    playOptionsDelegate.showFreshGameModeSelection(viewModelScope, currentGameId)
-                    return@launch
-                }
-            }
+            _uiState.value.game ?: return@launch
 
             val callbacks = makeLaunchCallbacks()
             gameLaunchDelegate.launchGame(
@@ -1263,82 +1163,6 @@ class GameDetailViewModel @Inject constructor(
                 origin = pendingLaunchOrigin,
                 start = callbacks.start,
                 onLaunchFailed = { callbacks.onLaunchFailed() }
-            )
-        }
-    }
-
-    fun showPlayOptions() {
-        if (gameLaunchDelegate.isSessionEndBusy) return
-        val game = _uiState.value.game
-        val hasRASupport = game?.isBuiltInEmulator == true
-        playOptionsDelegate.showPlayOptions(viewModelScope, currentGameId, hasRASupport)
-    }
-
-    fun dismissPlayOptions() = playOptionsDelegate.dismissPlayOptions()
-
-    fun movePlayOptionsFocus(delta: Int) = playOptionsDelegate.movePlayOptionsFocus(delta)
-
-    private fun confirmPlayOptionSelection() {
-        val action = playOptionsDelegate.confirmPlayOptionSelection() ?: return
-        handlePlayOption(action)
-    }
-
-    fun handlePlayOption(action: com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction) {
-        playOptionsDelegate.dismissPlayOptions()
-        viewModelScope.launch {
-            when (action) {
-                is com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction.Resume ->
-                    launchWithMode(com.nendo.argosy.libretro.LaunchMode.RESUME, skipPreLaunchSync = false)
-                is com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction.ResumeNoSync ->
-                    launchWithMode(com.nendo.argosy.libretro.LaunchMode.RESUME, skipPreLaunchSync = true)
-                is com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction.ResumeHardcore ->
-                    launchWithMode(com.nendo.argosy.libretro.LaunchMode.RESUME_HARDCORE, skipPreLaunchSync = false)
-                is com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction.NewCasual ->
-                    launchWithMode(com.nendo.argosy.libretro.LaunchMode.NEW_CASUAL, skipPreLaunchSync = false)
-                is com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionAction.NewHardcore ->
-                    launchWithMode(com.nendo.argosy.libretro.LaunchMode.NEW_HARDCORE, skipPreLaunchSync = false)
-            }
-        }
-    }
-
-    private suspend fun launchWithMode(
-        launchMode: com.nendo.argosy.libretro.LaunchMode,
-        skipPreLaunchSync: Boolean
-    ) {
-        if (gameLaunchDelegate.isSessionEndBusy) return
-        if (launchMode == com.nendo.argosy.libretro.LaunchMode.NEW_CASUAL ||
-            launchMode == com.nendo.argosy.libretro.LaunchMode.NEW_HARDCORE) {
-            activeSaveRepository.clearActive(currentGameId)
-            _uiState.update { state ->
-                state.copy(
-                    saveChannel = state.saveChannel.copy(activeChannel = null),
-                    saveStatusInfo = state.saveStatusInfo?.copy(channelName = null, activeSaveTimestamp = null)
-                )
-            }
-        }
-
-        val isResume = launchMode == com.nendo.argosy.libretro.LaunchMode.RESUME ||
-            launchMode == com.nendo.argosy.libretro.LaunchMode.RESUME_HARDCORE
-        if (isResume) {
-            val callbacks = makeLaunchCallbacks()
-            gameLaunchDelegate.launchGame(
-                scope = viewModelScope,
-                gameId = currentGameId,
-                skipPreLaunchSync = skipPreLaunchSync,
-                overrideLaunchMode = launchMode,
-                allowVariantPrompt = false,
-                origin = pendingLaunchOrigin,
-                start = callbacks.start,
-                onLaunchFailed = { callbacks.onLaunchFailed() }
-            )
-        } else {
-            gameLaunchDelegate.launchSimple(
-                scope = viewModelScope,
-                gameId = currentGameId,
-                allowVariantPrompt = false,
-                launchMode = launchMode,
-                origin = pendingLaunchOrigin,
-                callbacks = makeLaunchCallbacks()
             )
         }
     }
@@ -1492,10 +1316,6 @@ class GameDetailViewModel @Inject constructor(
             MoreOptionAction.Files -> showFilesPicker()
             MoreOptionAction.RefreshData -> refreshAndroidOrRommData()
             MoreOptionAction.RefreshTitleId -> refreshTitleId()
-            MoreOptionAction.SpeedrunSplits -> {
-                toggleMoreOptions()
-                speedrunSplitsDelegate.open(viewModelScope, currentGameId, _uiState.value.game?.title ?: "")
-            }
             MoreOptionAction.AddToCollection -> showAddToCollectionModal()
             MoreOptionAction.Artwork -> showArtwork()
             MoreOptionAction.Delete -> {
@@ -1808,23 +1628,6 @@ class GameDetailViewModel @Inject constructor(
         viewModelScope.launch { perGameSettingsDelegate.cycleExtension(currentGameId, direction) }
     }
 
-    fun cyclePerGameGpuDriver(direction: Int) {
-        viewModelScope.launch { perGameSettingsDelegate.cycleGpuDriver(currentGameId, direction) }
-    }
-
-    fun cyclePerGameBackend(direction: Int) {
-        viewModelScope.launch { perGameSettingsDelegate.cycleBackend(currentGameId, direction) }
-    }
-
-    fun openPerGameGpuDriverPicker() = perGameSettingsDelegate.openGpuDriverPicker()
-
-    fun dismissPerGameGpuDriverPicker() = perGameSettingsDelegate.dismissGpuDriverPicker()
-
-    fun selectPerGameGpuDriverEntry(index: Int) {
-        val entry = perGameSettingsDelegate.state.value.gpuDriverPicker.getOrNull(index) ?: return
-        viewModelScope.launch { perGameSettingsDelegate.applyGpuDriverEntry(currentGameId, entry) }
-    }
-
     fun openPerGameMemcardPicker() = perGameSettingsDelegate.openMemcardPicker()
 
     fun dismissPerGameMemcardPicker() = perGameSettingsDelegate.dismissMemcardPicker()
@@ -1857,8 +1660,6 @@ class GameDetailViewModel @Inject constructor(
             PerGameSettingsRow.MEMCARD -> openPerGameMemcardPicker()
             PerGameSettingsRow.DISPLAY_TARGET -> cyclePerGameDisplayTarget(1)
             PerGameSettingsRow.EXTENSION -> cyclePerGameExtension(1)
-            PerGameSettingsRow.BACKEND -> cyclePerGameBackend(1)
-            PerGameSettingsRow.GPU_DRIVER -> openPerGameGpuDriverPicker()
             PerGameSettingsRow.PLATFORM_SETTINGS -> {
                 dismissPerGameSettings()
                 _uiState.value.game?.platformId?.let(onNavigateToPlatformSettings)
@@ -1873,8 +1674,6 @@ class GameDetailViewModel @Inject constructor(
             PerGameSettingsRow.SAVE_PATH -> perGameSettingsDelegate.movePathButton(-direction)
             PerGameSettingsRow.DISPLAY_TARGET -> cyclePerGameDisplayTarget(direction)
             PerGameSettingsRow.EXTENSION -> cyclePerGameExtension(direction)
-            PerGameSettingsRow.BACKEND -> cyclePerGameBackend(direction)
-            PerGameSettingsRow.GPU_DRIVER -> cyclePerGameGpuDriver(direction)
             else -> {}
         }
     }
@@ -2113,8 +1912,7 @@ class GameDetailViewModel @Inject constructor(
         val game = _uiState.value.game ?: return
         moreOptionsDelegate.reset()
         viewModelScope.launch {
-            val builtinEnabled = preferencesRepository.userPreferences.first().builtinLibretroEnabled
-            pickerModalDelegate.showEmulatorPicker(game.id, game.platformId, game.platformSlug, builtinEnabled)
+            pickerModalDelegate.showEmulatorPicker(game.platformSlug)
         }
     }
 
@@ -2203,7 +2001,7 @@ class GameDetailViewModel @Inject constructor(
         val game = _uiState.value.game ?: return
         if (!game.hasMultipleCores) return
         moreOptionsDelegate.reset()
-        pickerModalDelegate.showCorePicker(game.platformSlug, _uiState.value.selectedCoreId, game.isBuiltInEmulator)
+        pickerModalDelegate.showCorePicker(game.platformSlug, _uiState.value.selectedCoreId)
     }
 
     fun dismissCorePicker() = pickerModalDelegate.dismissCorePicker()
@@ -2228,11 +2026,8 @@ class GameDetailViewModel @Inject constructor(
     }
 
     fun togglePrivacy() {
-        val game = _uiState.value.game ?: return
-        val igdbId = game.igdbId?.toInt()
-        val steamAppId = game.steamAppId?.toInt()
-        if (igdbId == null && steamAppId == null) return
-        socialRepository.toggleGameVisibility(igdbId, steamAppId, _uiState.value.isPrivate)
+        val igdbId = _uiState.value.game?.igdbId?.toInt() ?: return
+        viewModelScope.launch { privateGamesRepository.toggle(igdbId) }
     }
 
     private fun refreshAndroidOrRommData() {
@@ -2310,7 +2105,6 @@ class GameDetailViewModel @Inject constructor(
             MenuItem.Description -> {}
             MenuItem.Screenshots -> openScreenshotViewer()
             MenuItem.Documents -> openFocusedDocument()
-            MenuItem.Reviews -> showReviewList()
             MenuItem.Achievements -> showAchievementList()
             MenuItem.RelatedGames -> {}
             MenuItem.CloseGame -> requestCloseRunningGame()
@@ -2404,144 +2198,6 @@ class GameDetailViewModel @Inject constructor(
 
     // --- Achievements ---
 
-    fun showReviewList() {
-        val igdbId = _uiState.value.game?.igdbId?.toInt() ?: return
-        socialRepository.requestGameReviews(igdbId)
-        _uiState.update { it.copy(showReviewList = true, reviewListFocusIndex = 0) }
-    }
-
-    fun hideReviewList() {
-        _uiState.update { it.copy(showReviewList = false, reviewListFocusIndex = 0) }
-    }
-
-    /**
-     * Reaching the end of the list asks for the next public page. The friends block and the
-     * caller's own review sit above it and never grow, so only the tail can load more.
-     */
-    fun moveReviewListFocus(delta: Int) {
-        val state = _uiState.value
-        val count = reviewListEntryCount(state)
-        if (count == 0) return
-        _uiState.update { current ->
-            current.copy(reviewListFocusIndex = (current.reviewListFocusIndex + delta).coerceIn(0, count - 1))
-        }
-        val page = state.reviewPage ?: return
-        if (delta > 0 && _uiState.value.reviewListFocusIndex >= count - 1) {
-            socialRepository.loadMoreGameReviews(page.igdbId)
-        }
-    }
-
-    private fun reviewListEntryCount(state: GameDetailUiState): Int {
-        val writeRow = if (state.reviewListHasWriteRow) 1 else 0
-        val page = state.reviewPage ?: return writeRow
-        return writeRow + (if (page.myReview != null) 1 else 0) + page.friends.size + page.public.size
-    }
-
-    fun tapReviewListEntry(index: Int) {
-        val count = reviewListEntryCount(_uiState.value)
-        if (count == 0) return
-        _uiState.update { it.copy(reviewListFocusIndex = index.coerceIn(0, count - 1)) }
-        confirmReviewListSelection()
-    }
-
-    /**
-     * Only the first row can be acted on: it is either the reader's own review or the row that
-     * stands in for it. Every other card belongs to someone else.
-     */
-    fun confirmReviewListSelection() {
-        val state = _uiState.value
-        if (state.reviewListFocusIndex != 0) return
-        if (state.reviewListHasWriteRow || state.reviewPage?.myReview != null) openReviewEditor()
-    }
-
-    fun openReviewEditor() {
-        val state = _uiState.value
-        val game = state.game ?: return
-        val igdbId = game.igdbId?.toInt() ?: return
-        if (!state.hasSocialAccount || state.reviewEditor != null) return
-        val existing = state.reviewPage?.myReview ?: state.reviewSummary?.myReview
-        _uiState.update {
-            it.copy(
-                reviewEditor = ReviewEditorState.forGame(
-                    igdbId = igdbId,
-                    gameTitle = game.title,
-                    platformName = game.platformName,
-                    coverPath = game.coverPath,
-                    existing = existing
-                )
-            )
-        }
-    }
-
-    fun closeReviewEditor() {
-        _uiState.update { it.copy(reviewEditor = null) }
-    }
-
-    private inline fun updateReviewEditor(transform: (ReviewEditorState) -> ReviewEditorState) {
-        _uiState.update { state ->
-            val editor = state.reviewEditor ?: return@update state
-            state.copy(reviewEditor = transform(editor))
-        }
-    }
-
-    fun moveReviewEditorSection(delta: Int) = updateReviewEditor { it.movedSection(delta) }
-
-    fun focusReviewEditorSection(section: ReviewEditorSection) = updateReviewEditor { it.focusedOn(section) }
-
-    fun adjustReviewEditor(delta: Int) = updateReviewEditor { it.adjusted(delta) }
-
-    fun setReviewEditorVerdict(recommended: Boolean) = updateReviewEditor { it.withVerdict(recommended) }
-
-    fun setReviewEditorVisibility(visibility: String) = updateReviewEditor { it.withVisibility(visibility) }
-
-    fun setReviewEditorBody(text: String) = updateReviewEditor { it.withBody(text) }
-
-    fun requestReviewEditorKeyboard() = updateReviewEditor { it.requestingKeyboard() }
-
-    fun submitReview() {
-        val editor = _uiState.value.reviewEditor ?: return
-        if (editor.hasConfirm || !editor.canSubmit) return
-        updateReviewEditor { it.submitting() }
-        socialRepository.upsertReview(editor.igdbId, editor.recommended, editor.bodyToSend, editor.visibility)
-    }
-
-    fun promptReviewDelete() = updateReviewEditor { it.promptingDelete() }
-
-    fun confirmReviewDelete() {
-        val editor = _uiState.value.reviewEditor ?: return
-        if (!editor.isEditing || editor.isSubmitting) return
-        updateReviewEditor { it.submitting() }
-        socialRepository.deleteReview(editor.igdbId)
-    }
-
-    fun dismissReviewEditorConfirm() = updateReviewEditor { it.withoutConfirm() }
-
-    fun backFromReviewEditor() {
-        val editor = _uiState.value.reviewEditor ?: return
-        when {
-            editor.hasConfirm -> dismissReviewEditorConfirm()
-            editor.isSubmitting -> {}
-            editor.isDirty -> updateReviewEditor { it.promptingDiscard() }
-            else -> closeReviewEditor()
-        }
-    }
-
-    fun confirmReviewEditorAction() {
-        val editor = _uiState.value.reviewEditor ?: return
-        when {
-            editor.showDiscardConfirm ->
-                if (editor.confirmFocusIndex == 1) closeReviewEditor() else dismissReviewEditorConfirm()
-            editor.showDeleteConfirm ->
-                if (editor.confirmFocusIndex == 1) confirmReviewDelete() else dismissReviewEditorConfirm()
-            else -> when (editor.confirmAction()) {
-                ReviewEditorAction.TOGGLE -> adjustReviewEditor(1)
-                ReviewEditorAction.OPEN_KEYBOARD -> requestReviewEditorKeyboard()
-                ReviewEditorAction.SUBMIT -> submitReview()
-                ReviewEditorAction.DELETE -> promptReviewDelete()
-            }
-        }
-    }
-
     fun showAchievementList() {
         _uiState.update { it.copy(showAchievementList = true, achievementListFocusIndex = 0) }
     }
@@ -2620,7 +2276,7 @@ class GameDetailViewModel @Inject constructor(
         isDescribing = true
         heldForTimeline = false
         val state = _uiState.value
-        publishCompanionDetail(state.game?.toCompanionDetail(state.friendsActivity))
+        publishCompanionDetail(state.game?.toCompanionDetail())
     }
 
     /**
@@ -2642,7 +2298,6 @@ class GameDetailViewModel @Inject constructor(
         moreOptionsDelegate.reset()
         perGameSettingsDelegate.reset()
         ratingsStatus.reset()
-        playOptionsDelegate.reset()
         screenshotDelegate.reset()
         siblingChoice.reset()
         _uiState.update {
@@ -2682,7 +2337,6 @@ class GameDetailViewModel @Inject constructor(
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
             return when {
-                state.reviewEditor != null -> { moveReviewEditorSection(direction); InputResult.HANDLED }
                 saveState.showRenameDialog -> {
                     saveManagement.saveChannelDelegate.moveRenameRow(
                         if (direction < 0) TextEntryRow.FIELD else TextEntryRow.BUTTONS
@@ -2710,10 +2364,8 @@ class GameDetailViewModel @Inject constructor(
                     InputResult.HANDLED
                 }
                 state.showRatingsStatusMenu -> { changeRatingsStatusFocus(direction); InputResult.HANDLED }
-                state.showPlayOptions -> { movePlayOptionsFocus(direction); InputResult.HANDLED }
                 state.showMoreOptions -> { moveOptionsFocus(direction); InputResult.HANDLED }
                 state.showAchievementList -> { moveAchievementListFocus(direction); InputResult.HANDLED }
-                state.showReviewList -> { moveReviewListFocus(direction); InputResult.HANDLED }
                 else -> if (onBase()) InputResult.HANDLED else InputResult.UNHANDLED
             }
         }
@@ -2732,7 +2384,6 @@ class GameDetailViewModel @Inject constructor(
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
             when {
-                state.reviewEditor != null -> { adjustReviewEditor(-1); return InputResult.HANDLED }
                 saveState.showRenameDialog -> {
                     saveManagement.saveChannelDelegate.moveRenameButton(TEXT_ENTRY_CANCEL_BUTTON)
                     return InputResult.HANDLED
@@ -2762,7 +2413,7 @@ class GameDetailViewModel @Inject constructor(
                     if (isLaunchDisplayRowFocused()) cycleLaunchDisplay(-1)
                     return InputResult.HANDLED
                 }
-                state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showPlayOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt -> return InputResult.HANDLED
+                state.showAddToCollectionModal || state.showRatingsStatusMenu || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt -> return InputResult.HANDLED
                 else -> { onSectionLeft(); return InputResult.HANDLED }
             }
         }
@@ -2773,7 +2424,6 @@ class GameDetailViewModel @Inject constructor(
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
             when {
-                state.reviewEditor != null -> { adjustReviewEditor(1); return InputResult.HANDLED }
                 saveState.showRenameDialog -> {
                     saveManagement.saveChannelDelegate.moveRenameButton(TEXT_ENTRY_CONFIRM_BUTTON)
                     return InputResult.HANDLED
@@ -2803,7 +2453,7 @@ class GameDetailViewModel @Inject constructor(
                     if (isLaunchDisplayRowFocused()) cycleLaunchDisplay(1)
                     return InputResult.HANDLED
                 }
-                state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showPlayOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt -> return InputResult.HANDLED
+                state.showAddToCollectionModal || state.showRatingsStatusMenu || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt -> return InputResult.HANDLED
                 else -> { onSectionRight(); return InputResult.HANDLED }
             }
         }
@@ -2813,7 +2463,6 @@ class GameDetailViewModel @Inject constructor(
             val state = _uiState.value
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
-            if (state.reviewEditor != null) return InputResult.HANDLED
             if (pickerState.showArtPicker && !pickerState.showArtFileBrowser) { switchArtSlot(-1); return InputResult.HANDLED }
             if (pickerState.showFilePicker) { jumpFilePickerGroup(-1); return InputResult.HANDLED }
             if (saveState.isVisible) {
@@ -2826,7 +2475,7 @@ class GameDetailViewModel @Inject constructor(
                 return InputResult.HANDLED
             }
             if (state.showPermissionModal || state.showAchievementList) return InputResult.HANDLED
-            if (saveState.showRestoreConfirmation || state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker || state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showPlayOptions || state.showMoreOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt || state.showExtractionFailedPrompt) return InputResult.HANDLED
+            if (saveState.showRestoreConfirmation || state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker || state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showMoreOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt || state.showExtractionFailedPrompt) return InputResult.HANDLED
             onPrevGame(); return InputResult.HANDLED
         }
 
@@ -2835,7 +2484,6 @@ class GameDetailViewModel @Inject constructor(
             val state = _uiState.value
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
-            if (state.reviewEditor != null) return InputResult.HANDLED
             if (pickerState.showArtPicker && !pickerState.showArtFileBrowser) { switchArtSlot(1); return InputResult.HANDLED }
             if (pickerState.showFilePicker) { jumpFilePickerGroup(1); return InputResult.HANDLED }
             if (saveState.isVisible) {
@@ -2850,7 +2498,7 @@ class GameDetailViewModel @Inject constructor(
                 return InputResult.HANDLED
             }
             if (state.showPermissionModal || state.showAchievementList) return InputResult.HANDLED
-            if (saveState.showRestoreConfirmation || state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker || state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showPlayOptions || state.showMoreOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt || state.showExtractionFailedPrompt) return InputResult.HANDLED
+            if (saveState.showRestoreConfirmation || state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker || state.showAddToCollectionModal || state.showRatingsStatusMenu || state.showMoreOptions || pickerState.hasAnyPickerOpen || state.showMissingDiscPrompt || state.showExtractionFailedPrompt) return InputResult.HANDLED
             onNextGame(); return InputResult.HANDLED
         }
 
@@ -2860,7 +2508,6 @@ class GameDetailViewModel @Inject constructor(
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
             when {
-                state.reviewEditor != null -> confirmReviewEditorAction()
                 saveState.showRenameDialog -> saveManagement.saveChannelDelegate.confirmRenameFocus(viewModelScope)
                 saveState.showDeleteConfirmation -> confirmDelete()
                 saveState.showRestoreConfirmation -> restoreSave(syncToServer = false)
@@ -2874,7 +2521,6 @@ class GameDetailViewModel @Inject constructor(
                 state.isViewerOnVideo -> toggleViewerVideoPlayback()
                 state.showScreenshotViewer -> closeScreenshotViewer()
                 state.showAchievementList -> {}
-                state.showReviewList -> confirmReviewListSelection()
                 state.showPermissionModal -> return InputResult.HANDLED
                 state.showRatingPicker -> confirmRating()
                 state.showStatusPicker -> confirmStatus()
@@ -2889,7 +2535,6 @@ class GameDetailViewModel @Inject constructor(
                 pickerState.showSteamLauncherPicker -> confirmSteamLauncherSelection()
                 state.showAddToCollectionModal -> confirmCollectionSelection()
                 state.showRatingsStatusMenu -> confirmRatingsStatusSelection()
-                state.showPlayOptions -> confirmPlayOptionSelection()
                 state.showMoreOptions -> confirmOptionSelection(onBack, onNavigateToPlatformSettings)
                 menuLayout.itemAtFocusIndex(state.menuFocusIndex, menuLayoutState()) == MenuItem.RelatedGames ->
                     focusedRelatedGameId()?.let(onNavigateToGame)
@@ -2904,7 +2549,6 @@ class GameDetailViewModel @Inject constructor(
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
             when {
-                state.reviewEditor != null -> backFromReviewEditor()
                 saveState.showSlotPicker -> dismissSlotPicker()
                 saveState.showRenameDialog -> dismissRenameDialog()
                 saveState.showDeleteConfirmation -> dismissDeleteConfirmation()
@@ -2918,7 +2562,6 @@ class GameDetailViewModel @Inject constructor(
                 saveState.isVisible -> dismissSaveCacheDialog()
                 state.showScreenshotViewer -> closeScreenshotViewer()
                 state.showAchievementList -> hideAchievementList()
-                state.showReviewList -> hideReviewList()
                 state.showRatingPicker -> dismissRatingPicker()
                 state.showStatusPicker -> dismissStatusPicker()
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
@@ -2933,7 +2576,6 @@ class GameDetailViewModel @Inject constructor(
                 state.showPermissionModal -> dismissPermissionModal()
                 state.showAddToCollectionModal -> dismissAddToCollectionModal()
                 state.showRatingsStatusMenu -> dismissRatingsStatusMenu()
-                state.showPlayOptions -> dismissPlayOptions()
                 state.showMoreOptions -> toggleMoreOptions()
                 else -> onBack()
             }
@@ -2945,7 +2587,6 @@ class GameDetailViewModel @Inject constructor(
             val state = _uiState.value
             val saveState = state.saveChannel
             val pickerState = pickerModalDelegate.state.value
-            if (state.reviewEditor != null) { submitReview(); return InputResult.HANDLED }
             if (saveState.showSlotPicker) { dismissSlotPicker(); return InputResult.UNHANDLED }
             if (saveState.showRenameDialog) { dismissRenameDialog(); return InputResult.UNHANDLED }
             if (saveState.showDeleteConfirmation) { dismissDeleteConfirmation(); return InputResult.UNHANDLED }
@@ -2959,7 +2600,6 @@ class GameDetailViewModel @Inject constructor(
             if (state.showStatusPicker) { dismissStatusPicker(); return InputResult.UNHANDLED }
             if (state.showMissingDiscPrompt) { dismissMissingDiscPrompt(); return InputResult.UNHANDLED }
             if (pickerState.showCorePicker) { dismissCorePicker(); return InputResult.UNHANDLED }
-            if (state.showPlayOptions) { dismissPlayOptions(); return InputResult.UNHANDLED }
             if (state.showMoreOptions) { toggleMoreOptions(); return InputResult.UNHANDLED }
             if (pickerState.showArtPicker) { pickerModalDelegate.dismissArtPicker(); return InputResult.UNHANDLED }
             if (pickerState.showEmulatorPicker) { dismissEmulatorPicker(); return InputResult.UNHANDLED }
@@ -2972,7 +2612,6 @@ class GameDetailViewModel @Inject constructor(
             routeSnapshotInput { it.onSecondaryAction() }?.let { return it }
             val state = _uiState.value
             val saveState = state.saveChannel
-            if (state.reviewEditor != null) { promptReviewDelete(); return InputResult.HANDLED }
             if (saveState.showRenameDialog) return InputResult.HANDLED
             if (pickerModalDelegate.state.value.showArtPicker) {
                 openArtFileBrowser(); return InputResult.HANDLED
@@ -2987,7 +2626,6 @@ class GameDetailViewModel @Inject constructor(
             routeSnapshotInput { it.onContextMenu() }?.let { return it }
             val state = _uiState.value
             val saveState = state.saveChannel
-            if (state.reviewEditor != null) return InputResult.HANDLED
             if (saveState.showRenameDialog) return InputResult.HANDLED
             if (pickerModalDelegate.state.value.showArtPicker) {
                 searchArtwork(); return InputResult.HANDLED
@@ -3000,14 +2638,12 @@ class GameDetailViewModel @Inject constructor(
                 if (!state.isViewerOnVideo) setCurrentScreenshotAsBackground()
                 return InputResult.HANDLED
             }
-            if (state.downloadStatus == GameDownloadStatus.DOWNLOADED && state.game?.isBuiltInEmulator == true) { showPlayOptions(); return InputResult.HANDLED }
-            if (state.hasSocialAccount && state.game?.igdbId != null) { togglePrivacy(); return InputResult.HANDLED }
+            if (state.game?.igdbId != null) { togglePrivacy(); return InputResult.HANDLED }
             return InputResult.UNHANDLED
         }
 
         override fun onSelect(): InputResult {
             routeSnapshotInput { it.onSelect() }?.let { return it }
-            if (_uiState.value.reviewEditor != null) { submitReview(); return InputResult.HANDLED }
             if (hasOpenModal()) { dismissAllModals(); return InputResult.HANDLED }
             if (com.nendo.argosy.ui.dualscreen.selectSwapsRoles()) return InputResult.UNHANDLED
             toggleMoreOptions(); return InputResult.HANDLED
@@ -3026,10 +2662,10 @@ class GameDetailViewModel @Inject constructor(
         private fun hasOpenModal(): Boolean {
             val state = _uiState.value
             val pickerState = pickerModalDelegate.state.value
-            return state.showMoreOptions || state.showPlayOptions ||
+            return state.showMoreOptions ||
                 pickerState.hasAnyPickerOpen || state.showRatingPicker || state.showStatusPicker ||
                 state.showMissingDiscPrompt || state.showScreenshotViewer ||
-                state.saveChannel.isVisible || state.reviewEditor != null
+                state.saveChannel.isVisible
         }
     }
 }

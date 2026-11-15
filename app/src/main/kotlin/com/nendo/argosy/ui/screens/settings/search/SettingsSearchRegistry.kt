@@ -6,16 +6,8 @@ import com.nendo.argosy.ui.screens.settings.SettingsSection
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.screens.settings.PlatformDetailState
-import com.nendo.argosy.ui.screens.settings.inPlatformContext
 import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinEmulatorItem
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinSavesLayoutState
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinVideoLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.LibraryLayoutState
-import com.nendo.argosy.ui.screens.settings.sections.builtinControlsLayout
-import com.nendo.argosy.ui.screens.settings.sections.builtinEmulatorLayout
-import com.nendo.argosy.ui.screens.settings.sections.builtinSavesLayout
-import com.nendo.argosy.ui.screens.settings.sections.builtinVideoLayout
 import com.nendo.argosy.ui.screens.settings.sections.createPlatformDetailLayout
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenLayout
 import com.nendo.argosy.ui.screens.settings.sections.libraryLayout
@@ -30,7 +22,6 @@ import com.nendo.argosy.ui.screens.settings.sections.RALayoutState
 import com.nendo.argosy.ui.screens.settings.sections.RomMItem
 import com.nendo.argosy.ui.screens.settings.sections.RomMLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.SavesLayoutState
-import com.nendo.argosy.ui.screens.settings.sections.SocialLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.aboutLayout
 import com.nendo.argosy.ui.screens.settings.sections.jellyfinLayout
 import com.nendo.argosy.ui.screens.settings.sections.permissionsLayout
@@ -38,7 +29,6 @@ import com.nendo.argosy.ui.screens.settings.sections.raLayout
 import com.nendo.argosy.ui.screens.settings.sections.rommFocusIndexOf
 import com.nendo.argosy.ui.screens.settings.sections.rommLayout
 import com.nendo.argosy.ui.screens.settings.sections.savesLayout
-import com.nendo.argosy.ui.screens.settings.sections.socialLayout
 import com.nendo.argosy.ui.screens.settings.sections.syncSettingsLayout
 import com.nendo.argosy.ui.screens.settings.sections.ambientLedLayout
 import com.nendo.argosy.ui.screens.settings.sections.audioLayout
@@ -74,8 +64,7 @@ import com.nendo.argosy.ui.screens.settings.sections.themeSoundsLayout
 
 internal enum class SettingsSearchProvider {
     ENABLED_PLATFORMS,
-    ENABLED_PLATFORM_ROWS,
-    DOWNLOADED_CORE_OPTIONS
+    ENABLED_PLATFORM_ROWS
 }
 
 internal sealed interface SettingsSearchSource {
@@ -386,56 +375,8 @@ internal fun settingsSearchSource(section: SettingsSection): SettingsSearchSourc
     )
     SettingsSection.PLATFORMS ->
         SettingsSearchSource.Provided(SettingsSection.PLATFORMS, SettingsSearchProvider.ENABLED_PLATFORMS)
-    SettingsSection.BUILTIN_EMULATOR -> SettingsSearchSource.Rows(
-        section = SettingsSection.BUILTIN_EMULATOR,
-        path = listOf(R.string.settings_search_crumb_builtin_emulator),
-        layout = builtinEmulatorLayout,
-        stateOf = { it.emulators },
-        keyOf = { it.key },
-        open = { it.navigateToSection(SettingsSection.BUILTIN_EMULATOR) }
-    )
-    SettingsSection.BUILTIN_VIDEO -> SettingsSearchSource.Rows(
-        section = SettingsSection.BUILTIN_VIDEO,
-        path = listOf(R.string.settings_search_crumb_builtin_emulator, R.string.settings_search_crumb_builtin_video),
-        layout = builtinVideoLayout,
-        stateOf = { BuiltinVideoLayoutState.global(it.builtinVideo) },
-        keyOf = { it.key },
-        reachable = { it.emulators.builtinLibretroEnabled },
-        open = { vm -> openBuiltinChild(vm, BuiltinEmulatorItem.VIDEO, SettingsSection.BUILTIN_VIDEO) }
-    )
-    SettingsSection.BUILTIN_CONTROLS -> SettingsSearchSource.Rows(
-        section = SettingsSection.BUILTIN_CONTROLS,
-        path = listOf(R.string.settings_search_crumb_builtin_emulator, R.string.settings_search_crumb_builtin_controls),
-        layout = builtinControlsLayout,
-        stateOf = { it.builtinControls.inPlatformContext(null, false).copy(controllerPorts = emptyList()) },
-        keyOf = { it.key },
-        reachable = { it.emulators.builtinLibretroEnabled },
-        open = { vm -> openBuiltinChild(vm, BuiltinEmulatorItem.CONTROLS, SettingsSection.BUILTIN_CONTROLS) }
-    )
-    SettingsSection.BUILTIN_SAVES -> SettingsSearchSource.Rows(
-        section = SettingsSection.BUILTIN_SAVES,
-        path = listOf(R.string.settings_search_crumb_builtin_emulator, R.string.settings_search_crumb_builtin_saves),
-        layout = builtinSavesLayout,
-        stateOf = { BuiltinSavesLayoutState.global(it.builtinVideo) },
-        keyOf = { it.key },
-        reachable = { it.emulators.builtinLibretroEnabled },
-        open = { vm -> openBuiltinChild(vm, BuiltinEmulatorItem.SAVES, SettingsSection.BUILTIN_SAVES) }
-    )
-    SettingsSection.SHADER_STACK -> SettingsSearchSource.NotSearchable(SettingsSection.SHADER_STACK)
-    SettingsSection.FRAME_PICKER -> SettingsSearchSource.NotSearchable(SettingsSection.FRAME_PICKER)
-    SettingsSection.CORE_MANAGEMENT -> SettingsSearchSource.NotSearchable(SettingsSection.CORE_MANAGEMENT)
-    SettingsSection.CORE_OPTIONS ->
-        SettingsSearchSource.Provided(SettingsSection.CORE_OPTIONS, SettingsSearchProvider.DOWNLOADED_CORE_OPTIONS)
     SettingsSection.PLATFORM_DETAIL ->
         SettingsSearchSource.Provided(SettingsSection.PLATFORM_DETAIL, SettingsSearchProvider.ENABLED_PLATFORM_ROWS)
-    SettingsSection.SOCIAL -> SettingsSearchSource.Rows(
-        section = SettingsSection.SOCIAL,
-        path = listOf(R.string.settings_search_crumb_social),
-        layout = socialLayout,
-        stateOf = { SocialLayoutState.from(it) },
-        keyOf = { it.key },
-        open = { it.navigateToSection(SettingsSection.SOCIAL) }
-    )
     SettingsSection.PERMISSIONS -> SettingsSearchSource.Rows(
         section = SettingsSection.PERMISSIONS,
         path = listOf(R.string.settings_search_crumb_permissions),
@@ -444,7 +385,6 @@ internal fun settingsSearchSource(section: SettingsSection): SettingsSearchSourc
         keyOf = { it.key },
         open = { it.navigateToSection(SettingsSection.PERMISSIONS) }
     )
-    SettingsSection.DRIVERS -> SettingsSearchSource.NotSearchable(SettingsSection.DRIVERS)
     SettingsSection.MANAGED_INSTALLERS -> SettingsSearchSource.NotSearchable(SettingsSection.MANAGED_INSTALLERS)
     SettingsSection.ABOUT -> SettingsSearchSource.Rows(
         section = SettingsSection.ABOUT,
@@ -469,8 +409,6 @@ private fun providedEntries(provider: SettingsSearchProvider, ui: SettingsUiStat
     when (provider) {
         SettingsSearchProvider.ENABLED_PLATFORMS -> enabledPlatformEntries(ui)
         SettingsSearchProvider.ENABLED_PLATFORM_ROWS -> enabledPlatformRowEntries(ui)
-        SettingsSearchProvider.DOWNLOADED_CORE_OPTIONS ->
-            if (ui.emulators.builtinLibretroEnabled) coreOptionEntries(ui.settingsSearch.coreOptions) else emptyList()
     }
 
 internal fun enabledPlatformEntries(ui: SettingsUiState): List<SettingsSearchEntry> {
@@ -508,25 +446,3 @@ internal fun enabledPlatformRowEntries(ui: SettingsUiState): List<SettingsSearch
                 }
         }
 }
-
-private fun openBuiltinChild(vm: SettingsViewModel, parentRow: BuiltinEmulatorItem, child: SettingsSection) {
-    vm.navigateToSection(SettingsSection.BUILTIN_EMULATOR)
-    val context = vm.uiState.value.builtinVideo.platformContextIndex
-    if (context != 0) vm.cyclePlatformContext(-context)
-    vm.setFocusIndex(parentRow.focusIndex)
-    vm.navigateToSection(child)
-}
-
-internal fun coreOptionEntries(options: List<SettingsSearchCoreOption>): List<SettingsSearchEntry> =
-    options.map { option ->
-        SettingsSearchEntry(
-            target = SettingsSearchTarget.CoreOption(option.coreId, option.optionKey),
-            label = DisplayText.Raw(option.optionName),
-            keywords = null,
-            path = listOf(
-                DisplayText.Res(R.string.settings_search_crumb_builtin_emulator),
-                DisplayText.Res(R.string.settings_search_crumb_core_options),
-                DisplayText.Raw(option.coreName)
-            )
-        )
-    }

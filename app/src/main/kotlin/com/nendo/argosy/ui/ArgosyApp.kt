@@ -49,7 +49,6 @@ import com.nendo.argosy.ui.util.launcherContent
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import com.nendo.argosy.libretro.LibretroActivity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -78,18 +77,9 @@ import com.nendo.argosy.ui.components.connections.QuickConnectionsEffects
 import com.nendo.argosy.ui.components.connections.QuickConnectionsInputHandler
 import com.nendo.argosy.ui.components.connections.QuickConnectionsModals
 import com.nendo.argosy.ui.components.connections.QuickSettingsConnectionsPage
-import com.nendo.argosy.ui.components.friends.QuickFriendsInputHandler
-import com.nendo.argosy.ui.components.friends.QuickFriendsModals
-import com.nendo.argosy.ui.components.friends.QuickSettingsFriendsPage
 import com.nendo.argosy.ui.components.musicplayer.MusicPlayerInputHandler
 import com.nendo.argosy.ui.components.musicplayer.MusicPlayerViewModel
 import com.nendo.argosy.ui.components.musicplayer.QuickSettingsMusicPage
-import com.nendo.argosy.ui.components.NetplayInviteModal
-import com.nendo.argosy.ui.components.NetplayJoinModal
-import com.nendo.argosy.ui.input.NetplayJoinInputHandler
-import com.nendo.argosy.data.netplay.NetplayJoinState
-import com.nendo.argosy.data.netplay.VerifySubState
-import com.nendo.argosy.ui.components.CoreCrashModal
 import com.nendo.argosy.ui.components.SaveConflictModal
 import com.nendo.argosy.ui.components.ScreenDimmerOverlay
 import com.nendo.argosy.ui.input.BackgroundConflictInputHandler
@@ -162,7 +152,6 @@ fun ArgosyApp(
     val quickSettingsPage by viewModel.quickSettings.page.collectAsState()
     val quickSettingsState by viewModel.quickSettings.state.collectAsState()
     val activityUnseen by viewModel.quickSettings.activity.hasUnseen.collectAsState()
-    val quickFriendsState by viewModel.quickFriends.state.collectAsState()
     val quickConnectionsState by viewModel.quickConnections.state.collectAsState()
     val musicPlayerUiState by musicPlayerViewModel.uiState.collectAsState()
     val screenDimmerPrefs by viewModel.screenDimmerPreferences.collectAsState()
@@ -173,14 +162,8 @@ fun ArgosyApp(
     val backgroundConflictInfo by viewModel.saveConflicts.backgroundConflictInfo.collectAsState()
     val backgroundConflictButtonIndex by viewModel.saveConflicts.backgroundConflictButtonIndex.collectAsState()
     val backgroundConflictSnapshot by viewModel.saveConflicts.backgroundConflictSnapshot.collectAsState()
-    val coreCrashPrompt by viewModel.coreCrashController.prompt.collectAsState()
     val pushedApkPrompt by viewModel.apkInstallManager.pushedPrompt.collectAsState()
     val privilegedAccessPrompt by viewModel.privilegedAccess.prompt.collectAsState()
-    val coreCrashFocusIndex by viewModel.coreCrashController.focusIndex.collectAsState()
-    val coreCrashDownloading by viewModel.coreCrashController.downloading.collectAsState()
-    val netplayInvitePrompt by viewModel.netplayInvitePrompt.collectAsState()
-    val netplayInviteFocusIndex by viewModel.netplayInviteFocusIndex.collectAsState()
-    val netplayJoinState by viewModel.netplayJoinState.collectAsState()
     val navRingState by viewModel.navRingState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -493,26 +476,6 @@ fun ArgosyApp(
         }
     }
 
-    val quickFriendsInputHandler = remember(viewModel, inputDispatcher) {
-        QuickFriendsInputHandler(
-            controller = viewModel.quickFriends,
-            showQuayPass = { viewModel.quickSettings.state.value.isSocialLinked },
-            quayPassEnabled = { viewModel.quickSettings.state.value.quayPassEnabled },
-            wrapMode = { viewModel.uiState.value.menuWrapMode },
-            onToggleQuayPass = { viewModel.quickSettings.toggleQuayPass() },
-            onOpenProfile = { userId ->
-                inputDispatcher.unsubscribeDrawer()
-                viewModel.quickSettings.setOpen(false)
-                navigateFromDrawer(Screen.UserProfile.createRoute(userId))
-            },
-            onEditAvatar = {
-                inputDispatcher.unsubscribeDrawer()
-                viewModel.quickSettings.setOpen(false)
-                navigateFromDrawer(Screen.AvatarDoodle.route)
-            }
-        )
-    }
-
     val quickConnectionsInputHandler = remember(viewModel) {
         QuickConnectionsInputHandler(
             controller = viewModel.quickConnections,
@@ -529,7 +492,7 @@ fun ArgosyApp(
     }
 
     val quickSettingsInputHandler = remember(
-        viewModel, musicPlayerViewModel, inputDispatcher, openRommSignIn, openDeviceAccess, quickFriendsInputHandler,
+        viewModel, musicPlayerViewModel, inputDispatcher, openRommSignIn, openDeviceAccess,
         quickConnectionsInputHandler, openQuickRoute
     ) {
         QuickSettingsInputRouter(
@@ -542,7 +505,6 @@ fun ArgosyApp(
                 onOpenRoute = openQuickRoute
             ),
             pageHandlers = mapOf(
-                QuickSettingsPage.FRIENDS to quickFriendsInputHandler,
                 QuickSettingsPage.CONNECTIONS to quickConnectionsInputHandler,
                 QuickSettingsPage.MUSIC to MusicPlayerInputHandler(musicPlayerViewModel, openRommSignIn)
             ),
@@ -718,92 +680,11 @@ fun ArgosyApp(
         }
     }
 
-    val netplayInviteInputHandler = remember(viewModel) {
-        object : CapturingInputHandler {
-            override fun onLeft(): InputResult {
-                viewModel.moveNetplayInviteFocus(-1)
-                return InputResult.HANDLED
-            }
-            override fun onRight(): InputResult {
-                viewModel.moveNetplayInviteFocus(1)
-                return InputResult.HANDLED
-            }
-            override fun onUp(): InputResult {
-                viewModel.moveNetplayInviteFocus(-1)
-                return InputResult.HANDLED
-            }
-            override fun onDown(): InputResult {
-                viewModel.moveNetplayInviteFocus(1)
-                return InputResult.HANDLED
-            }
-            override fun onConfirm(): InputResult {
-                if (viewModel.netplayInviteFocusIndex.value == 1) {
-                    viewModel.acceptNetplayInvite()
-                } else {
-                    viewModel.dismissNetplayInvite()
-                }
-                return InputResult.handled(SoundType.CLOSE_MODAL)
-            }
-            override fun onBack(): InputResult {
-                viewModel.dismissNetplayInvite()
-                return InputResult.handled(SoundType.CLOSE_MODAL)
-            }
-        }
-    }
-
-    val netplayJoinNeedsInput = netplayJoinState.let {
-        it is NetplayJoinState.VerifyingGame &&
-            (it.sub is VerifySubState.AmbiguousCandidates || it.sub is VerifySubState.HashMismatchVariants)
-    }
-    val netplayJoinModalActive = netplayJoinState !is NetplayJoinState.Idle &&
-        netplayJoinState !is NetplayJoinState.Cancelled &&
-        netplayJoinState !is NetplayJoinState.LaunchReady
-
-    val netplayJoinInputHandler = remember(viewModel) {
-        NetplayJoinInputHandler(
-            service = viewModel.netplayJoinService(),
-            onDismiss = { viewModel.cancelNetplayJoin() }
-        )
-    }
-
     val steamLauncherLinkPrompt by viewModel.steamLauncherLinkController.prompt.collectAsState()
 
-    val coreCrashInputHandler = remember(viewModel) {
-        object : InputHandler {
-            override fun onUp(): InputResult { viewModel.coreCrashController.moveFocus(-1); return InputResult.HANDLED }
-            override fun onDown(): InputResult { viewModel.coreCrashController.moveFocus(1); return InputResult.HANDLED }
-            override fun onLeft(): InputResult { viewModel.coreCrashController.moveFocus(-1); return InputResult.HANDLED }
-            override fun onRight(): InputResult { viewModel.coreCrashController.moveFocus(1); return InputResult.HANDLED }
-            override fun onConfirm(): InputResult {
-                val dl = viewModel.coreCrashController.downloading.value
-                if (dl?.done == true && !dl.failed) {
-                    viewModel.launchFromCoreCrash()
-                } else {
-                    viewModel.coreCrashController.confirmFocused()
-                }
-                return InputResult.handled(SoundType.CLOSE_MODAL)
-            }
-            override fun onBack(): InputResult {
-                viewModel.coreCrashController.dismiss()
-                return InputResult.handled(SoundType.CLOSE_MODAL)
-            }
-            override fun onMenu() = InputResult.HANDLED
-            override fun onSelect() = InputResult.HANDLED
-            override fun onPrevSection() = InputResult.HANDLED
-            override fun onNextSection() = InputResult.HANDLED
-            override fun onPrevTrigger() = InputResult.HANDLED
-            override fun onNextTrigger() = InputResult.HANDLED
-            override fun onSecondaryAction() = InputResult.HANDLED
-            override fun onContextMenu() = InputResult.HANDLED
-            override fun onLeftStickClick() = InputResult.HANDLED
-            override fun onRightStickClick() = InputResult.HANDLED
-        }
-    }
-
-    LaunchedEffect(coreCrashPrompt, saveConflictInfo, backgroundConflictInfo, netplayInvitePrompt, netplayJoinModalActive, netplayJoinNeedsInput, steamLauncherLinkPrompt, resumeCount) {
+    LaunchedEffect(saveConflictInfo, backgroundConflictInfo, steamLauncherLinkPrompt, resumeCount) {
         inputDispatcher.setCriticalHandler(
             when {
-                coreCrashPrompt != null -> coreCrashInputHandler
                 saveConflictInfo != null -> saveConflictInputHandler
                 backgroundConflictInfo != null -> backgroundConflictInputHandler
                 else -> null
@@ -811,15 +692,8 @@ fun ArgosyApp(
         )
         when {
             steamLauncherLinkPrompt != null -> inputDispatcher.subscribeDrawer(steamLauncherLinkInputHandler)
-            netplayJoinNeedsInput || netplayJoinModalActive -> inputDispatcher.subscribeDrawer(netplayJoinInputHandler)
-            netplayInvitePrompt != null -> inputDispatcher.subscribeDrawer(netplayInviteInputHandler)
             else -> {
-                val released = listOf(
-                    steamLauncherLinkInputHandler,
-                    netplayJoinInputHandler,
-                    netplayInviteInputHandler
-                ).any { inputDispatcher.releaseDrawer(it) }
-                if (released) {
+                if (inputDispatcher.releaseDrawer(steamLauncherLinkInputHandler)) {
                     when {
                         viewModel.quickSettings.isOpen.value -> inputDispatcher.subscribeDrawer(quickSettingsInputHandler)
                         viewModel.isDrawerOpen.value -> inputDispatcher.subscribeDrawer(drawerInputHandler)
@@ -827,15 +701,6 @@ fun ArgosyApp(
                     }
                 }
             }
-        }
-    }
-
-    LaunchedEffect(viewModel) {
-        viewModel.coreCrashLaunch.collect { gameId ->
-            navController.navigate(Screen.GameDetail.createRoute(gameId)) {
-                launchSingleTop = true
-            }
-            viewModel.initiateGameLaunch(gameId)
         }
     }
 
@@ -1099,15 +964,6 @@ fun ArgosyApp(
         .collectAsState()
         .let { state -> remember { derivedStateOf { state.value.isProcessing } } }
 
-    val localAvatarInfo by remember {
-        derivedStateOf {
-            com.nendo.argosy.ui.components.friends.LocalUserAvatarInfo(
-                userId = drawerUiState.localUser?.id,
-                doodle = drawerUiState.localAvatarDoodle
-            )
-        }
-    }
-
     val frostedBackdrop = rememberFrostedBackdrop()
     val screenFrostedBackdrop = rememberFrostedBackdrop()
     val hasCapturingOverlay = inputDispatcher.hasCapturingOverlay()
@@ -1133,7 +989,6 @@ fun ArgosyApp(
                 battery = uiState.showStatusBattery,
                 network = uiState.showStatusNetwork
             ),
-        com.nendo.argosy.ui.components.friends.LocalUserAvatarState provides localAvatarInfo,
         com.nendo.argosy.ui.common.LocalRunningGames provides runningGamesUi,
         com.nendo.argosy.ui.common.LocalRunningBreath provides runningBreath,
         com.nendo.argosy.ui.common.LocalOpenRunningGames provides openRunningGames
@@ -1174,9 +1029,6 @@ fun ArgosyApp(
                 presentationShowsHints
             val appPromptShowing = saveConflictInfo != null ||
                 backgroundConflictInfo != null ||
-                coreCrashPrompt != null ||
-                netplayInvitePrompt != null ||
-                netplayJoinModalActive ||
                 steamLauncherLinkPrompt != null
             val navBarAllowed = onRingDestination &&
                 !hasCapturingOverlay &&
@@ -1448,16 +1300,6 @@ fun ArgosyApp(
                 controller = viewModel.quickSettings,
                 onOpenDeviceAccess = openDeviceAccess,
                 onOpenRoute = openQuickRoute,
-                friendsPage = {
-                    QuickSettingsFriendsPage(
-                        state = quickFriendsState,
-                        showQuayPass = quickSettingsState.isSocialLinked,
-                        quayPassEnabled = quickSettingsState.quayPassEnabled,
-                        onRowClick = { quickFriendsInputHandler.tapRow(it) },
-                        onRowLongClick = { quickFriendsInputHandler.longPressRow(it) },
-                        onActionClick = { index, action -> quickFriendsInputHandler.tapAction(index, action) }
-                    )
-                },
                 connectionsPage = {
                     QuickSettingsConnectionsPage(
                         state = quickConnectionsState,
@@ -1475,13 +1317,6 @@ fun ArgosyApp(
                 footerHints = listOfNotNull(
                     (com.nendo.argosy.ui.components.InputButton.Y to signInHint).takeIf { musicNeedsSignIn }
                 )
-            )
-
-            QuickFriendsModals(
-                state = quickFriendsState,
-                controller = viewModel.quickFriends,
-                onOpenProfile = quickFriendsInputHandler::openProfile,
-                onEditAvatar = quickFriendsInputHandler::editAvatar
             )
 
             QuickConnectionsModals(state = quickConnectionsState, controller = viewModel.quickConnections)
@@ -1520,19 +1355,6 @@ fun ArgosyApp(
                 onSkip = sessionEndOverlay?.onSkip
             )
 
-            coreCrashPrompt?.let { prompt ->
-                CoreCrashModal(
-                    prompt = prompt,
-                    focusedIndex = coreCrashFocusIndex,
-                    downloading = coreCrashDownloading,
-                    onSelect = { index ->
-                        viewModel.coreCrashController.setFocus(index)
-                        viewModel.coreCrashController.confirmFocused()
-                    },
-                    onDismiss = { viewModel.coreCrashController.dismiss() }
-                )
-            }
-
             val pushedApk = pushedApkPrompt
             com.nendo.argosy.ui.primitives.ArgosyConfirmModalHost(
                 visible = pushedApk != null,
@@ -1564,20 +1386,6 @@ fun ArgosyApp(
             )
 
             com.nendo.argosy.ui.components.permissions.PermissionSheetHost(controller = viewModel.permissionSheets)
-
-            netplayInvitePrompt?.let { invite ->
-                NetplayInviteModal(
-                    invite = invite,
-                    focusedButton = netplayInviteFocusIndex,
-                    onJoin = { viewModel.acceptNetplayInvite() },
-                    onDismiss = { viewModel.dismissNetplayInvite() }
-                )
-            }
-
-            NetplayJoinModal(
-                state = netplayJoinState,
-                onDismiss = { viewModel.cancelNetplayJoin() }
-            )
 
             val steamLauncherLinkFocusIndex by viewModel.steamLauncherLinkController.focusIndex.collectAsState()
             val steamMarkOptions by viewModel.steamLauncherLinkController.markOptions.collectAsState()

@@ -20,7 +20,6 @@ import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
@@ -103,20 +102,7 @@ class GameLaunchDelegateTest {
         } returns result
     }
 
-    private fun backgroundGameLaunch(): BackgroundGameLaunch = mockk {
-        coEvery { findLive(any(), any(), any()) } returns null
-        coEvery { keepsAlive(any()) } returns false
-        coEvery { clearForLaunch(any(), any()) } returns BackgroundGameLaunch.Clear.NOT_RUNNING
-        coEvery { makeRoomForBuiltIn(any(), any()) } returns true
-        coEvery { closeSlotHolding(any(), any()) } returns true
-    }
-
-    private fun delegate(
-        tracker: LaunchProgressTracker,
-        router: GameStartRouter,
-        background: BackgroundGameLaunch = backgroundGameLaunch()
-    ) = GameLaunchDelegate(
-        slotRegistry = com.nendo.argosy.libretro.slot.SlotRegistry(),
+    private fun delegate(tracker: LaunchProgressTracker, router: GameStartRouter) = GameLaunchDelegate(
         application = mockk(relaxed = true),
         gameRepository = gameRepository,
         emulatorResolver = emulatorResolver,
@@ -133,54 +119,17 @@ class GameLaunchDelegateTest {
         activeSaveRepository = mockk(relaxed = true),
         variantResolver = mockk(relaxed = true),
         emulatorSaveConfigRepository = mockk(relaxed = true),
-        retroAchievementsRepository = mockk(relaxed = true),
-        getUnifiedSavesUseCase = mockk(relaxed = true),
         launchProgressTracker = tracker,
         launchHandoff = LaunchHandoff(tracker, mockk(relaxed = true), router, playSessionTracker, holdMs),
         resolveSnapshotConflict = mockk(relaxed = true),
-        connectedControllerTracker = mockk(relaxed = true),
         preLaunchRecapStep = preLaunchRecapStep,
-        backgroundGameLaunch = background,
+        backgroundGameLaunch = mockk {
+            coEvery { findLive(any(), any(), any()) } returns null
+            coEvery { keepsAlive(any()) } returns false
+            coEvery { clearForLaunch(any(), any()) } returns BackgroundGameLaunch.Clear.NOT_RUNNING
+        },
         permissionWatch = permissionWatch
     )
-
-    @Test
-    fun `a fresh built-in start closes the slot already running the game before launching`() = runTest {
-        useCaseReturns(LaunchResult.Success(intent))
-        coEvery { emulatorResolver.getEmulatorPackageForGame(any(), any(), any()) } returns
-            com.nendo.argosy.data.emulator.EmulatorRegistry.BUILTIN_PACKAGE
-        val background = backgroundGameLaunch()
-
-        delegate(tracker(), router(), background).launchSimple(this, gameId, callbacks = callbacks())
-        runCurrent()
-
-        coVerifyOrder {
-            background.closeSlotHolding(gameId, any())
-            launchGameUseCase(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-        }
-    }
-
-    @Test
-    fun `a fresh built-in start is refused while the running copy will not close`() = runTest {
-        useCaseReturns(LaunchResult.Success(intent))
-        coEvery { emulatorResolver.getEmulatorPackageForGame(any(), any(), any()) } returns
-            com.nendo.argosy.data.emulator.EmulatorRegistry.BUILTIN_PACKAGE
-        val background = backgroundGameLaunch()
-        coEvery { background.closeSlotHolding(any(), any()) } returns false
-        var refused = false
-
-        delegate(tracker(), router(), background).launchSimple(
-            this,
-            gameId,
-            callbacks = callbacks(onLaunchFailed = { refused = true })
-        )
-        runCurrent()
-
-        assertTrue(refused)
-        coVerify(exactly = 0) {
-            launchGameUseCase(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
-        }
-    }
 
     private fun callbacks(onFailure: (Throwable) -> Unit = {}, onLaunchFailed: () -> Unit = {}) =
         LaunchResultCallbacks(

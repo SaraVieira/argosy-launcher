@@ -3,7 +3,6 @@ package com.nendo.argosy.ui.screens.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -57,7 +56,6 @@ import com.nendo.argosy.ui.theme.backdrop.BackdropRole
 import com.nendo.argosy.ui.theme.backdrop.surfaceBackdrop
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.nendo.argosy.libretro.frame.FrameRegistry
 import androidx.compose.ui.text.input.KeyboardType
 import com.nendo.argosy.ui.common.rememberStorageAccessRequest
 import com.nendo.argosy.ui.components.permissions.rememberPermissionGrantLauncher
@@ -88,7 +86,6 @@ import com.nendo.argosy.ui.screens.settings.components.HardResetModal
 import com.nendo.argosy.ui.screens.settings.components.PlatformSettingsModal
 import com.nendo.argosy.ui.screens.settings.components.ReleaseChangelogModal
 import com.nendo.argosy.ui.screens.settings.components.SoundPickerPopup
-import com.nendo.argosy.ui.screens.settings.delegates.BuiltinNavigationTarget
 import com.nendo.argosy.ui.screens.settings.sections.AboutSection
 import com.nendo.argosy.ui.screens.settings.sections.PresentationSection
 import com.nendo.argosy.ui.screens.settings.sections.AccountsSection
@@ -98,7 +95,6 @@ import com.nendo.argosy.ui.screens.settings.sections.DistributeResultModal
 import com.nendo.argosy.ui.screens.settings.sections.RomMItem
 import com.nendo.argosy.ui.screens.settings.sections.RomMLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.rommFocusIndexOf
-import com.nendo.argosy.ui.screens.settings.sections.DriversSection
 import com.nendo.argosy.ui.screens.settings.sections.AmbientLedSection
 import com.nendo.argosy.ui.screens.settings.sections.AudioSection
 import com.nendo.argosy.ui.screens.settings.sections.BoxArtSection
@@ -109,19 +105,10 @@ import com.nendo.argosy.ui.screens.settings.sections.ManagedInstallersSection
 import com.nendo.argosy.ui.screens.settings.sections.NavigationSection
 import com.nendo.argosy.ui.screens.settings.sections.navigationItemAtFocusIndex
 import com.nendo.argosy.ui.input.UiShortcutKeys
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinEmulatorSection
 import com.nendo.argosy.ui.screens.settings.sections.EmulatorsSection
 import com.nendo.argosy.ui.screens.settings.sections.PlatformDetailSection
 import com.nendo.argosy.ui.screens.settings.sections.PlatformDetailItem
 import com.nendo.argosy.ui.screens.settings.sections.platformDetailItemAtFocusIndex
-import com.nendo.argosy.ui.screens.settings.sections.FrameSection
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinVideoSection
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinControlsSection
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinSavesSection
-import com.nendo.argosy.ui.screens.settings.sections.CoreManagementSection
-import com.nendo.argosy.ui.screens.settings.sections.CoreOptionItem
-import com.nendo.argosy.ui.screens.settings.sections.CoreOptionsSection
-import com.nendo.argosy.ui.screens.settings.sections.coreOptionsItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.RomMSection
 import com.nendo.argosy.ui.screens.settings.sections.SavesSection
 import com.nendo.argosy.ui.screens.settings.sections.ControllerGripSection
@@ -135,8 +122,6 @@ import com.nendo.argosy.ui.screens.settings.sections.MainSettingsSection
 import com.nendo.argosy.ui.screens.settings.sections.PermissionsSection
 import com.nendo.argosy.ui.screens.settings.sections.RASettingsSection
 import com.nendo.argosy.ui.screens.settings.sections.RAWebApiKeyModal
-import com.nendo.argosy.ui.screens.settings.sections.ShaderStackSection
-import com.nendo.argosy.ui.screens.settings.sections.SocialSection
 import com.nendo.argosy.ui.screens.settings.sections.SteamSection
 import com.nendo.argosy.ui.screens.settings.sections.StorageCachesSection
 import com.nendo.argosy.ui.screens.settings.sections.StorageGamesSection
@@ -164,13 +149,10 @@ import com.nendo.argosy.ui.screens.settings.sections.ThemeSoundsItem
 import com.nendo.argosy.ui.screens.settings.sections.ThemeSoundsLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.ThemeSoundsSection
 import com.nendo.argosy.ui.screens.settings.sections.themeSoundsItemAtFocusIndex
-import com.nendo.argosy.ui.screens.settings.sections.input.builtinSavesFocusedOverrideResettable
-import com.nendo.argosy.ui.screens.settings.sections.input.focusedBuiltinFolderRow
 import com.nendo.argosy.ui.screens.settings.sections.isResettableFolder
 import com.nendo.argosy.ui.screens.settings.sections.themeMusicItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.ThemeMusicItem
 import com.nendo.argosy.ui.screens.settings.sections.ThemeMusicLayoutState
-import com.nendo.argosy.ui.icons.InputIcons
 import com.nendo.argosy.ui.theme.Motion
 import com.nendo.argosy.ui.util.clickableNoFocus
 import com.nendo.argosy.ui.util.observeTouchDown
@@ -186,7 +168,6 @@ fun SettingsScreen(
     initialSection: String? = null,
     initialAction: String? = null,
     initialPlatformId: Long? = null,
-    onNavigateToAvatarEditor: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -252,13 +233,6 @@ fun SettingsScreen(
     var showSettingsBackupBrowser by remember { mutableStateOf(false) }
     var showCertBrowser by remember { mutableStateOf(false) }
     var showClientCertBrowser by remember { mutableStateOf(false) }
-    var showCustomFrameBrowser by remember { mutableStateOf(false) }
-
-    val blePermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        viewModel.onBlePermissionResult(results.values.all { it })
-    }
 
     val inputDispatcher = LocalInputDispatcher.current
     val inputHandler = remember(onBack) {
@@ -322,12 +296,6 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.openCustomFramePickerEvent.collect {
-            showCustomFrameBrowser = true
-        }
-    }
-
-    LaunchedEffect(Unit) {
         viewModel.openUrlEvent.collect { url ->
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             context.startActivity(intent)
@@ -368,22 +336,6 @@ fun SettingsScreen(
 
     LaunchedEffect(grantPermission) {
         viewModel.grantPermissionEvent.collect { permission -> grantPermission(permission) }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.requestBlePermissionEvent.collect {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                blePermissionLauncher.launch(
-                    arrayOf(
-                        android.Manifest.permission.BLUETOOTH_SCAN,
-                        android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                        android.Manifest.permission.BLUETOOTH_CONNECT
-                    )
-                )
-            } else {
-                viewModel.onBlePermissionResult(true)
-            }
-        }
     }
 
     LaunchedEffect(Unit) {
@@ -507,66 +459,6 @@ fun SettingsScreen(
         }
     }
 
-    val builtinSavePathTitle = stringResource(R.string.settings_shell_filebrowser_builtin_save_path_title)
-    LaunchedEffect(Unit) {
-        viewModel.launchBuiltinSavePathPicker.collect {
-            fileBrowserTitle = builtinSavePathTitle
-            fileBrowserCallback = { path -> viewModel.setBuiltinSavePath(path) }
-            showFileBrowser = true
-        }
-    }
-
-    val builtinStatePathTitle = stringResource(R.string.settings_shell_filebrowser_builtin_state_path_title)
-    LaunchedEffect(Unit) {
-        viewModel.launchBuiltinStatePathPicker.collect {
-            fileBrowserTitle = builtinStatePathTitle
-            fileBrowserCallback = { path -> viewModel.setBuiltinStatePath(path) }
-            showFileBrowser = true
-        }
-    }
-
-    val platformBuiltinSavePathTitleTemplate =
-        stringResource(R.string.settings_shell_filebrowser_platform_builtin_save_path_title)
-    LaunchedEffect(Unit) {
-        viewModel.launchPlatformBuiltinSavePathPicker.collect { platformId ->
-            fileBrowserTitle = platformBuiltinSavePathTitleTemplate.format(platformName(platformId))
-            fileBrowserCallback = { path -> viewModel.setPlatformBuiltinSavePath(platformId, path) }
-            showFileBrowser = true
-        }
-    }
-
-    val platformBuiltinStatePathTitleTemplate =
-        stringResource(R.string.settings_shell_filebrowser_platform_builtin_state_path_title)
-    LaunchedEffect(Unit) {
-        viewModel.launchPlatformBuiltinStatePathPicker.collect { platformId ->
-            fileBrowserTitle = platformBuiltinStatePathTitleTemplate.format(platformName(platformId))
-            fileBrowserCallback = { path -> viewModel.setPlatformBuiltinStatePath(platformId, path) }
-            showFileBrowser = true
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.avatarEditorEvent.collect { onNavigateToAvatarEditor() }
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.builtinNavigationEvent.collect { target ->
-            when (target) {
-                BuiltinNavigationTarget.VIDEO_SETTINGS -> viewModel.navigateToSection(SettingsSection.BUILTIN_VIDEO)
-                BuiltinNavigationTarget.CONTROLS_SETTINGS -> viewModel.navigateToSection(SettingsSection.BUILTIN_CONTROLS)
-                BuiltinNavigationTarget.SAVES_SETTINGS -> viewModel.navigateToSection(SettingsSection.BUILTIN_SAVES)
-                BuiltinNavigationTarget.CORE_MANAGEMENT -> {
-                    viewModel.loadCoreManagementState()
-                    viewModel.navigateToSection(SettingsSection.CORE_MANAGEMENT)
-                }
-                BuiltinNavigationTarget.CORE_OPTIONS -> {
-                    viewModel.loadCoreOptionsState()
-                    viewModel.navigateToSection(SettingsSection.CORE_OPTIONS)
-                }
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         viewModel.resetPlatformStatePathEvent.collect { platformId ->
             viewModel.resetPlatformStatePath(platformId)
@@ -606,39 +498,10 @@ fun SettingsScreen(
                 .surfaceBackdrop(BackdropRole.CONTENT)
         ) {
             SettingsAmbientPresentation(uiState, viewModel)
-            if (uiState.currentSection != SettingsSection.SHADER_STACK &&
-                uiState.currentSection != SettingsSection.FRAME_PICKER) {
-                SettingsHeader(
-                    title = settingsSectionTitle(uiState),
-                    onBack = { inputHandler.onBack() },
-                    rightContent = if (uiState.currentSection in BUILTIN_PLATFORM_CONTEXT_SECTIONS &&
-                        uiState.builtinVideo.availablePlatforms.isNotEmpty()) {
-                        {
-                            val globalContextLabel = stringResource(R.string.settings_shell_header_context_global)
-                            val platformName = if (uiState.builtinVideo.isGlobalContext) {
-                                globalContextLabel
-                            } else {
-                                uiState.builtinVideo.currentPlatformContext?.platformName ?: globalContextLabel
-                            }
-                            PlatformContextIndicator(
-                                platformName = platformName,
-                                onPrevious = { viewModel.cyclePlatformContext(-1) },
-                                onNext = { viewModel.cyclePlatformContext(1) }
-                            )
-                        }
-                    } else if (uiState.currentSection == SettingsSection.CORE_OPTIONS &&
-                        uiState.coreOptions.availablePlatforms.isNotEmpty()) {
-                        {
-                            val platformName = uiState.coreOptions.currentPlatformContext?.platformName ?: "---"
-                            PlatformContextIndicator(
-                                platformName = platformName,
-                                onPrevious = { viewModel.cycleCoreOptionsPlatformContext(-1) },
-                                onNext = { viewModel.cycleCoreOptionsPlatformContext(1) }
-                            )
-                        }
-                    } else null
-                )
-            }
+            SettingsHeader(
+                title = settingsSectionTitle(uiState),
+                onBack = { inputHandler.onBack() }
+            )
 
             val onRowTap = remember(viewModel) { { index: Int -> viewModel.touchFocusRow(index) } }
             val onExitTouchMode = remember(viewModel) { { viewModel.exitTouchMode() } }
@@ -699,7 +562,6 @@ fun SettingsScreen(
                         SettingsSection.AMBIENT_LED -> AmbientLedSection(uiState, viewModel)
                         SettingsSection.NAVIGATION -> NavigationSection(uiState, viewModel)
                         SettingsSection.MANAGED_INSTALLERS -> ManagedInstallersSection(uiState, viewModel)
-                        SettingsSection.BUILTIN_EMULATOR -> BuiltinEmulatorSection(uiState, viewModel)
                         SettingsSection.PLATFORMS -> EmulatorsSection(
                             uiState = uiState,
                             viewModel = viewModel,
@@ -720,29 +582,15 @@ fun SettingsScreen(
                                 }
                             }
                         )
-                        SettingsSection.BUILTIN_VIDEO -> BuiltinVideoSection(uiState, viewModel)
-                        SettingsSection.BUILTIN_CONTROLS -> BuiltinControlsSection(uiState, viewModel)
-                        SettingsSection.BUILTIN_SAVES -> BuiltinSavesSection(uiState, viewModel)
-                        SettingsSection.CORE_MANAGEMENT -> CoreManagementSection(uiState, viewModel)
-                        SettingsSection.CORE_OPTIONS -> CoreOptionsSection(uiState, viewModel)
                         SettingsSection.BIOS -> BiosSection(uiState, viewModel)
-                        SettingsSection.SHADER_STACK -> ShaderStackSection(viewModel.shaderChainManager)
-                        SettingsSection.FRAME_PICKER -> FrameSection(uiState, viewModel)
                         SettingsSection.PERMISSIONS -> PermissionsSection(uiState, viewModel)
-                        SettingsSection.DRIVERS -> DriversSection(uiState, viewModel)
                         SettingsSection.ABOUT -> AboutSection(uiState, viewModel)
-                        SettingsSection.SOCIAL -> SocialSection(uiState, viewModel)
                     }
                 }
             }
 
             SettingsFooter(
                 uiState = uiState,
-                shaderStack = viewModel.shaderChainManager.shaderStack,
-                customFrameFocused = uiState.currentSection == SettingsSection.FRAME_PICKER &&
-                    viewModel.getFrameRegistry().getAllFrames()
-                        .getOrNull(uiState.focusedIndex - 2)
-                        ?.source == FrameRegistry.Source.CUSTOM,
                 networkForgetFocused = uiState.currentSection == SettingsSection.NETWORK_BLUETOOTH &&
                     quickConnectionsFocusedRow(networkState)
                         ?.let { quickConnectionsCanForget(networkState, it) } == true,
@@ -761,7 +609,7 @@ fun SettingsScreen(
             )
         }
 
-        if (uiState.builtinControls.showControllerOrderModal) {
+        if (uiState.showControllerOrderModal) {
             ControllerOrderModal(
                 controller = viewModel.controllerSeats,
                 onDismiss = { viewModel.hideControllerOrderModal() }
@@ -842,34 +690,6 @@ fun SettingsScreen(
             )
         }
     }
-
-    val builtinMigration = uiState.pendingBuiltinPathMigration
-    val builtinMigrationTitle = when (builtinMigration?.pathType) {
-        BuiltinPathType.SAVE -> stringResource(R.string.settings_shell_modal_builtin_migration_save_title)
-        BuiltinPathType.STATE -> stringResource(R.string.settings_shell_modal_builtin_migration_state_title)
-        null -> ""
-    }
-    val builtinMigrationMessage = when (builtinMigration?.pathType) {
-        BuiltinPathType.SAVE -> stringResource(
-            R.string.settings_shell_modal_builtin_migration_save_message,
-            builtinMigration.existingFileCount
-        )
-        BuiltinPathType.STATE -> stringResource(
-            R.string.settings_shell_modal_builtin_migration_state_message,
-            builtinMigration.existingFileCount
-        )
-        null -> ""
-    }
-    ArgosyConfirmModalHost(
-        visible = uiState.showBuiltinPathMigrationDialog && builtinMigration != null,
-        title = builtinMigrationTitle,
-        message = builtinMigrationMessage,
-        confirmLabel = stringResource(R.string.settings_shell_modal_builtin_migration_confirm),
-        onConfirm = { viewModel.confirmBuiltinPathMigration() },
-        onDismiss = { viewModel.cancelBuiltinPathMigration() },
-        neutralLabel = stringResource(R.string.settings_shell_modal_builtin_migration_skip),
-        onNeutral = { viewModel.skipBuiltinPathMigration() }
-    )
 
     val musicRelocation = uiState.ambientAudio.pendingMusicRelocation
     ArgosyConfirmModalHost(
@@ -1159,16 +979,6 @@ fun SettingsScreen(
     )
 
     ArgosyConfirmModalHost(
-        visible = uiState.pendingCustomFrameRemovalId != null,
-        title = stringResource(R.string.settings_shell_modal_remove_frame_title),
-        message = stringResource(R.string.settings_shell_modal_remove_frame_message),
-        confirmLabel = stringResource(R.string.settings_shell_modal_remove_frame_confirm),
-        destructive = true,
-        onConfirm = { viewModel.confirmCustomFrameRemoval() },
-        onDismiss = { viewModel.cancelCustomFrameRemoval() }
-    )
-
-    ArgosyConfirmModalHost(
         visible = uiState.syncSettings.showSecureSavesConfirm,
         title = stringResource(R.string.settings_shell_modal_secure_saves_off_title),
         message = stringResource(R.string.settings_shell_modal_secure_saves_off_message),
@@ -1197,17 +1007,6 @@ fun SettingsScreen(
         destructive = true,
         onConfirm = { viewModel.confirmCachesClear() },
         onDismiss = { viewModel.cancelCachesClear() }
-    )
-
-    val pendingDeleteCoreId = uiState.coreOptions.pendingDeleteCoreId
-    ArgosyConfirmModalHost(
-        visible = pendingDeleteCoreId != null,
-        title = stringResource(R.string.settings_shell_modal_delete_core_title),
-        message = stringResource(R.string.settings_shell_modal_delete_core_message),
-        confirmLabel = stringResource(R.string.settings_shell_modal_delete_core_confirm),
-        destructive = true,
-        onConfirm = { viewModel.confirmDeleteCore() },
-        onDismiss = { viewModel.cancelDeleteCore() }
     )
 
     ArgosyConfirmModal(
@@ -1365,19 +1164,6 @@ fun SettingsScreen(
                 viewModel.importCertificate(path)
             },
             onDismiss = { showCertBrowser = false }
-        )
-    }
-
-    if (showCustomFrameBrowser) {
-        FileBrowserScreen(
-            mode = FileBrowserMode.FILE_SELECTION,
-            title = stringResource(R.string.settings_shell_filebrowser_custom_frame_title),
-            fileFilter = com.nendo.argosy.ui.filebrowser.FileFilter.IMAGE,
-            onPathSelected = { path ->
-                showCustomFrameBrowser = false
-                viewModel.importCustomFrame(path)
-            },
-            onDismiss = { showCustomFrameBrowser = false }
         )
     }
 
@@ -1591,24 +1377,14 @@ private fun settingsSectionTitle(uiState: SettingsUiState): String = when (uiSta
     SettingsSection.NAVIGATION -> stringResource(R.string.settings_shell_header_navigation)
     SettingsSection.MANAGED_INSTALLERS -> stringResource(R.string.settings_shell_header_installers)
     SettingsSection.PLATFORMS -> stringResource(R.string.settings_shell_header_platforms)
-    SettingsSection.BUILTIN_EMULATOR -> stringResource(R.string.settings_shell_header_builtin_emulator)
     SettingsSection.PLATFORM_DETAIL -> {
         val config = uiState.emulators.platforms.getOrNull(uiState.platformDetail.platformIndex)
         config?.platform?.name?.uppercase()
             ?: stringResource(R.string.settings_shell_header_platform_detail_fallback)
     }
-    SettingsSection.BUILTIN_VIDEO -> stringResource(R.string.settings_shell_header_builtin_video)
-    SettingsSection.BUILTIN_CONTROLS -> stringResource(R.string.settings_shell_header_builtin_controls)
-    SettingsSection.BUILTIN_SAVES -> stringResource(R.string.settings_shell_header_builtin_saves)
-    SettingsSection.CORE_MANAGEMENT -> stringResource(R.string.settings_shell_header_core_management)
-    SettingsSection.CORE_OPTIONS -> stringResource(R.string.settings_shell_header_core_options)
     SettingsSection.BIOS -> stringResource(R.string.settings_shell_header_bios)
-    SettingsSection.SHADER_STACK -> stringResource(R.string.settings_shell_header_shader_stack)
-    SettingsSection.FRAME_PICKER -> stringResource(R.string.settings_shell_header_frame_picker)
     SettingsSection.PERMISSIONS -> stringResource(R.string.settings_shell_header_permissions)
-    SettingsSection.DRIVERS -> stringResource(R.string.settings_shell_header_drivers)
     SettingsSection.ABOUT -> stringResource(R.string.settings_shell_header_about)
-    SettingsSection.SOCIAL -> stringResource(R.string.settings_shell_header_social)
 }
 
 @Composable
@@ -1638,8 +1414,7 @@ private fun SettingsAmbientPresentation(uiState: SettingsUiState, viewModel: Set
 @Composable
 private fun SettingsHeader(
     title: String,
-    onBack: () -> Unit,
-    rightContent: @Composable (() -> Unit)? = null
+    onBack: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -1664,53 +1439,6 @@ private fun SettingsHeader(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        rightContent?.invoke()
-    }
-}
-
-@Composable
-private fun PlatformContextIndicator(
-    platformName: String,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
-    ) {
-        Row(
-            modifier = Modifier
-                .clickableNoFocus(onClick = onPrevious)
-                .padding(Dimens.spacingXs),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = InputIcons.BumperLeft,
-                contentDescription = stringResource(R.string.settings_shell_context_previous_desc),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Dimens.iconSm)
-            )
-        }
-
-        Text(
-            text = platformName,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Row(
-            modifier = Modifier
-                .clickableNoFocus(onClick = onNext)
-                .padding(Dimens.spacingXs),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = InputIcons.BumperRight,
-                contentDescription = stringResource(R.string.settings_shell_context_next_desc),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Dimens.iconSm)
             )
         }
     }
@@ -1845,17 +1573,12 @@ private fun AccountModals(uiState: SettingsUiState, viewModel: SettingsViewModel
 @Composable
 private fun SettingsFooter(
     uiState: SettingsUiState,
-    shaderStack: ShaderStackState,
-    customFrameFocused: Boolean = false,
     networkForgetFocused: Boolean = false,
     onHintClick: ((InputButton) -> Unit)? = null
 ) {
     if (uiState.emulators.showSavePathModal || uiState.emulators.showEmulatorPicker ||
         uiState.emulators.updateModal != null || uiState.emulators.showLaunchArgsModal ||
         uiState.emulators.showAppPickerModal || uiState.emulators.showMemcardPicker) {
-        return
-    }
-    if (shaderStack.showShaderPicker) {
         return
     }
     if (uiState.currentSection == SettingsSection.ACCOUNTS && uiState.accounts.switchInProgress) {
@@ -1876,39 +1599,14 @@ private fun SettingsFooter(
         FooterSpacer()
         return
     }
-    if (uiState.currentSection == SettingsSection.SHADER_STACK && shaderStack.isReordering) {
-        FooterHints(
-            hints = liftedReorderHints(
-                move = stringResource(R.string.settings_shell_footer_shaderstack_move),
-                cancel = stringResource(R.string.settings_shell_footer_shaderstack_cancel),
-                moveButton = InputButton.DPAD_HORIZONTAL
-            ),
-            onHintClick = onHintClick,
-            forced = true
-        )
-        FooterSpacer()
-        return
-    }
 
     val navigateHint = stringResource(R.string.settings_shell_footer_navigate)
-    val navigateVerticalHint = stringResource(R.string.settings_shell_footer_navigate_vertical)
     val previewShapeHint = stringResource(R.string.settings_shell_footer_preview_shape)
     val previewGameHint = stringResource(R.string.settings_shell_footer_preview_game)
-    val shaderHint = stringResource(R.string.settings_shell_footer_shader)
-    val reorderHint = stringResource(R.string.settings_shell_footer_reorder)
-    val adjustShaderStackHint = stringResource(R.string.settings_shell_footer_adjust_shaderstack)
-    val resetShaderStackHint = stringResource(R.string.settings_shell_footer_reset_shaderstack)
-    val removeShaderStackHint = stringResource(R.string.settings_shell_footer_remove_shaderstack)
-    val removeFrameHint = stringResource(R.string.settings_shell_footer_remove_frame)
-    val addShaderStackHint = stringResource(R.string.settings_shell_footer_add_shaderstack)
-    val platformBuiltinHint = stringResource(R.string.settings_shell_footer_platform_builtin)
-    val resetToDefaultBuiltinVideoHint = stringResource(R.string.settings_shell_footer_reset_to_default_builtinvideo)
     val resetToDefaultStorageHint = stringResource(R.string.settings_shell_footer_reset_to_default_storage)
     val sampleHint = stringResource(R.string.settings_shell_footer_sample)
     val resetToDefaultThemeSoundsHint = stringResource(R.string.settings_shell_footer_reset_to_default_themesounds)
     val resetToDefaultThemeMusicHint = stringResource(R.string.settings_shell_footer_reset_to_default_thememusic)
-    val platformCoreOptionsHint = stringResource(R.string.settings_shell_footer_platform_coreoptions)
-    val resetToDefaultCoreOptionsHint = stringResource(R.string.settings_shell_footer_reset_to_default_coreoptions)
     val forceSyncHint = stringResource(R.string.settings_shell_footer_force_sync)
     val foldersScanHint = stringResource(R.string.settings_shell_footer_folders_scan)
     val switchRemoveHint = stringResource(R.string.settings_shell_footer_switch_remove)
@@ -1927,16 +1625,12 @@ private fun SettingsFooter(
     val updateEmulatorHint = stringResource(R.string.settings_shell_footer_update_emulator)
     val resetPlatformDetailHint = stringResource(R.string.settings_shell_footer_reset_platformdetail)
     val toggleLabelHint = stringResource(R.string.settings_shell_footer_toggle_label)
-    val openLabelHint = stringResource(R.string.settings_shell_footer_open_label)
     val selectLabelHint = stringResource(R.string.settings_shell_footer_select_label)
     val selectDefaultHint = stringResource(R.string.settings_shell_footer_select_default)
     val displayHint = stringResource(R.string.settings_shell_footer_display)
     val enableHint = stringResource(R.string.settings_shell_footer_enable)
     val platformsReorderHint = stringResource(R.string.settings_shell_footer_platforms_reorder)
     val updateHint = stringResource(R.string.settings_shell_footer_update)
-    val resetBuiltinVideoOverrideHint = stringResource(R.string.settings_shell_footer_reset_builtinvideo_override)
-    val resetBuiltinControlsOverrideHint = stringResource(R.string.settings_shell_footer_reset_builtincontrols_override)
-    val resetBuiltinSavesOverrideHint = stringResource(R.string.settings_shell_footer_reset_builtinsaves_override)
     val backHint = stringResource(R.string.settings_shell_footer_back)
     val localOnlyLocationHint = stringResource(R.string.settings_shell_footer_local_only_location)
     val unassignShortcutHint = stringResource(R.string.settings_shell_footer_unassign_shortcut)
@@ -1949,48 +1643,15 @@ private fun SettingsFooter(
 
     val hints = buildList {
         if (uiState.currentSection != SettingsSection.BOX_ART &&
-            uiState.currentSection != SettingsSection.SHADER_STACK &&
             uiState.currentSection != SettingsSection.PLAY_TIME) {
             add(InputButton.DPAD to navigateHint)
         }
         if (uiState.currentSection == SettingsSection.MAIN && !uiState.settingsSearch.isActive) {
             add((if (uiState.controls.quickNavigation) InputButton.LT_RT else InputButton.LB_RB) to mainGroupHint)
         }
-        if (uiState.currentSection == SettingsSection.SHADER_STACK &&
-            shaderStack.entries.isNotEmpty() &&
-            shaderStack.selectedShaderParams.isNotEmpty()
-        ) {
-            add(InputButton.DPAD_VERTICAL to navigateVerticalHint)
-        }
         if (uiState.currentSection == SettingsSection.BOX_ART) {
             add(InputButton.LB_RB to previewShapeHint)
             add(InputButton.LT_RT to previewGameHint)
-        }
-        if (uiState.currentSection == SettingsSection.SHADER_STACK) {
-            if (shaderStack.entries.isNotEmpty()) {
-                add(InputButton.LB_RB to shaderHint)
-                if (shaderStack.selectedShaderParams.isNotEmpty()) {
-                    add(InputButton.DPAD_HORIZONTAL to adjustShaderStackHint)
-                    add(InputButton.A to resetShaderStackHint)
-                }
-                add(InputButton.Y to reorderHint)
-                add(InputButton.X to removeShaderStackHint)
-            }
-            add(InputButton.SELECT to addShaderStackHint)
-        }
-        if (uiState.currentSection in BUILTIN_PLATFORM_CONTEXT_SECTIONS &&
-            uiState.builtinVideo.availablePlatforms.isNotEmpty()) {
-            add(InputButton.LB_RB to platformBuiltinHint)
-        }
-        if (uiState.currentSection == SettingsSection.BUILTIN_SAVES) {
-            if (focusedBuiltinFolderRow(uiState)?.resettable == true) {
-                add(InputButton.Y to resetToDefaultBuiltinVideoHint)
-            } else if (builtinSavesFocusedOverrideResettable(uiState)) {
-                add(InputButton.Y to resetBuiltinSavesOverrideHint)
-            }
-        }
-        if (customFrameFocused) {
-            add(InputButton.Y to removeFrameHint)
         }
         if (uiState.currentSection == SettingsSection.NETWORK_BLUETOOTH) {
             add(InputButton.LB_RB to networkGroupHint)
@@ -2027,16 +1688,6 @@ private fun SettingsFooter(
             ThemeMusicItem.MusicLocation
         ) {
             add(InputButton.Y to resetToDefaultThemeMusicHint)
-        }
-        if (uiState.currentSection == SettingsSection.CORE_OPTIONS &&
-            uiState.coreOptions.availablePlatforms.isNotEmpty()) {
-            add(InputButton.LB_RB to platformCoreOptionsHint)
-            val focusedCoreItem = coreOptionsItemAtFocusIndex(
-                uiState.focusedIndex, uiState.coreOptions
-            )
-            if (focusedCoreItem is CoreOptionItem.Option && focusedCoreItem.isOverridden) {
-                add(InputButton.Y to resetToDefaultCoreOptionsHint)
-            }
         }
         if (uiState.currentSection == SettingsSection.STEAM_SETTINGS) {
             val steamItem = com.nendo.argosy.ui.screens.settings.sections.steamItemAtFocusIndex(
@@ -2154,13 +1805,10 @@ private fun SettingsFooter(
             }
             val aLabel = when (focusedItem) {
                 is PlatformDetailItem.SyncToggle, is PlatformDetailItem.LegacyMode -> toggleLabelHint
-                is PlatformDetailItem.BuiltinVideo, is PlatformDetailItem.BuiltinControls,
-                is PlatformDetailItem.BuiltinSaves, is PlatformDetailItem.BuiltinCoreOptions -> openLabelHint
                 else -> selectLabelHint
             }
             add(InputButton.A to aLabel)
-        } else if (uiState.currentSection != SettingsSection.SHADER_STACK &&
-            uiState.currentSection != SettingsSection.PLAY_TIME &&
+        } else if (uiState.currentSection != SettingsSection.PLAY_TIME &&
             uiState.currentSection != SettingsSection.PLAY_TIME_PLATFORMS &&
             uiState.currentSection != SettingsSection.PLAY_TIME_DEVICES &&
             uiState.currentSection != SettingsSection.PLAY_TIME_GAMES
@@ -2191,52 +1839,6 @@ private fun SettingsFooter(
                 }
             }
         }
-        val focusedGraphicsRow = if (uiState.currentSection == SettingsSection.BUILTIN_VIDEO) {
-            com.nendo.argosy.ui.screens.settings.sections.builtinGraphicsRowAtFocusIndex(
-                uiState.focusedIndex, uiState.builtinVideo
-            )
-        } else {
-            null
-        }
-        if (focusedGraphicsRow != null && !uiState.builtinVideo.isGlobalContext &&
-            com.nendo.argosy.ui.screens.settings.sections.builtinGraphicsRowHasOverride(focusedGraphicsRow, uiState)
-        ) {
-            add(InputButton.Y to resetBuiltinVideoOverrideHint)
-        }
-        if (uiState.currentSection == SettingsSection.BUILTIN_VIDEO && !uiState.builtinVideo.isGlobalContext &&
-            focusedGraphicsRow == null
-        ) {
-            val platformContext = uiState.builtinVideo.currentPlatformContext
-            val platformSettings = platformContext?.let { uiState.platformLibretro.platformSettings[it.platformId] }
-            val currentSetting = com.nendo.argosy.ui.screens.settings.sections.builtinVideoItemAtFocusIndex(
-                uiState.focusedIndex, uiState.builtinVideo
-            )
-            val accessor = com.nendo.argosy.ui.screens.settings.libretro.PlatformLibretroSettingsAccessor(
-                platformSettings = platformSettings,
-                globalState = uiState.builtinVideo,
-                onUpdate = { _, _ -> }
-            )
-            if (currentSetting != null && accessor.hasOverride(currentSetting)) {
-                add(InputButton.Y to resetBuiltinVideoOverrideHint)
-            }
-        }
-        if (uiState.currentSection == SettingsSection.BUILTIN_CONTROLS && !uiState.builtinVideo.isGlobalContext) {
-            val item = com.nendo.argosy.ui.screens.settings.sections.builtinControlsItemAtFocusIndex(
-                uiState.focusedIndex, uiState.builtinControls
-            )
-            val platformContext = uiState.builtinVideo.currentPlatformContext
-            val ps = platformContext?.let { uiState.platformLibretro.platformSettings[it.platformId] }
-            val hasOverride = when (item) {
-                com.nendo.argosy.ui.screens.settings.sections.BuiltinControlsItem.Rumble -> ps?.rumbleEnabled != null
-                com.nendo.argosy.ui.screens.settings.sections.BuiltinControlsItem.Motion -> ps?.motionEnabled != null
-                com.nendo.argosy.ui.screens.settings.sections.BuiltinControlsItem.AnalogAsDpad -> ps?.analogAsDpad != null
-                com.nendo.argosy.ui.screens.settings.sections.BuiltinControlsItem.DpadAsAnalog -> ps?.dpadAsAnalog != null
-                else -> false
-            }
-            if (hasOverride) {
-                add(InputButton.Y to resetBuiltinControlsOverrideHint)
-            }
-        }
         add(InputButton.B to backHint)
     }
 
@@ -2252,8 +1854,6 @@ private fun cachesClearConfirmTitle(target: CachesClearTarget?): String = when (
     CachesClearTarget.SFX_CACHE -> stringResource(R.string.settings_shell_caches_sfx_title)
     CachesClearTarget.EMULATOR_APKS -> stringResource(R.string.settings_shell_caches_emulator_apks_title)
     CachesClearTarget.MISC_DOWNLOADS -> stringResource(R.string.settings_shell_caches_misc_downloads_title)
-    CachesClearTarget.SHADERS_CATALOG -> stringResource(R.string.settings_shell_caches_shaders_catalog_title)
-    CachesClearTarget.FRAMES -> stringResource(R.string.settings_shell_caches_frames_title)
     null -> ""
 }
 
@@ -2265,8 +1865,6 @@ private fun cachesClearConfirmMessage(target: CachesClearTarget?): String = when
     CachesClearTarget.SFX_CACHE -> stringResource(R.string.settings_shell_caches_sfx_message)
     CachesClearTarget.MISC_DOWNLOADS -> stringResource(R.string.settings_shell_caches_misc_downloads_message)
     CachesClearTarget.EMULATOR_APKS -> stringResource(R.string.settings_shell_caches_emulator_apks_message)
-    CachesClearTarget.SHADERS_CATALOG -> stringResource(R.string.settings_shell_caches_shaders_catalog_message)
-    CachesClearTarget.FRAMES -> stringResource(R.string.settings_shell_caches_frames_message)
     null -> ""
 }
 

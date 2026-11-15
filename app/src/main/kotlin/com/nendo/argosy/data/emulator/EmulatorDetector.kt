@@ -52,12 +52,6 @@ class EmulatorDetector @Inject constructor(
         for (emulatorDef in EmulatorRegistry.getAll()) {
             if (emulatorDef.packageName in detectedPackages) continue
 
-            if (emulatorDef.packageName == EmulatorRegistry.BUILTIN_PACKAGE) {
-                installed.add(createBuiltinEmulator(emulatorDef))
-                detectedPackages.add(emulatorDef.packageName)
-                continue
-            }
-
             try {
                 val packageInfo = packageManager.getPackageInfo(emulatorDef.packageName, 0)
                 val matchedDef = resolveEmulatorVariant(emulatorDef, packageInfo)
@@ -72,13 +66,6 @@ class EmulatorDetector @Inject constructor(
         _installedEmulators.value = installed
         installed
     }
-
-    private fun createBuiltinEmulator(def: EmulatorDef): InstalledEmulator =
-        InstalledEmulator(
-            def = def,
-            versionName = null,
-            versionCode = 0
-        )
 
     private fun detectEmulatorFamilies(
         installed: MutableList<InstalledEmulator>,
@@ -175,17 +162,14 @@ class EmulatorDetector @Inject constructor(
         return _installedEmulators.value.filter { canonical in it.def.supportedPlatforms }
     }
 
-    fun getPreferredEmulator(platformId: String, builtinEnabled: Boolean = true): InstalledEmulator? {
+    fun getPreferredEmulator(platformId: String): InstalledEmulator? {
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
-        val installed = getInstalledForPlatform(canonical).let { list ->
-            if (builtinEnabled) list else list.filterNot { it.def.id == EmulatorRegistry.BUILTIN_ID }
-        }
+        val installed = getInstalledForPlatform(canonical)
         if (installed.isEmpty()) return null
 
         val recommended = EmulatorRegistry.getRecommendedEmulators()[canonical]
         if (recommended != null) {
-            val filteredRecommended = if (builtinEnabled) recommended else recommended.filter { it != EmulatorRegistry.BUILTIN_ID }
-            for (emulatorId in filteredRecommended) {
+            for (emulatorId in recommended) {
                 val match = installed.find { it.def.id == emulatorId }
                 if (match != null) return match
             }

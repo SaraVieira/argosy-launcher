@@ -5,7 +5,6 @@ import com.nendo.argosy.data.preferences.AppPreferences
 enum class NoticeRoute {
     IN_APP,
     HOLD,
-    BUILT_IN_GAME,
     OVER_APP,
     DROP
 }
@@ -33,11 +32,10 @@ data class NoticePreferences(
 
 /**
  * Where Argosy stands when a notice arrives. [argosyVisible] is true while a launcher surface that
- * draws notices is started; [builtInGameInFront] is true while a built-in game is resumed.
+ * draws notices is started.
  */
 data class NoticeStage(
-    val argosyVisible: Boolean,
-    val builtInGameInFront: Boolean
+    val argosyVisible: Boolean
 )
 
 fun routeNotice(
@@ -53,5 +51,5 @@ fun routeNotice(
         type == NotificationType.WARNING ||
         type == NotificationType.ERROR
     if (!showsOverGames) return NoticeRoute.HOLD
-    return if (stage.builtInGameInFront) NoticeRoute.BUILT_IN_GAME else NoticeRoute.OVER_APP
+    return NoticeRoute.OVER_APP
 }

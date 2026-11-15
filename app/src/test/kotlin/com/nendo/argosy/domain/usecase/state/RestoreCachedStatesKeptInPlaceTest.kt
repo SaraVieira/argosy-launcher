@@ -4,7 +4,7 @@ import com.nendo.argosy.data.emulator.ArchiveRomNaming
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.LibretroStatePathResolver
-import com.nendo.argosy.libretro.LibretroStateSlots
+import com.nendo.argosy.data.libretro.LibretroStateSlots
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.StateCacheEntity

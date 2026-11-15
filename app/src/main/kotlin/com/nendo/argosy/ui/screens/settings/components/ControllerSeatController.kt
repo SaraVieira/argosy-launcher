@@ -3,7 +3,7 @@ package com.nendo.argosy.ui.screens.settings.components
 import android.view.InputDevice
 import com.nendo.argosy.core.input.controllerIdOf
 import com.nendo.argosy.data.repository.InputConfigRepository
-import com.nendo.argosy.libretro.ControllerSeating
+import com.nendo.argosy.data.libretro.ControllerSeating
 import com.nendo.argosy.ui.input.GamepadEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

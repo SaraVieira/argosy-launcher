@@ -1371,7 +1371,6 @@ fun HomeScreen(
                             game = game,
                             title = title,
                             subtitle = if (game == null) uiState.focusedMedia?.subtitle else null,
-                            friends = uiState.friendsFor(game),
                             maxWidth = titleWidth,
                             centered = geometry.titleAbove,
                             showMetadata = !uiState.isVideoPreviewActive,

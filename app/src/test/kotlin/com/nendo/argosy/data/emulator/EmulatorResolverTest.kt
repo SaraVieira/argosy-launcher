@@ -3,13 +3,9 @@ package com.nendo.argosy.data.emulator
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
 import com.nendo.argosy.data.platform.InstalledAppResolver
-import com.nendo.argosy.data.preferences.UserPreferences
-import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.LibretroCoreManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -28,8 +24,6 @@ class EmulatorResolverTest {
 
     private lateinit var emulatorDetector: EmulatorDetector
     private lateinit var emulatorConfigDao: EmulatorConfigDao
-    private lateinit var userPreferencesRepository: UserPreferencesRepository
-    private lateinit var libretroCoreMgr: LibretroCoreManager
     private lateinit var installedAppResolver: InstalledAppResolver
 
     private lateinit var resolver: EmulatorResolver
@@ -37,30 +31,23 @@ class EmulatorResolverTest {
     private val duckstation = EmulatorRegistry.getById("duckstation")!!
     private val retroarch = EmulatorRegistry.getById("retroarch")!!
     private val nethersx2 = EmulatorRegistry.getById("nethersx2")!!
-    private val builtin = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
 
     @Before
     fun setup() {
         emulatorDetector = mockk(relaxed = true)
         emulatorConfigDao = mockk(relaxed = true)
-        userPreferencesRepository = mockk(relaxed = true)
-        libretroCoreMgr = mockk(relaxed = true)
         installedAppResolver = mockk(relaxed = true)
 
-        every { userPreferencesRepository.userPreferences } returns flowOf(UserPreferences())
         coEvery { emulatorConfigDao.getByGameId(any()) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(any()) } returns null
-        every { emulatorDetector.getPreferredEmulator(any(), any()) } returns null
+        every { emulatorDetector.getPreferredEmulator(any()) } returns null
         every { emulatorDetector.getByPackage(any()) } answers { EmulatorRegistry.getByPackage(firstArg()) }
         every { installedAppResolver.isAppInstalled(any()) } returns false
-        every { libretroCoreMgr.isPlatformSupported(any()) } returns false
         stubDetectorWith()
 
         resolver = EmulatorResolver(
             emulatorDetector = emulatorDetector,
             emulatorConfigDao = emulatorConfigDao,
-            userPreferencesRepository = userPreferencesRepository,
-            libretroCoreMgr = libretroCoreMgr,
             installedAppResolver = installedAppResolver
         )
     }
@@ -136,7 +123,7 @@ class EmulatorResolverTest {
                 packageName = duckstation.packageName
             )
             stubDetectorWith(installedEmulator(retroarch))
-            every { emulatorDetector.getPreferredEmulator("psx", true) } returns
+            every { emulatorDetector.getPreferredEmulator("psx") } returns
                 installedEmulator(retroarch)
 
             val result = resolver.getEmulatorPackageForGame(1L, 10L, "psx")
@@ -146,57 +133,20 @@ class EmulatorResolverTest {
         }
 
     @Test
-    fun `built-in binding is rejected when the built-in libretro toggle is off so saves never target the in-process core`() =
-        runTest {
-            every { userPreferencesRepository.userPreferences } returns flowOf(
-                UserPreferences(builtinLibretroEnabled = false)
-            )
-            coEvery { emulatorConfigDao.getByGameId(1L) } returns createConfig(
-                gameId = 1L,
-                packageName = EmulatorRegistry.BUILTIN_PACKAGE
-            )
-            every { libretroCoreMgr.isPlatformSupported("nes") } returns true
-            stubDetectorWith(installedEmulator(builtin), installedEmulator(retroarch))
-            every { emulatorDetector.getPreferredEmulator("nes", false) } returns
-                installedEmulator(retroarch)
-
-            val result = resolver.getEmulatorPackageForGame(1L, 10L, "nes")
-
-            assertEquals(retroarch.packageName, result)
-        }
-
-    @Test
-    fun `built-in binding is rejected where no built-in core runs the platform so the external emulator owns the save path`() =
+    fun `a leftover built-in binding is rejected so the external emulator owns the save path`() =
         runTest {
             coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
                 platformId = 10L,
                 packageName = EmulatorRegistry.BUILTIN_PACKAGE,
                 isDefault = true
             )
-            every { libretroCoreMgr.isPlatformSupported("ps2") } returns false
-            stubDetectorWith(installedEmulator(builtin), installedEmulator(nethersx2))
-            every { emulatorDetector.getPreferredEmulator("ps2", true) } returns
+            stubDetectorWith(installedEmulator(nethersx2))
+            every { emulatorDetector.getPreferredEmulator("ps2") } returns
                 installedEmulator(nethersx2)
 
             val result = resolver.getEmulatorPackageForGame(1L, 10L, "ps2")
 
             assertEquals(nethersx2.packageName, result)
-        }
-
-    @Test
-    fun `built-in binding for ps2 is kept where the built-in core runs ps2`() =
-        runTest {
-            coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
-                platformId = 10L,
-                packageName = EmulatorRegistry.BUILTIN_PACKAGE,
-                isDefault = true
-            )
-            every { libretroCoreMgr.isPlatformSupported("ps2") } returns true
-            stubDetectorWith(installedEmulator(builtin), installedEmulator(nethersx2))
-
-            val result = resolver.getEmulatorPackageForGame(1L, 10L, "ps2")
-
-            assertEquals(EmulatorRegistry.BUILTIN_PACKAGE, result)
         }
 
     @Test
@@ -242,7 +192,7 @@ class EmulatorResolverTest {
             .first { it.size > 1 }
         val second = shared[1]
         stubDetectorWith(installedEmulator(second))
-        every { emulatorDetector.getPreferredEmulator("ps2", true) } returns installedEmulator(second)
+        every { emulatorDetector.getPreferredEmulator("ps2") } returns installedEmulator(second)
 
         val def = resolver.resolveEmulatorForGame(1L, 10L, "ps2")
 
@@ -259,7 +209,7 @@ class EmulatorResolverTest {
         )
         stubDetectorWith(installedEmulator(duckstation))
         every { installedAppResolver.isAppInstalled(adHocPackage) } returns false
-        every { emulatorDetector.getPreferredEmulator("psx", true) } returns
+        every { emulatorDetector.getPreferredEmulator("psx") } returns
             installedEmulator(duckstation)
 
         val result = resolver.getEmulatorPackageForGame(1L, 10L, "psx")
@@ -270,7 +220,7 @@ class EmulatorResolverTest {
     @Test
     fun `unconfigured game resolves to the preferred emulator for the platform`() = runTest {
         stubDetectorWith(installedEmulator(retroarch))
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns
+        every { emulatorDetector.getPreferredEmulator("nes") } returns
             installedEmulator(retroarch)
 
         val result = resolver.getEmulatorPackageForGame(1L, 10L, "nes")
@@ -282,7 +232,7 @@ class EmulatorResolverTest {
     fun `unconfigured game with no preferred emulator resolves to null rather than an arbitrary package`() =
         runTest {
             stubDetectorWith()
-            every { emulatorDetector.getPreferredEmulator("nes", true) } returns null
+            every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
             val result = resolver.getEmulatorPackageForGame(1L, 10L, "nes")
 

@@ -9,7 +9,7 @@ import com.nendo.argosy.data.local.entity.AchievementEntity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.MIN_DISPLAY_MS
 import com.nendo.argosy.data.repository.RaMetadataSource
-import com.nendo.argosy.data.social.uploader.PlaySessionPullScheduler
+import com.nendo.argosy.data.playsession.PlaySessionPullScheduler
 import com.nendo.argosy.domain.model.MonthlyDigest
 import com.nendo.argosy.domain.model.RecapMonthUnlock
 import com.nendo.argosy.domain.model.SessionUnlock

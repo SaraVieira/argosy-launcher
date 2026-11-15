@@ -66,8 +66,6 @@ class SyncSaveOnSessionEndUseCaseTest {
         emulatorResolver = EmulatorResolver(
             emulatorDetector = emulatorDetector,
             emulatorConfigDao = emulatorConfigDao,
-            userPreferencesRepository = preferencesRepository,
-            libretroCoreMgr = mockk(relaxed = true),
             installedAppResolver = mockk(relaxed = true) { every { isAppInstalled(any()) } returns false }
         ),
         preferencesRepository = preferencesRepository,

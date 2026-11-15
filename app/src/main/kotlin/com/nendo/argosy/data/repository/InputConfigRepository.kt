@@ -13,7 +13,7 @@ import com.nendo.argosy.data.local.entity.CoreInputMode
 import com.nendo.argosy.data.local.entity.HotkeyAction
 import com.nendo.argosy.data.local.entity.HotkeyEntity
 import com.nendo.argosy.data.local.entity.HotkeyScopeType
-import com.nendo.argosy.libretro.HotkeyManager
+import com.nendo.argosy.data.libretro.HotkeyManager
 import com.nendo.argosy.core.input.ConnectedControllerTracker
 import com.nendo.argosy.core.input.ControllerDetector
 import com.nendo.argosy.core.input.DetectedLayout

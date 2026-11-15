@@ -9,7 +9,7 @@ import com.nendo.argosy.data.repository.RAWebApiKeyCheck
 import com.nendo.argosy.data.repository.RAWebApiKeyRepository
 import com.nendo.argosy.data.repository.RAWebKeyHealth
 import com.nendo.argosy.data.repository.RetroAchievementsRepository
-import com.nendo.argosy.data.repository.LibretroSettingsRepository
+import com.nendo.argosy.data.preferences.BuiltinEmulatorPreferencesRepository
 import com.nendo.argosy.ui.components.TextEntryRow
 import com.nendo.argosy.ui.screens.settings.RASettingsState
 import com.nendo.argosy.ui.screens.settings.RAWebApiKeyAction
@@ -34,7 +34,7 @@ private const val TAG = "RASettingsDelegate"
 class RASettingsDelegate @Inject constructor(
     private val raRepository: RetroAchievementsRepository,
     private val prefsRepository: UserPreferencesRepository,
-    private val libretroSettingsRepo: LibretroSettingsRepository,
+    private val builtinEmulatorPrefs: BuiltinEmulatorPreferencesRepository,
     private val webApiKeyRepository: RAWebApiKeyRepository,
     private val keyHealth: RAWebKeyHealth,
     private val clipboard: ClipboardTextReader,
@@ -133,7 +133,7 @@ class RASettingsDelegate @Inject constructor(
 
     fun setDefaultToHardcore(scope: CoroutineScope, mode: String) {
         _state.update { it.copy(defaultToHardcore = mode) }
-        scope.launch { libretroSettingsRepo.setBuiltinDefaultToHardcore(mode) }
+        scope.launch { builtinEmulatorPrefs.setBuiltinDefaultToHardcore(mode) }
     }
 
     fun login(scope: CoroutineScope, onFocusReset: () -> Unit) {

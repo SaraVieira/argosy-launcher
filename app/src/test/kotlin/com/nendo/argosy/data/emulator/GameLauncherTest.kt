@@ -7,7 +7,6 @@ import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.dao.GameFileDao
-import com.nendo.argosy.data.local.dao.PlatformLibretroSettingsDao
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.GameFileEntity
@@ -16,9 +15,6 @@ import com.nendo.argosy.data.platform.InstalledAppResolver
 import com.nendo.argosy.data.platform.PlatformFolderResolver
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.repository.BiosRepository
-import com.nendo.argosy.libretro.LibretroCoreManager
-import com.nendo.argosy.libretro.coreoptions.CoreOptionResolver
 import android.net.Uri
 import androidx.core.content.FileProvider
 import io.mockk.coEvery
@@ -51,20 +47,12 @@ class GameLauncherTest {
     private lateinit var emulatorLaunchArgsDao: EmulatorLaunchArgsDao
     private lateinit var variantResolver: VariantResolver
     private lateinit var installedAppResolver: InstalledAppResolver
-    private lateinit var platformLibretroSettingsDao: PlatformLibretroSettingsDao
     private lateinit var emulatorDetector: EmulatorDetector
     private lateinit var m3uManager: M3uManager
-    private lateinit var libretroCoreMgr: LibretroCoreManager
-    private lateinit var biosRepository: BiosRepository
     private lateinit var userPreferencesRepository: UserPreferencesRepository
-    private lateinit var coreOptionResolver: CoreOptionResolver
-    private lateinit var coreSystemDataManager: CoreSystemDataManager
     private lateinit var gameFileDao: GameFileDao
     private lateinit var emulatorSaveConfigRepository: com.nendo.argosy.data.repository.EmulatorSaveConfigRepository
     private lateinit var saveHandlerRegistry: com.nendo.argosy.data.sync.platform.PlatformSaveHandlerRegistry
-
-    private lateinit var libretroStatePathResolver: LibretroStatePathResolver
-    private lateinit var libretroSavePathResolver: LibretroSavePathResolver
     private lateinit var launcher: GameLauncher
     private val overlayWriter = mockk<com.nendo.argosy.data.repository.GameUserOverlayWriter>(relaxed = true)
     private val launchProgressTracker = mockk<LaunchProgressTracker>(relaxed = true)
@@ -94,26 +82,14 @@ class GameLauncherTest {
         emulatorLaunchArgsDao = mockk(relaxed = true)
         variantResolver = mockk(relaxed = true)
         installedAppResolver = mockk(relaxed = true)
-        platformLibretroSettingsDao = mockk(relaxed = true)
         emulatorDetector = mockk(relaxed = true)
         m3uManager = mockk(relaxed = true)
-        libretroCoreMgr = mockk(relaxed = true)
-        biosRepository = mockk(relaxed = true)
         userPreferencesRepository = mockk(relaxed = true)
-        coreOptionResolver = mockk(relaxed = true)
-        coreSystemDataManager = mockk(relaxed = true)
         gameFileDao = mockk(relaxed = true)
         emulatorSaveConfigRepository = mockk(relaxed = true)
         saveHandlerRegistry = mockk(relaxed = true)
-        libretroStatePathResolver = mockk(relaxed = true)
-        coEvery { libretroStatePathResolver.liveStateBaseDir(any()) } returns
-            java.io.File("/data/data/com.nendo.argosy/files/libretro/states")
-        libretroSavePathResolver = mockk(relaxed = true)
-        every { libretroSavePathResolver.liveSaveBaseDir(any(), any(), any()) } returns
-            java.io.File("/data/data/com.nendo.argosy/files/libretro/saves")
 
         every { userPreferencesRepository.userPreferences } returns flowOf(UserPreferences())
-        every { userPreferencesRepository.getBuiltinCoreSelections() } returns flowOf(emptyMap())
         every { emulatorDetector.installedEmulators } returns mockk {
             every { value } returns emptyList()
         }
@@ -129,36 +105,17 @@ class GameLauncherTest {
             context = context,
             gameDao = gameDao,
             overlayWriter = overlayWriter,
-            platformDao = platformDao,
             gameDiscDao = gameDiscDao,
             emulatorConfigDao = emulatorConfigDao,
             emulatorLaunchArgsDao = emulatorLaunchArgsDao,
             variantResolver = variantResolver,
-            platformLibretroSettingsDao = platformLibretroSettingsDao,
             emulatorDetector = emulatorDetector,
-            builtinCoreResolver = BuiltinCoreResolver(
-                emulatorConfigDao,
-                userPreferencesRepository,
-                mockk(relaxed = true),
-                kotlin.io.path.createTempDirectory("system").toFile().also {
-                    java.io.File(it, "scph5501.bin").writeBytes(byteArrayOf(0))
-                }
-            ),
             m3uManager = m3uManager,
-            libretroCoreMgr = libretroCoreMgr,
-            biosRepository = biosRepository,
             userPreferencesRepository = userPreferencesRepository,
-            coreOptionResolver = coreOptionResolver,
-            builtinGraphicsResolver = mockk(relaxed = true),
-            coreSystemDataManager = coreSystemDataManager,
             gameFileDao = gameFileDao,
             emulatorSaveConfigRepository = emulatorSaveConfigRepository,
             savePathAuthority = mockk(relaxed = true),
             saveHandlerRegistry = saveHandlerRegistry,
-            libretroStatePathResolver = libretroStatePathResolver,
-            builtinSaveBase = BuiltinSaveBase(libretroSavePathResolver, emulatorSaveConfigRepository, emulatorConfigDao),
-            notificationManager = mockk(relaxed = true),
-            attributionRepository = mockk(relaxed = true),
             accountSwitchMarkerStore = mockk(relaxed = true),
             extContentOrganizer = mockk(relaxed = true),
             baseRomFileResolver = BaseRomFileResolver(
@@ -167,15 +124,12 @@ class GameLauncherTest {
             ),
             platformFolderResolver = platformFolderResolver,
             volumeHealth = mockk(relaxed = true),
-            dreamcastVmuMigrator = mockk(relaxed = true),
             launchProgressTracker = launchProgressTracker,
             steamInstallReports = steamInstallReports,
             appsRepository = appsRepository,
             emulatorResolver = EmulatorResolver(
                 emulatorDetector = emulatorDetector,
                 emulatorConfigDao = emulatorConfigDao,
-                userPreferencesRepository = userPreferencesRepository,
-                libretroCoreMgr = libretroCoreMgr,
                 installedAppResolver = installedAppResolver
             ),
             keepAlivePolicy = mockk {
@@ -820,12 +774,12 @@ class GameLauncherTest {
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns null
 
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns installedEmulator(builtinDef)
+        val retroarch = EmulatorRegistry.getById("retroarch")!!
+        every { emulatorDetector.getPreferredEmulator("nes") } returns installedEmulator(retroarch)
 
         launcher.launch(1L)
 
-        coVerify { emulatorDetector.getPreferredEmulator("nes", true) }
+        coVerify { emulatorDetector.getPreferredEmulator("nes") }
     }
 
     @Test
@@ -837,7 +791,7 @@ class GameLauncherTest {
 
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns null
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
         val result = launcher.launch(1L)
 
@@ -863,12 +817,12 @@ class GameLauncherTest {
             isDefault = true
         )
 
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
         val result = launcher.launch(1L)
 
         assertTrue(result is LaunchResult.NoEmulator)
-        coVerify { emulatorDetector.getPreferredEmulator("nes", true) }
+        coVerify { emulatorDetector.getPreferredEmulator("nes") }
     }
 
     // -----------------------------------------------------------------------
@@ -911,22 +865,13 @@ class GameLauncherTest {
         coVerify { emulatorDetector.detectEmulators() }
     }
 
-    // -----------------------------------------------------------------------
-    // Emulator resolution: built-in disabled
-    // -----------------------------------------------------------------------
-
     @Test
-    fun `skips built-in game override when builtin disabled`() = runTest {
+    fun `skips a leftover built-in game override`() = runTest {
         val path = romFile("nes")
         val game = createGame(localPath = path, platformSlug = "nes")
         coEvery { gameDao.getById(1L) } returns game
         coEvery { variantResolver.getVariantOptions(game) } returns null
 
-        every { userPreferencesRepository.userPreferences } returns flowOf(
-            UserPreferences(builtinLibretroEnabled = false)
-        )
-
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
         coEvery { emulatorConfigDao.getByGameId(1L) } returns createConfig(
             gameId = 1L,
             packageName = EmulatorRegistry.BUILTIN_PACKAGE,
@@ -934,8 +879,8 @@ class GameLauncherTest {
         )
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns null
 
-        stubDetectorWith(installedEmulator(builtinDef))
-        every { emulatorDetector.getPreferredEmulator("nes", false) } returns null
+        stubDetectorWith()
+        every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
         val result = launcher.launch(1L)
 
@@ -943,43 +888,12 @@ class GameLauncherTest {
     }
 
     @Test
-    fun `unknown built-in core override falls back to registry default`() = runTest {
-        val path = romFile("chd")
-        val game = createGame(localPath = path, platformSlug = "psx", platformId = 14L)
-        coEvery { gameDao.getById(1L) } returns game
-        coEvery { variantResolver.getVariantOptions(game) } returns null
-
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
-        coEvery { emulatorConfigDao.getByGameId(1L) } returns createConfig(
-            gameId = 1L,
-            packageName = EmulatorRegistry.BUILTIN_PACKAGE,
-            displayName = "Built-in",
-            coreName = "swanstation"
-        )
-        coEvery { emulatorConfigDao.getDefaultForPlatform(14L) } returns null
-        stubDetectorWith(installedEmulator(builtinDef))
-        every { emulatorDetector.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE) } returns builtinDef
-        every { libretroCoreMgr.isPlatformSupported("psx") } returns true
-        every { libretroCoreMgr.getCorePathForPlatform(any(), any()) } returns "/fake/core.so"
-
-        runCatching { launcher.launch(1L) }
-
-        verify { libretroCoreMgr.getCorePathForPlatform("psx", "mednafen_psx_hw") }
-        verify(exactly = 0) { libretroCoreMgr.getCorePathForPlatform("psx", "swanstation") }
-    }
-
-    @Test
-    fun `skips built-in platform default when builtin disabled and uses preferred`() = runTest {
+    fun `skips a leftover built-in platform default and uses preferred`() = runTest {
         val path = romFile("nes")
         val game = createGame(localPath = path, platformSlug = "nes")
         coEvery { gameDao.getById(1L) } returns game
         coEvery { variantResolver.getVariantOptions(game) } returns null
 
-        every { userPreferencesRepository.userPreferences } returns flowOf(
-            UserPreferences(builtinLibretroEnabled = false)
-        )
-
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
             platformId = 10L,
@@ -987,15 +901,15 @@ class GameLauncherTest {
             isDefault = true
         )
 
-        stubDetectorWith(installedEmulator(builtinDef))
+        stubDetectorWith()
 
         val retroarch = EmulatorRegistry.getById("retroarch")!!
-        every { emulatorDetector.getPreferredEmulator("nes", false) } returns installedEmulator(retroarch)
+        every { emulatorDetector.getPreferredEmulator("nes") } returns installedEmulator(retroarch)
         every { emulatorDetector.getByPackage(retroarch.packageName) } returns retroarch
 
         launcher.launch(1L)
 
-        coVerify { emulatorDetector.getPreferredEmulator("nes", false) }
+        coVerify { emulatorDetector.getPreferredEmulator("nes") }
     }
 
     // -----------------------------------------------------------------------
@@ -1052,7 +966,7 @@ class GameLauncherTest {
 
         stubDetectorWith()
         every { installedAppResolver.isAppInstalled("com.missing.emulator") } returns false
-        every { emulatorDetector.getPreferredEmulator("psx", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("psx") } returns null
 
         val result = launcher.launch(1L)
 
@@ -1100,83 +1014,12 @@ class GameLauncherTest {
 
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns null
-        every { emulatorDetector.getPreferredEmulator("ps2", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("ps2") } returns null
 
         val result = launcher.launch(1L)
 
         assertTrue(result is LaunchResult.NoEmulator)
         assertEquals("ps2", (result as LaunchResult.NoEmulator).platformSlug)
-    }
-
-    private fun bindPs2ToBuiltin(coreSupportsPs2: Boolean): GameEntity {
-        val game = createGame(localPath = romFile("iso"), platformSlug = "ps2")
-        coEvery { gameDao.getById(1L) } returns game
-        coEvery { variantResolver.getVariantOptions(game) } returns null
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
-        coEvery { emulatorConfigDao.getByGameId(1L) } returns null
-        coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
-            platformId = 10L,
-            packageName = EmulatorRegistry.BUILTIN_PACKAGE,
-            isDefault = true
-        )
-        stubDetectorWith(installedEmulator(builtinDef))
-        every { emulatorDetector.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE) } returns builtinDef
-        every { libretroCoreMgr.isPlatformSupported("ps2") } returns coreSupportsPs2
-        return game
-    }
-
-    @Test
-    fun `PS2 bound to the built-in is skipped where no built-in ps2 core runs`() = runTest {
-        bindPs2ToBuiltin(coreSupportsPs2 = false)
-        every { emulatorDetector.getPreferredEmulator("ps2", true) } returns null
-
-        val result = launcher.launch(1L)
-
-        assertTrue("got ${result::class.simpleName}", result is LaunchResult.NoEmulator)
-    }
-
-    @Test
-    fun `PS2 on the built-in core without a BIOS in pcsx2 bios asks for one`() = runTest {
-        bindPs2ToBuiltin(coreSupportsPs2 = true)
-        every { biosRepository.getLibretroSystemDir() } returns tempFolder.newFolder("system-empty")
-
-        val result = launcher.launch(1L)
-
-        assertTrue("got ${result::class.simpleName}", result is LaunchResult.MissingBios)
-        val missing = result as LaunchResult.MissingBios
-        assertEquals("ps2", missing.platformSlug)
-        assertEquals("pcsx2/bios", missing.missingFolder)
-        assertTrue(missing.missingFileGroups.isEmpty())
-        coVerify { biosRepository.distributeBiosToEmulator("ps2", EmulatorRegistry.BUILTIN_PACKAGE) }
-    }
-
-    @Test
-    fun `PS2 on the built-in core passes the BIOS gate with any file name in pcsx2 bios`() = runTest {
-        bindPs2ToBuiltin(coreSupportsPs2 = true)
-        val systemDir = tempFolder.newFolder("system-bios")
-        java.io.File(systemDir, "pcsx2/bios").mkdirs()
-        java.io.File(systemDir, "pcsx2/bios/my dump.bin").writeBytes(byteArrayOf(1))
-        every { biosRepository.getLibretroSystemDir() } returns systemDir
-
-        val result = runCatching { launcher.launch(1L) }.getOrNull()
-
-        assertTrue("got ${result?.let { it::class.simpleName }}", result !is LaunchResult.MissingBios)
-        coVerify { coreSystemDataManager.ensureCoreSystemData(any(), any()) }
-    }
-
-    @Test
-    fun `PS2 on the built-in core never raises the memory card picker`() = runTest {
-        bindPs2ToBuiltin(coreSupportsPs2 = true)
-        every { biosRepository.getLibretroSystemDir() } returns tempFolder.newFolder("system-cards")
-        coEvery { saveHandlerRegistry.listPs2FolderMemcardsForEmulator(any(), any()) } returns listOf(
-            mockk(relaxed = true),
-            mockk(relaxed = true)
-        )
-
-        val result = launcher.launch(1L)
-
-        assertTrue("got ${result::class.simpleName}", result !is LaunchResult.SelectMemcard)
-        coVerify(exactly = 0) { saveHandlerRegistry.listPs2FolderMemcardsForEmulator(any(), any()) }
     }
 
     // -----------------------------------------------------------------------
@@ -1191,7 +1034,7 @@ class GameLauncherTest {
         coEvery { variantResolver.getVariantOptions(game) } returns null
 
         val retroarch = EmulatorRegistry.getById("retroarch")!!
-        val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
+        val pizzaBoy = EmulatorRegistry.getById("pizza_boy_gba")!!
 
         coEvery { emulatorConfigDao.getByGameId(1L) } returns createConfig(
             gameId = 1L,
@@ -1200,17 +1043,17 @@ class GameLauncherTest {
         )
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
             platformId = 10L,
-            packageName = EmulatorRegistry.BUILTIN_PACKAGE,
+            packageName = pizzaBoy.packageName,
             isDefault = true
         )
 
-        stubDetectorWith(installedEmulator(retroarch), installedEmulator(builtinDef))
+        stubDetectorWith(installedEmulator(retroarch), installedEmulator(pizzaBoy))
         every { emulatorDetector.getByPackage(retroarch.packageName) } returns retroarch
 
         launcher.launch(1L)
 
         coVerify { emulatorDetector.getByPackage(retroarch.packageName) }
-        coVerify(exactly = 0) { emulatorDetector.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE) }
+        coVerify(exactly = 0) { emulatorDetector.getByPackage(pizzaBoy.packageName) }
     }
 
     // -----------------------------------------------------------------------
@@ -1233,7 +1076,7 @@ class GameLauncherTest {
 
         // retroarch not in installed list, re-detection also doesn't find it
         stubDetectorWith()
-        every { emulatorDetector.getPreferredEmulator("nes", true) } returns null
+        every { emulatorDetector.getPreferredEmulator("nes") } returns null
 
         val result = launcher.launch(1L)
 
@@ -1300,7 +1143,7 @@ class GameLauncherTest {
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns null
         stubDetectorWith()
-        every { emulatorDetector.getPreferredEmulator(any(), any()) } returns null
+        every { emulatorDetector.getPreferredEmulator(any()) } returns null
     }
 
     private fun fileRow(

@@ -30,10 +30,9 @@ import javax.inject.Inject
 data class RunningMoveTarget(val displayId: Int, val screenNumber: Int, val swapsRoles: Boolean)
 
 /**
- * The displays the app in a task can be carried to now: the display a role swap carries the
- * built-in game in Argosy's own task to while it is the session in front, or every other screen
- * for an external app in the background on a device that moves tasks. Empty for a game slot, a
- * built-in game in the background, and with fewer than two [screens].
+ * The displays the app in a task can be carried to now: every other screen for an external app
+ * in the background on a device that moves tasks. Empty for the session in front and with fewer
+ * than two [screens].
  */
 fun runningMoveTargets(
     isFront: Boolean,
@@ -43,13 +42,7 @@ fun runningMoveTargets(
     screens: List<RunningScreenUi>
 ): List<RunningMoveTarget> {
     val dsm = DualScreenManagerHolder.instance ?: return emptyList()
-    if (screens.size < 2) return emptyList()
-    if (isFront) {
-        if (slotIndex != 0) return emptyList()
-        val target = dsm.liveMoveTargetDisplayId() ?: return emptyList()
-        return screens.filter { it.displayId == target }
-            .map { RunningMoveTarget(it.displayId, it.number, swapsRoles = true) }
-    }
+    if (screens.size < 2 || isFront) return emptyList()
     if (packageName == EmulatorRegistry.BUILTIN_PACKAGE || !dsm.taskMoveAvailable.value) return emptyList()
     return screens.filter { it.number != currentScreenNumber }
         .map { RunningMoveTarget(it.displayId, it.number, swapsRoles = false) }

@@ -1,10 +1,8 @@
 package com.nendo.argosy.ui.screens.common
 
-import com.nendo.argosy.libretro.DualScreenOutput
 import com.nendo.argosy.util.DisplayAffinityHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,14 +28,6 @@ class BothScreensPlacementTest {
         for (pkg in listOf("io.github.borked3ds.android", "org.citra.emu", "org.citra.citra_emu", "me.magnum.melonds")) {
             assertFalse(pkg, EmulatorLaunchTargetResolver.drawsBothScreens(pkg))
         }
-    }
-
-    @Test
-    fun `the built-in dual screen cores are the ones placed on the DS screen`() {
-        for (core in listOf("azahar", "melonds", "melondsds")) {
-            assertNotNull(core, DualScreenOutput.forCore(core))
-        }
-        assertNull(DualScreenOutput.forCore("snes9x"))
     }
 
     @Test

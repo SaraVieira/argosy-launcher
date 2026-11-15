@@ -45,7 +45,6 @@ class DatabaseAdminRepositoryDeleteFilesTest {
             downloadManager = mockk(relaxed = true),
             emulatorDownloadManager = mockk(relaxed = true),
             mediaDownloadManager = mockk(relaxed = true),
-            socialRepository = mockk(relaxed = true),
             sfxCacheCleaner = mockk(relaxed = true),
             hardResetRecorder = HardResetRecorder(context, Moshi.Builder().build()),
             gameRepository = dagger.Lazy { gameRepository }

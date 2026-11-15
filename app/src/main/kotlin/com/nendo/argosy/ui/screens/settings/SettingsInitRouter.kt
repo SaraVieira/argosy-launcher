@@ -1,6 +1,5 @@
 package com.nendo.argosy.ui.screens.settings
 
-import android.content.Context
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.core.emulator.EmulatorDownloadState
 import com.nendo.argosy.data.cache.GradientPreset
@@ -11,17 +10,13 @@ import com.nendo.argosy.data.preferences.EmulatorDisplayTarget
 import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.remote.jellyfin.JellyfinConnectionState
 import com.nendo.argosy.data.remote.romm.ConnectionState
-import com.nendo.argosy.libretro.LibretroCoreRegistry
 import com.nendo.argosy.core.input.DetectedLayout
 import com.nendo.argosy.ui.screens.settings.delegates.StorageSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.sections.steamMaxFocusIndex
-import com.nendo.argosy.util.AppPaths
 import com.nendo.argosy.R
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -67,10 +62,6 @@ internal fun routeObserveDelegateStates(vm: SettingsViewModel) {
 
     vm.emulatorDelegate.state.onEach { emulators ->
         vm._uiState.update { it.copy(emulators = emulators) }
-    }.launchIn(vm.viewModelScope)
-
-    vm.emulatorDelegate.observeCoreUpdateCount().onEach { count ->
-        vm.emulatorDelegate.updateCoreUpdatesAvailable(count)
     }.launchIn(vm.viewModelScope)
 
     vm.emulatorDelegate.observeAvailableUpdates().onEach { updates ->
@@ -200,10 +191,6 @@ internal fun routeObserveDelegateStates(vm: SettingsViewModel) {
     vm.biosDelegate.state.onEach { bios ->
         vm._uiState.update { it.copy(bios = bios) }
     }.launchIn(vm.viewModelScope)
-
-    vm.driversDelegate.state.onEach { drivers ->
-        vm._uiState.update { it.copy(drivers = drivers) }
-    }.launchIn(vm.viewModelScope)
 }
 
 internal fun routeUpdateSteamState(vm: SettingsViewModel, steam: SteamSettingsState) {
@@ -313,71 +300,14 @@ internal fun routeObserveConnectionState(vm: SettingsViewModel) {
     }.launchIn(vm.viewModelScope)
 }
 
-internal fun routeObservePlatformLibretroSettings(vm: SettingsViewModel) {
-    vm.libretroSettingsRepo.observeAll().onEach { settingsList ->
-        val settingsMap = settingsList.associateBy { it.platformId }
-        vm._uiState.update { current ->
-            val platformContext = current.builtinVideo.currentPlatformContext
-            val hasControlOverrides = platformContext?.let {
-                settingsMap[it.platformId]?.hasAnyControlOverrides()
-            } == true
-            current.copy(
-                platformLibretro = current.platformLibretro.copy(
-                    platformSettings = settingsMap
-                ),
-                builtinControls = current.builtinControls.copy(
-                    showResetAll = !current.builtinVideo.isGlobalContext && hasControlOverrides
-                )
-            )
-        }
-    }.launchIn(vm.viewModelScope)
-}
-
 internal fun routeObservePlatforms(vm: SettingsViewModel) {
     vm.syncDelegate.observePlatforms(vm.viewModelScope)
-    vm.viewModelScope.launch {
-        vm.platformRepository.observeAllPlatforms()
-            .map { all ->
-                all.filter { it.syncEnabled && LibretroCoreRegistry.isPlatformSupported(it.slug) }
-                    .distinctBy { it.slug }
-                    .map { PlatformContext(it.id, it.name, it.slug) }
-            }
-            .distinctUntilChanged()
-            .collect { platforms ->
-                vm._uiState.update { state ->
-                    val video = state.builtinVideo
-                    val coreOptions = state.coreOptions
-                    state.copy(
-                        builtinVideo = video.copy(
-                            availablePlatforms = platforms,
-                            platformContextIndex = reindexPlatformContext(
-                                video.availablePlatforms, video.platformContextIndex, platforms, firstIsGlobal = true
-                            )
-                        ),
-                        coreOptions = if (coreOptions.availablePlatforms.isEmpty()) coreOptions else coreOptions.copy(
-                            availablePlatforms = platforms,
-                            platformContextIndex = reindexPlatformContext(
-                                coreOptions.availablePlatforms, coreOptions.platformContextIndex, platforms, firstIsGlobal = false
-                            )
-                        )
-                    )
-                }
-                routeLoadControllerPorts(vm)
-                routeRefreshBuiltinGraphics(vm)
-            }
-    }
 }
 
-internal fun reindexPlatformContext(
-    previous: List<PlatformContext>,
-    previousIndex: Int,
-    current: List<PlatformContext>,
-    firstIsGlobal: Boolean
-): Int {
-    val offset = if (firstIsGlobal) 1 else 0
-    val selectedId = previous.getOrNull(previousIndex - offset)?.platformId ?: return 0
-    val found = current.indexOfFirst { it.platformId == selectedId }
-    return if (found >= 0) found + offset else 0
+internal fun routeObserveControllerOrder(vm: SettingsViewModel) {
+    vm.inputConfigRepository.observeControllerOrder().onEach { order ->
+        vm._uiState.update { it.copy(controllerOrderCount = order.size) }
+    }.launchIn(vm.viewModelScope)
 }
 
 internal fun routeStartControllerDetectionPolling(vm: SettingsViewModel) {
@@ -415,7 +345,7 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             val defaultConfig = vm.emulatorConfigRepo.getDefaultForPlatform(platform.id)
             val available = installedEmulators
                 .filter { canonicalSlug in it.def.supportedPlatforms }
-                .filter { prefs.builtinLibretroEnabled || it.def.packageName != EmulatorRegistry.BUILTIN_PACKAGE }
+                .filter { it.def.packageName != EmulatorRegistry.BUILTIN_PACKAGE }
             val isUserConfigured = defaultConfig != null
 
             val recommended = EmulatorRegistry.getRecommendedEmulators()[canonicalSlug] ?: emptyList()
@@ -424,17 +354,14 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
                 .filter { it.packageName !in installedPackages && it.downloadUrl != null }
 
             val rawSelectedEmulatorDef = defaultConfig?.packageName?.let { vm.emulatorDetector.getByPackage(it) }
-            val selectedEmulatorDef = if (!prefs.builtinLibretroEnabled && rawSelectedEmulatorDef?.id == EmulatorRegistry.BUILTIN_ID) {
-                null
-            } else {
-                rawSelectedEmulatorDef
-            }
+            val selectedEmulatorDef = rawSelectedEmulatorDef?.takeIf { it.id != EmulatorRegistry.BUILTIN_ID }
             val adHocConfig = defaultConfig?.takeIf { cfg ->
                 val pkg = cfg.packageName
                 selectedEmulatorDef == null && pkg != null &&
                     !EmulatorRegistry.isKnownPackage(pkg) && vm.installedAppResolver.isAppInstalled(pkg)
             }
-            val autoResolvedEmulator = vm.emulatorDetector.getPreferredEmulator(platform.slug, prefs.builtinLibretroEnabled)?.def
+            val autoResolvedEmulator = vm.emulatorDetector.getPreferredEmulator(platform.slug)?.def
+                ?.takeIf { it.id != EmulatorRegistry.BUILTIN_ID }
             val effectiveEmulatorDef = selectedEmulatorDef ?: if (adHocConfig != null) null else autoResolvedEmulator
             val isRetroArch = effectiveEmulatorDef?.launchConfig is com.nendo.argosy.data.emulator.LaunchConfig.RetroArch
             val hasCoreSelection = effectiveEmulatorDef?.launchConfig?.isCoreSelectable == true
@@ -667,9 +594,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             lidSleepSupported = vm.lidSleepGuard.isSupported,
             lidSleepEnabled = prefs.lidSleepEnabled,
             dualScreenEnabled = prefs.dualScreenEnabled,
-            dualScreenMatchSize = vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first().dualScreenMatchSize,
-            dualScreenMatchSizeAvailable = vm.displayAffinityHelper.hasPhysicalSecondaryDisplay &&
-                com.nendo.argosy.libretro.KnownPanels.forModel().isNotEmpty(),
             displayRoleOverride = prefs.displayRoleOverride,
             gamesLaunchTarget = prefs.gamesDisplayTarget,
             appsLaunchTarget = prefs.appsDisplayTarget,
@@ -741,8 +665,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
         val currentEmulatorState = vm.emulatorDelegate.state.value
         val anchoredPlatformId = vm._uiState.value.emulators.platforms
             .getOrNull(vm._uiState.value.platformDetail.platformIndex)?.platform?.id
-        val archOverride = vm.libretroSettingsRepo.getArchitectureOverride().first()
-        val builtinSettings = vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first()
         val externalGamesStayOpen = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             vm.keepAlivePolicy.isSupported
         }
@@ -750,22 +672,10 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             platforms = filteredPlatformConfigs,
             installedEmulators = installedEmulators,
             platformSubFocusIndex = currentEmulatorState.platformSubFocusIndex,
-            builtinLibretroEnabled = prefs.builtinLibretroEnabled,
             closeEmulatorOnSessionEnd = prefs.closeEmulatorOnSessionEnd,
             externalGamesStayOpen = externalGamesStayOpen,
-            architectureDisplay = architectureAbiToDisplay(archOverride),
-            ingameMenuTwoColumn = builtinSettings.ingameMenuTwoColumn,
-            hudEnabled = builtinSettings.hudEnabled,
-            hudCorner = builtinSettings.hudCorner,
-            hudShowBattery = builtinSettings.hudShowBattery,
-            hudShowClock = builtinSettings.hudShowClock,
-            hudShowPlaytime = builtinSettings.hudShowPlaytime,
-            hudShowFps = builtinSettings.hudShowFps,
-            hudShowLastSave = builtinSettings.hudShowLastSave,
-            emulatorUpdateVersions = currentEmulatorState.emulatorUpdateVersions,
-            coreUpdatesAvailable = currentEmulatorState.coreUpdatesAvailable
+            emulatorUpdateVersions = currentEmulatorState.emulatorUpdateVersions
         ))
-        vm.emulatorDelegate.updateCoreCounts()
         anchoredPlatformId?.let { anchorId ->
             val reanchored = filteredPlatformConfigs.indexOfFirst { it.platform.id == anchorId }
             if (reanchored >= 0) {
@@ -846,19 +756,10 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
         ))
         vm.storageDelegate.checkAllFilesAccess()
         val platformEmulatorInfoMap = mutableMapOf<Long, StorageSettingsDelegate.PlatformEmulatorInfo>()
-        val builtinStateSettings = vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first()
         for (config in platformConfigs) {
             val emulatorId = config.effectiveEmulatorId
             val userStateConfig = emulatorId?.let { vm.emulatorDelegate.getEmulatorSaveConfig(it) }
-            val builtinStateOverride = if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-                vm.libretroSettingsRepo.getByPlatformId(config.platform.id)?.statePath?.takeIf { it.isNotBlank() }
-                    ?: builtinStateSettings.customStatePath?.takeIf { it.isNotBlank() }
-            } else null
-            val isUserStatePathOverride = if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-                builtinStateOverride != null
-            } else {
-                userStateConfig?.isUserStateOverride == true
-            }
+            val isUserStatePathOverride = userStateConfig?.isUserStateOverride == true
             val userStatePathPattern = userStateConfig?.statePathPattern
 
             val statePath = when {
@@ -875,8 +776,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
                         com.nendo.argosy.data.emulator.RetroArchPathResolver.DisplayPath.Unknown -> null
                     }
                 }
-                config.effectiveEmulatorId == EmulatorRegistry.BUILTIN_ID ->
-                    builtinStateOverride ?: AppPaths.libretroStatesDir(vm.context.filesDir).absolutePath
                 isUserStatePathOverride && userStatePathPattern != null -> userStatePathPattern
                 else -> null
             }
@@ -884,7 +783,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             val emulatorIdForStateCheck = config.effectiveEmulatorId
             val supportsStatePath = when {
                 emulatorIdForStateCheck == null -> false
-                emulatorIdForStateCheck == EmulatorRegistry.BUILTIN_ID -> true
                 config.effectiveEmulatorIsRetroArch -> true
                 else -> com.nendo.argosy.data.emulator.StatePathRegistry.getConfig(emulatorIdForStateCheck) != null
             }
@@ -936,10 +834,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             defaultImageCachePath = vm.imageCacheManager.getDefaultCachePath()
         ))
 
-        val refreshSettings = vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first()
-        val displayManager = vm.context.getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
-        val display = displayManager.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-        val refreshRate = display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 60f
         vm._uiState.update {
             it.copy(
                 betaUpdatesEnabled = prefs.betaUpdatesEnabled,
@@ -948,67 +842,7 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
                 fileLoggingEnabled = prefs.fileLoggingEnabled,
                 fileLoggingPath = prefs.fileLoggingPath,
                 fileLogLevel = prefs.fileLogLevel,
-                saveDebugLoggingEnabled = prefs.saveDebugLoggingEnabled,
-                builtinVideo = it.builtinVideo.copy(
-                    shader = refreshSettings.shader,
-                    shaderChainJson = refreshSettings.shaderChainJson,
-                    filter = refreshSettings.filter,
-                    aspectRatio = refreshSettings.aspectRatio,
-                    portraitPosition = refreshSettings.portraitPosition,
-                    skipDuplicateFrames = refreshSettings.skipDuplicateFrames,
-                    blackFrameInsertion = refreshSettings.blackFrameInsertion,
-                    displayRefreshRate = refreshRate,
-                    fastForwardEnabled = refreshSettings.fastForwardEnabled,
-                    fastForwardSpeed = refreshSettings.fastForwardSpeedDisplay,
-                    rotation = refreshSettings.rotationDisplay,
-                    overscanCrop = refreshSettings.overscanCropDisplay,
-                    lowLatencyAudio = refreshSettings.lowLatencyAudio,
-                    audioVolume = refreshSettings.audioVolumeDisplay,
-                    vsync = !refreshSettings.forceSoftwareTiming,
-                    rewindEnabled = refreshSettings.rewindEnabled,
-                    rewindSpeed = refreshSettings.rewindSpeedDisplay,
-                    rewindBufferDuration = refreshSettings.rewindBufferDurationDisplay,
-                    autoSaveState = refreshSettings.autoSaveState,
-                    autoRestoreState = refreshSettings.autoRestoreState,
-                    preferNewerServerSave = refreshSettings.preferNewerServerSave,
-                    hwCoreSaveStatesEnabled = refreshSettings.hwCoreSaveStatesEnabled,
-                    savePath = refreshSettings.customSavePath
-                        ?: AppPaths.libretroSavesDir(vm.context.filesDir).absolutePath,
-                    statePath = refreshSettings.customStatePath
-                        ?: AppPaths.libretroStatesDir(vm.context.filesDir).absolutePath,
-                    isCustomSavePath = refreshSettings.customSavePath != null,
-                    isCustomStatePath = refreshSettings.customStatePath != null,
-                    gpuDriver = refreshSettings.gpuDriver
-                ),
-                builtinControls = BuiltinControlsState(
-                    controllerOrderCount = it.builtinControls.controllerOrderCount,
-                    rumbleEnabled = refreshSettings.rumbleEnabled,
-                    motionEnabled = refreshSettings.motionEnabled,
-                    gyroAimInvertX = refreshSettings.gyroAimInvertX,
-                    gyroAimInvertY = refreshSettings.gyroAimInvertY,
-                    gyroAimSensitivity = refreshSettings.gyroAimSensitivity,
-                    limitHotkeysToPlayer1 = refreshSettings.limitHotkeysToPlayer1,
-                    confirmReturnHome = refreshSettings.confirmReturnHome,
-                    speedrunStartOnReset = refreshSettings.speedrunStartOnReset,
-                    speedrunPanelSide = refreshSettings.speedrunPanelSide,
-                    speedrunPanelWidthPercent = refreshSettings.speedrunPanelWidthPercent,
-                    fastForwardMode = refreshSettings.fastForwardMode,
-                    selectAsBack = refreshSettings.selectAsBack,
-                    fastForwardPreservePitch = refreshSettings.fastForwardPreservePitch,
-                    analogAsDpad = refreshSettings.analogAsDpad,
-                    dpadAsAnalog = refreshSettings.dpadAsAnalog,
-                    touchEnabled = refreshSettings.showTouchControlsWhenNoGamepad,
-                    touchOpacityLandscape = refreshSettings.touchControlsOpacityLandscape,
-                    touchOpacityPortrait = refreshSettings.touchControlsOpacityPortrait,
-                    touchSizeScale = refreshSettings.touchControlsSizeScale,
-                    touchHaptic = refreshSettings.touchControlsHaptic,
-                    touchFadeOnIdle = refreshSettings.touchControlsFadeOnIdle,
-                    touchSwapHanded = refreshSettings.touchControlsSwapHanded,
-                    touchLockOrientation = refreshSettings.touchControlsLockOrientation,
-                    touchMirror180 = refreshSettings.touchControlsMirror180,
-                    touchColouredFaceButtons = refreshSettings.touchControlsColouredFaceButtons,
-                    touchGenesis6Button = refreshSettings.touchControlsGenesis6Button
-                )
+                saveDebugLoggingEnabled = prefs.saveDebugLoggingEnabled
             )
         }
 

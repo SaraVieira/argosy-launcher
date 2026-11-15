@@ -2,9 +2,7 @@ package com.nendo.argosy.data.repository
 
 import com.nendo.argosy.data.local.dao.AchievementDao
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
-import com.nendo.argosy.data.local.dao.PendingSocialSyncDao
 import com.nendo.argosy.data.local.dao.PlaySessionDao
-import com.nendo.argosy.data.local.dao.QuayPassPendingReportDao
 import com.nendo.argosy.data.local.dao.RomMAccountDao
 import com.nendo.argosy.data.local.dao.SaveCacheDao
 import com.nendo.argosy.data.local.dao.SaveSyncDao
@@ -37,9 +35,7 @@ class RomMAccountRepository @Inject constructor(
     private val stateCacheDao: StateCacheDao,
     private val stateTombstoneDao: StateTombstoneDao,
     private val playSessionDao: PlaySessionDao,
-    private val pendingSocialSyncDao: PendingSocialSyncDao,
     private val downloadQueueDao: DownloadQueueDao,
-    private val quayPassPendingReportDao: QuayPassPendingReportDao,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val rommApiProvider: RomMApiProvider
 ) {
@@ -153,9 +149,7 @@ class RomMAccountRepository @Inject constructor(
         stateCacheDao.adoptUnowned(ownerUserId)
         stateTombstoneDao.adoptUnowned(ownerUserId)
         playSessionDao.adoptUnowned(ownerUserId)
-        pendingSocialSyncDao.adoptUnowned(ownerUserId)
         downloadQueueDao.adoptUnowned(ownerUserId)
-        quayPassPendingReportDao.adoptUnowned(ownerUserId)
     }
 
     /**

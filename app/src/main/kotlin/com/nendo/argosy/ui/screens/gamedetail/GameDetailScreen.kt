@@ -88,9 +88,6 @@ import com.nendo.argosy.ui.screens.gamedetail.components.MenuLayoutState
 import com.nendo.argosy.ui.screens.gamedetail.components.menuLayout
 import com.nendo.argosy.ui.screens.gamedetail.components.RelatedGamesSection
 import com.nendo.argosy.ui.screens.gamedetail.components.ScreenshotViewerOverlay
-import com.nendo.argosy.ui.screens.gamedetail.components.ReviewEditorOverlay
-import com.nendo.argosy.ui.screens.gamedetail.components.ReviewListOverlay
-import com.nendo.argosy.ui.screens.gamedetail.components.ReviewSummarySection
 import com.nendo.argosy.ui.screens.gamedetail.components.ScreenshotsSection
 import com.nendo.argosy.ui.components.DiscPickerModal
 import com.nendo.argosy.ui.components.MemcardPickerModal
@@ -102,7 +99,6 @@ import com.nendo.argosy.ui.screens.gamedetail.modals.StatusPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.SteamLauncherPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MoreOptionsModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.PerGameSettingsModal
-import com.nendo.argosy.ui.screens.gamedetail.modals.PlayOptionsModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.RatingsStatusModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.ArtPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.fileBrowserTitleRes
@@ -195,7 +191,6 @@ fun GameDetailScreen(
     var descriptionTopY by remember { mutableIntStateOf(0) }
     var descriptionHeight by remember { mutableIntStateOf(0) }
     var screenshotTopY by remember { mutableIntStateOf(0) }
-    var reviewsTopY by remember { mutableIntStateOf(0) }
     var achievementTopY by remember { mutableIntStateOf(0) }
     var relatedTopY by remember { mutableIntStateOf(0) }
 
@@ -387,7 +382,6 @@ fun GameDetailScreen(
                     descriptionHeight = height
                 },
                 onScreenshotPositioned = { screenshotTopY = it },
-                onReviewsPositioned = { reviewsTopY = it },
                 onAchievementPositioned = { achievementTopY = it },
                 onRelatedPositioned = { relatedTopY = it },
                 onBack = onBack,
@@ -422,7 +416,6 @@ private fun GameDetailContent(
     relatedListState: LazyListState,
     onDescriptionPositioned: (top: Int, height: Int) -> Unit,
     onScreenshotPositioned: (Int) -> Unit,
-    onReviewsPositioned: (Int) -> Unit,
     onAchievementPositioned: (Int) -> Unit,
     onRelatedPositioned: (Int) -> Unit,
     onBack: () -> Unit,
@@ -433,12 +426,12 @@ private fun GameDetailContent(
     val pickerState by viewModel.pickerModalDelegate.state.collectAsState()
     val downloadProgressState = viewModel.downloadProgress.collectAsState()
     val isAnySyncing = uiState.isSyncing || uiState.syncOverlayState != null
-    val showAnyOverlay = uiState.showMoreOptions || uiState.showPlayOptions ||
+    val showAnyOverlay = uiState.showMoreOptions ||
         uiState.showRatingsStatusMenu || pickerState.hasAnyPickerOpen ||
         uiState.showRatingPicker || uiState.showMissingDiscPrompt || isAnySyncing ||
         uiState.showSaveCacheDialog || uiState.showRenameDialog || uiState.showScreenshotViewer ||
         uiState.showExtractionFailedPrompt || uiState.showAchievementList ||
-        uiState.showReviewList || uiState.reviewEditor != null || uiState.perGameSettings.visible ||
+        uiState.perGameSettings.visible ||
         viewModel.documentReader.collectAsState().value != null ||
         viewModel.siblingChoiceState.collectAsState().value != null
     val modalBlur by animateDpAsState(
@@ -451,7 +444,6 @@ private fun GameDetailContent(
 
     var descriptionTopY by remember { mutableIntStateOf(0) }
     var screenshotTopY by remember { mutableIntStateOf(0) }
-    var reviewsTopY by remember { mutableIntStateOf(0) }
     var achievementTopY by remember { mutableIntStateOf(0) }
     var relatedTopY by remember { mutableIntStateOf(0) }
     var documentsTopY by remember { mutableIntStateOf(0) }
@@ -637,7 +629,6 @@ private fun GameDetailContent(
                                             scrollState.animateScrollTo(documentsTopY.coerceAtLeast(0))
                                         }
                                         MenuItem.Screenshots -> viewModel.openScreenshotViewer()
-                                        MenuItem.Reviews -> viewModel.showReviewList()
                                         MenuItem.Achievements -> coroutineScope.launch {
                                             scrollState.animateScrollTo(achievementTopY.coerceAtLeast(0))
                                         }
@@ -667,7 +658,7 @@ private fun GameDetailContent(
                                     .padding(start = Dimens.spacingMd, top = Dimens.spacingXl, end = Dimens.spacingXl, bottom = Dimens.spacingXl)
                             ) {
                                 if (!heroOnOtherScreen) {
-                                    ExpandedHeader(game = game, friends = uiState.friendsActivity)
+                                    ExpandedHeader(game = game)
                                     uiState.running?.let { running ->
                                         com.nendo.argosy.ui.screens.gamedetail.components.RunningFramePanel(
                                             running = running,
@@ -721,20 +712,6 @@ private fun GameDetailContent(
                                         viewModel.setMenuFocusIndex(
                                             menuLayout.focusIndexOf(MenuItem.Documents, menuLayoutState)
                                         )
-                                    }
-                                )
-                                Spacer(modifier = Modifier.height(Dimens.spacingLg))
-                            }
-
-                            if (uiState.hasSocialAccount) {
-                                ReviewSummarySection(
-                                    summary = uiState.reviewSummary,
-                                    isActive = focusedItem == MenuItem.Reviews,
-                                    onOpen = { viewModel.showReviewList() },
-                                    onWriteReview = { viewModel.openReviewEditor() },
-                                    onPositioned = { y -> onReviewsPositioned(y) },
-                                    onSectionFocus = {
-                                        viewModel.setMenuFocusIndex(menuLayout.focusIndexOf(MenuItem.Reviews, menuLayoutState))
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(Dimens.spacingLg))
@@ -796,8 +773,6 @@ private fun GameDetailContent(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                val canShowPlayOptions = uiState.downloadStatus == GameDownloadStatus.DOWNLOADED &&
-                    game.isBuiltInEmulator
                 val prevNextGameHint = stringResource(R.string.gamedetail_footer_prev_next_game)
                 val sectionScrollHint = stringResource(R.string.gamedetail_footer_section_scroll)
                 val playSyncingHint = stringResource(R.string.gamedetail_footer_play_syncing)
@@ -828,11 +803,9 @@ private fun GameDetailContent(
                 val viewScreenshotHint = stringResource(R.string.gamedetail_footer_view_screenshot)
                 val viewAllAchievementsHint =
                     stringResource(R.string.gamedetail_footer_view_all_achievements)
-                val viewReviewsHint = stringResource(R.string.gamedetail_footer_view_reviews)
                 val openRelatedHint = stringResource(R.string.gamedetail_footer_open_related)
                 val backHint = stringResource(R.string.gamedetail_footer_back)
                 val scrollContentHint = stringResource(R.string.gamedetail_footer_scroll)
-                val newGameHint = stringResource(R.string.gamedetail_footer_new_game)
                 val shortcutMakePublicHint =
                     stringResource(R.string.gamedetail_footer_shortcut_make_public)
                 val shortcutMakePrivateHint =
@@ -872,16 +845,13 @@ private fun GameDetailContent(
                             MenuItem.Options -> add(InputButton.A to optionsHint)
                             MenuItem.Screenshots -> add(InputButton.A to viewScreenshotHint)
                             MenuItem.Documents, MenuItem.Stream, is MenuItem.MoveToDisplay -> Unit
-                            MenuItem.Reviews -> add(InputButton.A to viewReviewsHint)
                             MenuItem.Achievements -> add(InputButton.A to viewAllAchievementsHint)
                             MenuItem.RelatedGames -> add(InputButton.A to openRelatedHint)
                             MenuItem.CloseGame -> add(InputButton.A to closeGameHint)
                             MenuItem.Details, MenuItem.Description, null -> {}
                         }
                         add(InputButton.B to backHint)
-                        if (canShowPlayOptions && focusedItem == MenuItem.Play) {
-                            add(InputButton.X to if (isAnySyncing || uiState.sessionEndRunning) playSyncingHint else newGameHint)
-                        } else if (uiState.hasSocialAccount && game.igdbId != null) {
+                        if (game.igdbId != null) {
                             add(InputButton.X to if (uiState.isPrivate) shortcutMakePublicHint else shortcutMakePrivateHint)
                         }
                         add(InputButton.Y to if (game.isFavorite) shortcutUnfavoriteHint else shortcutFavoriteHint)
@@ -897,8 +867,7 @@ private fun GameDetailContent(
                             }
                             InputButton.B -> onBack()
                             InputButton.X -> {
-                                if (canShowPlayOptions) viewModel.showPlayOptions()
-                                else if (uiState.hasSocialAccount) viewModel.togglePrivacy()
+                                if (game.igdbId != null) viewModel.togglePrivacy()
                             }
                             InputButton.Y -> viewModel.toggleFavorite()
                             InputButton.LB -> viewModel.navigateToPreviousGame()
@@ -912,19 +881,6 @@ private fun GameDetailContent(
         }
 
         GameDetailModals(game = game, uiState = uiState, viewModel = viewModel, inputHandler = inputHandler, onBack = onBack, onNavigateToPlatformSettings = onNavigateToPlatformSettings)
-
-        ReviewListOverlay(
-            visible = uiState.showReviewList,
-            gameTitle = game.title,
-            page = uiState.reviewPage,
-            focusIndex = uiState.reviewListFocusIndex,
-            showWriteRow = uiState.reviewListHasWriteRow,
-            onEntryTapped = { index -> viewModel.tapReviewListEntry(index) }
-        )
-
-        uiState.reviewEditor?.let { editor ->
-            ReviewEditorOverlay(state = editor, viewModel = viewModel)
-        }
 
         AchievementListOverlay(
             visible = uiState.showAchievementList,
@@ -982,10 +938,6 @@ private fun GameDetailModals(
             onMemcardClick = viewModel::openPerGameMemcardPicker,
             onCycleDisplayTarget = viewModel::cyclePerGameDisplayTarget,
             onCycleExtension = viewModel::cyclePerGameExtension,
-            onCycleBackend = viewModel::cyclePerGameBackend,
-            onOpenGpuDriverPicker = viewModel::openPerGameGpuDriverPicker,
-            onSelectGpuDriverEntry = viewModel::selectPerGameGpuDriverEntry,
-            onDismissGpuDriverPicker = viewModel::dismissPerGameGpuDriverPicker,
             onPlatformSettings = {
                 viewModel.dismissPerGameSettings()
                 onNavigateToPlatformSettings(game.platformId)
@@ -1010,34 +962,6 @@ private fun GameDetailModals(
             selectedCardPath = uiState.perGameSettings.selectedMemcardPath ?: "",
             onSelectCard = viewModel::selectPerGameMemcard,
             onDismiss = viewModel::dismissPerGameMemcardPicker
-        )
-    }
-
-    val speedrunSplitsState by viewModel.speedrunSplitsDelegate.state.collectAsState()
-    if (speedrunSplitsState.visible) {
-        com.nendo.argosy.ui.screens.gamedetail.modals.SpeedrunSplitsModal(
-            gameTitle = game.title,
-            state = speedrunSplitsState,
-            delegate = viewModel.speedrunSplitsDelegate
-        )
-    }
-
-    AnimatedVisibility(
-        visible = uiState.showPlayOptions,
-        enter = fadeIn(),
-        exit = fadeOut()
-    ) {
-        PlayOptionsModal(
-            focusIndex = uiState.playOptionsFocusIndex,
-            hasSaves = uiState.hasCasualSaves,
-            hasHardcoreSave = uiState.hasHardcoreSave,
-            hasRASupport = uiState.hasRASupport,
-            hardcoreAvailable = uiState.hardcoreAvailable,
-            isOnline = uiState.isOnline,
-            canSkipSync = uiState.isOnline,
-            statesAvailable = uiState.statesAvailable,
-            onAction = viewModel::handlePlayOption,
-            onDismiss = viewModel::dismissPlayOptions
         )
     }
 
@@ -1123,7 +1047,6 @@ private fun GameDetailModals(
     ) {
         EmulatorPickerModal(
             availableEmulators = pickerState.availableEmulators,
-            builtinCore = pickerState.builtinCore,
             currentEmulatorName = game.emulatorName,
             focusIndex = pickerState.emulatorPickerFocusIndex,
             onSelectEmulator = viewModel.pickerModalDelegate::selectEmulator,

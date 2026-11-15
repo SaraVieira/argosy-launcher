@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -37,10 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.nendo.argosy.R
-import com.nendo.argosy.data.social.FriendActivity
 import com.nendo.argosy.domain.model.SaveListState
 import com.nendo.argosy.ui.common.GameListDetails
 import com.nendo.argosy.ui.common.RunningGameUi
@@ -49,7 +45,6 @@ import com.nendo.argosy.ui.components.GameTitle
 import com.nendo.argosy.ui.components.RunningLineLabels
 import com.nendo.argosy.ui.components.RunningSubLine
 import com.nendo.argosy.ui.components.platformBadgeLabel
-import com.nendo.argosy.ui.components.friends.SocialAvatar
 import com.nendo.argosy.ui.screens.home.GameDownloadIndicator
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
@@ -89,7 +84,6 @@ fun GameListRow(
     onLongClick: () -> Unit = {},
     needsInstall: Boolean = false,
     downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE,
-    friends: List<FriendActivity> = emptyList(),
     saveState: SaveListState? = null,
     onCoverLoadFailed: ((String) -> Unit)? = null,
     running: RunningGameUi? = null
@@ -123,7 +117,6 @@ fun GameListRow(
                         ProgressStats(details = details)
                     }
                 },
-                friends = { FriendStack(friends = friends) },
                 tabs = {
                     GameListRowTabs(
                         platformDisplayName = platformBadgeLabel(platformSlug, platformDisplayName),
@@ -207,7 +200,6 @@ private fun GameListRowCard(
 private fun GameListRowBody(
     titleLine: @Composable () -> Unit,
     progress: @Composable () -> Unit,
-    friends: @Composable () -> Unit,
     tabs: @Composable () -> Unit,
     rating: @Composable () -> Unit,
     modifier: Modifier = Modifier
@@ -216,9 +208,9 @@ private fun GameListRowBody(
     val lineGap = Dimens.spacingXs
     val footerHeight = ComponentDefaults.GameListRow.footerHeight.dp
     Layout(
-        contents = listOf(titleLine, progress, friends, tabs, rating),
+        contents = listOf(titleLine, progress, tabs, rating),
         modifier = modifier
-    ) { (titleMeasurables, progressMeasurables, friendMeasurables, tabMeasurables, ratingMeasurables), constraints ->
+    ) { (titleMeasurables, progressMeasurables, tabMeasurables, ratingMeasurables), constraints ->
         val pad = padding.roundToPx()
         val footerPx = footerHeight.roundToPx()
         val width = constraints.maxWidth
@@ -230,12 +222,11 @@ private fun GameListRowBody(
         val bodyRating = ratingPlaceable?.takeUnless { ratingInFooter }
         val titlePlaceable = titleMeasurables.firstOrNull()
             ?.measure(Constraints(minWidth = innerWidth, maxWidth = innerWidth))
-        val friendsPlaceable = friendMeasurables.firstOrNull()?.measure(Constraints(maxWidth = innerWidth))
-        val trailingWidth = listOfNotNull(friendsPlaceable, bodyRating).sumOf { it.width + pad }
+        val trailingWidth = bodyRating?.let { it.width + pad } ?: 0
         val progressPlaceable = progressMeasurables.firstOrNull()
             ?.measure(Constraints(maxWidth = (innerWidth - trailingWidth).coerceAtLeast(0)))
         val titleHeight = titlePlaceable?.height ?: 0
-        val lineTwo = listOfNotNull(progressPlaceable, friendsPlaceable, bodyRating)
+        val lineTwo = listOfNotNull(progressPlaceable, bodyRating)
         val lineTwoHeight = lineTwo.maxOfOrNull { it.height } ?: 0
         val lineTwoTop = pad + titleHeight + lineGap.roundToPx()
         val tabsHeight = tabsPlaceable?.height ?: 0
@@ -247,14 +238,8 @@ private fun GameListRowBody(
         layout(width, height) {
             titlePlaceable?.place(pad, pad)
             progressPlaceable?.let { it.place(pad, lineTwoTop + (lineTwoHeight - it.height) / 2) }
-            var trailingX = width - pad
-            friendsPlaceable?.let {
-                trailingX -= it.width
-                it.place(trailingX, lineTwoTop + (lineTwoHeight - it.height) / 2)
-                trailingX -= pad
-            }
             bodyRating?.let {
-                it.place(trailingX - it.width, lineTwoTop + (lineTwoHeight - it.height) / 2)
+                it.place(width - pad - it.width, lineTwoTop + (lineTwoHeight - it.height) / 2)
             }
             tabsPlaceable?.place(0, height - tabsHeight)
             if (ratingInFooter) {
@@ -399,29 +384,5 @@ internal fun DownloadStateMark(
             tint = primary,
             modifier = size
         )
-    }
-}
-
-@Composable
-private fun FriendStack(friends: List<FriendActivity>) {
-    if (friends.isEmpty()) return
-    val shown = friends.sortedByDescending { it.playingNow }
-        .take(ComponentDefaults.GameListRow.maxFriendAvatars)
-    val avatarSize = ComponentDefaults.GameListRow.friendAvatarSize.dp
-    val step = avatarSize * (1f - ComponentDefaults.GameListRow.friendOverlapRatio)
-    Box(modifier = Modifier.width(avatarSize + step * (shown.size - 1))) {
-        shown.forEachIndexed { index, friend ->
-            SocialAvatar(
-                displayName = friend.displayName,
-                avatarColor = friend.avatarColor,
-                avatarPngBase64 = friend.quayPassAvatar,
-                userId = friend.friendId,
-                size = avatarSize,
-                showOnlineDot = friend.playingNow,
-                modifier = Modifier
-                    .offset(x = step * index)
-                    .zIndex((shown.size - index).toFloat())
-            )
-        }
     }
 }

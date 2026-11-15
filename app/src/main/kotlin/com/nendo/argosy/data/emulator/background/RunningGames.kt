@@ -1,19 +1,7 @@
 package com.nendo.argosy.data.emulator.background
 
-import com.nendo.argosy.core.notification.NotificationCategory
-import com.nendo.argosy.core.notification.NotificationDuration
-import com.nendo.argosy.core.notification.NotificationManager
-import com.nendo.argosy.core.notification.NotificationText
-import com.nendo.argosy.core.notification.NotificationType
-import com.nendo.argosy.data.local.dao.GameArtDao
-import com.nendo.argosy.data.local.dao.GameDao
-import com.nendo.argosy.data.local.dao.resolved
 import com.nendo.argosy.data.repository.PlayStatsRepository
-import com.nendo.argosy.libretro.slot.LiveSlot
-import com.nendo.argosy.libretro.slot.SlotRegistry
-import com.nendo.argosy.util.Logger
 import com.nendo.argosy.util.SafeCoroutineScope
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -55,12 +43,7 @@ data class RunningGamesSnapshot(
 class RunningGames @Inject constructor(
     private val backgroundGames: BackgroundGames,
     private val playStatsRepository: PlayStatsRepository,
-    private val slotRegistry: SlotRegistry,
-    private val taskSnapshots: TaskSnapshots,
-    private val gameDao: GameDao,
-    private val gameArtDao: GameArtDao,
-    private val notificationManager: NotificationManager,
-    private val copy: RunningGameNoticeCopy
+    private val taskSnapshots: TaskSnapshots
 ) {
     private val scope = SafeCoroutineScope(Dispatchers.IO, TAG)
     private val refreshLock = Mutex()
@@ -85,12 +68,6 @@ class RunningGames @Inject constructor(
         }
         scope.launch {
             backgroundGames.recorded.collect { refresh() }
-        }
-        scope.launch {
-            slotRegistry.died.collect { slot ->
-                if (slot.taskId !in closingTaskIds.value) noticeStopped(slot)
-                refresh()
-            }
         }
     }
 
@@ -166,28 +143,6 @@ class RunningGames @Inject constructor(
         val startedAt = app.runStartedAtMillis ?: return 0L
         return playStatsRepository.activePlayMsSince(gameId, Instant.ofEpochMilli(startedAt))
     }
-
-    private suspend fun noticeStopped(slot: LiveSlot) {
-        try {
-            val game = gameDao.getById(slot.gameId)
-            notificationManager.show(
-                title = NotificationText.Res(copy.stopped),
-                subtitle = game?.title?.let { NotificationText.Raw(it) },
-                type = NotificationType.WARNING,
-                imagePath = gameArtDao.resolved(slot.gameId).coverPath,
-                duration = NotificationDuration.LONG,
-                key = noticeKey(slot.gameId),
-                immediate = true,
-                category = NotificationCategory.GENERAL
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Logger.error(TAG, "could not post the stopped notice for game ${slot.gameId}", e)
-        }
-    }
-
-    private fun noticeKey(gameId: Long): String = "running-stopped-$gameId"
 
     private companion object {
         const val TAG = "RunningGames"

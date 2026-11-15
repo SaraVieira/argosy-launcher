@@ -1,7 +1,6 @@
 package com.nendo.argosy.ui.components.power
 
 import android.os.Build
-import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.background.RunningGamesSnapshot
 import com.nendo.argosy.data.streaming.StreamSessionManager
 import com.nendo.argosy.hardware.PowerActions
@@ -15,14 +14,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * A game left open, as the Power page lists it. [emulatorLabel] is null for a built-in game.
- */
 data class QuickOpenGame(
     val taskId: Int,
     val title: String,
-    val emulatorLabel: String?,
-    val isBuiltIn: Boolean
+    val emulatorLabel: String?
 )
 
 data class QuickPowerState(
@@ -83,13 +78,11 @@ class QuickPowerController(
         snapshot.apps
             .filter { it.game != null && it.packageName != StreamSessionManager.STREAM_PACKAGE }
             .map { app ->
-                val isBuiltIn = app.packageName == EmulatorRegistry.BUILTIN_PACKAGE
-                val emulator = if (isBuiltIn) null else labelOf(app.packageName)
+                val emulator = labelOf(app.packageName)
                 QuickOpenGame(
                     taskId = app.taskId,
                     title = app.game?.let { actions.gameTitle(it.gameId) } ?: emulator ?: app.packageName,
-                    emulatorLabel = emulator,
-                    isBuiltIn = isBuiltIn
+                    emulatorLabel = emulator
                 )
             }
             .distinctBy { it.taskId }

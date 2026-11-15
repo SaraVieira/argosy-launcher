@@ -9,8 +9,6 @@ import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.UiShortcut
 import com.nendo.argosy.hardware.SystemHotkeyAction
 import com.nendo.argosy.core.input.SoundType
-import com.nendo.argosy.core.emulator.LibretroSettingDef
-import com.nendo.argosy.libretro.frame.FrameRegistry
 import com.nendo.argosy.ui.screens.settings.sections.AboutItem
 import com.nendo.argosy.ui.screens.settings.sections.PresentationItem
 import com.nendo.argosy.ui.screens.settings.sections.presentationItemAtFocusIndex
@@ -20,8 +18,6 @@ import com.nendo.argosy.ui.screens.settings.sections.ambientLedItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.ambientLedMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.BiosItem
 import com.nendo.argosy.ui.components.toggleHomeLayoutField
-import com.nendo.argosy.ui.screens.settings.sections.BuiltinEmulatorItem
-import com.nendo.argosy.ui.screens.settings.sections.builtinEmulatorLayout
 import com.nendo.argosy.ui.screens.settings.sections.PlatformDetailItem
 import com.nendo.argosy.ui.screens.settings.sections.platformDetailItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.platformDetailMaxFocusIndex
@@ -82,9 +78,6 @@ import com.nendo.argosy.ui.screens.settings.sections.SteamItem
 import com.nendo.argosy.ui.screens.settings.sections.steamItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.steamMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.boxArtMaxFocusIndex
-import com.nendo.argosy.ui.screens.settings.sections.builtinControlsMaxFocusIndex
-import com.nendo.argosy.ui.screens.settings.sections.builtinVideoMaxFocusIndex
-import com.nendo.argosy.ui.screens.settings.sections.builtinSavesMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.navigationMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.displaysMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.screensMaxFocusIndex
@@ -141,7 +134,6 @@ import com.nendo.argosy.ui.screens.settings.sections.RomMItem
 import com.nendo.argosy.ui.screens.settings.sections.SavesItem
 import com.nendo.argosy.ui.screens.settings.sections.SavesLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.SyncSettingsItem
-import com.nendo.argosy.ui.screens.settings.sections.coreManagementMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.RAItem
 import com.nendo.argosy.ui.screens.settings.sections.RALayoutState
 import com.nendo.argosy.ui.screens.settings.sections.raItemAtFocusIndex
@@ -192,12 +184,9 @@ internal fun routeConfirm(vm: SettingsViewModel): InputResult {
                 MainSettingsItem.Audio -> vm.navigateToSection(SettingsSection.AUDIO)
                 MainSettingsItem.Displays -> vm.navigateToSection(SettingsSection.DISPLAYS)
                 MainSettingsItem.Platforms -> vm.navigateToSection(SettingsSection.PLATFORMS)
-                MainSettingsItem.BuiltinEmulator -> vm.navigateToSection(SettingsSection.BUILTIN_EMULATOR)
                 MainSettingsItem.Bios -> vm.navigateToSection(SettingsSection.BIOS)
-                MainSettingsItem.Drivers -> vm.navigateToSection(SettingsSection.DRIVERS)
                 MainSettingsItem.Permissions -> vm.navigateToSection(SettingsSection.PERMISSIONS)
                 MainSettingsItem.About -> vm.navigateToSection(SettingsSection.ABOUT)
-                MainSettingsItem.Social -> vm.navigateToSection(SettingsSection.SOCIAL)
                 MainSettingsItem.Steam -> vm.navigateToSection(SettingsSection.STEAM_SETTINGS)
                 MainSettingsItem.Jellyfin -> vm.navigateToSection(SettingsSection.JELLYFIN)
                 MainSettingsItem.NetworkBluetooth -> vm.navigateToSection(SettingsSection.NETWORK_BLUETOOTH)
@@ -307,23 +296,10 @@ internal fun routeConfirm(vm: SettingsViewModel): InputResult {
         }
         SettingsSection.NAVIGATION -> routeNavigationConfirm(vm, state)
         SettingsSection.PLATFORMS -> routeEmulatorsConfirm(vm, state)
-        SettingsSection.BUILTIN_EMULATOR -> routeBuiltinEmulatorConfirm(vm, state)
         SettingsSection.PLATFORM_DETAIL -> routePlatformDetailConfirm(vm, state)
         SettingsSection.BIOS -> routeBiosConfirm(vm, state)
         SettingsSection.PERMISSIONS -> routePermissionsConfirm(vm, state)
-        SettingsSection.DRIVERS -> InputResult.HANDLED
         SettingsSection.ABOUT -> routeAboutConfirm(vm, state)
-        SettingsSection.BUILTIN_VIDEO -> InputResult.HANDLED
-        SettingsSection.BUILTIN_CONTROLS -> InputResult.HANDLED
-        SettingsSection.BUILTIN_SAVES -> InputResult.HANDLED
-        SettingsSection.SHADER_STACK -> InputResult.HANDLED
-        SettingsSection.FRAME_PICKER -> routeFramePickerConfirm(vm, state)
-        SettingsSection.CORE_MANAGEMENT -> {
-            vm.confirmCoreManagement()
-            InputResult.HANDLED
-        }
-        SettingsSection.CORE_OPTIONS -> InputResult.HANDLED
-        SettingsSection.SOCIAL -> vm.handleSocialConfirm(state)
         SettingsSection.MANAGED_INSTALLERS -> routeInstallersConfirm(vm, state)
     }
 }
@@ -585,8 +561,6 @@ private fun routeStorageConfirm(vm: SettingsViewModel, state: SettingsUiState): 
         StorageItem.ImageCache -> if (!state.syncSettings.isImageCacheMigrating) vm.openImageCachePicker()
         StorageItem.MusicLocation -> vm.openMusicLocationPicker()
         StorageItem.BiosFolder -> if (!state.bios.isBiosMigrating) vm.openBiosFolderPicker()
-        StorageItem.BuiltinSavePath -> vm.openBuiltinSavePathBrowser()
-        StorageItem.BuiltinStatePath -> vm.openBuiltinStatePathBrowser()
         StorageItem.MaxDownloads -> vm.cycleMaxConcurrentDownloads()
         StorageItem.RemoteInstalls -> {
             vm.toggleAllowRemoteInstalls()
@@ -733,8 +707,6 @@ private fun routeStorageCachesConfirm(vm: SettingsViewModel, state: SettingsUiSt
         StorageCachesItem.SfxCacheClear -> vm.requestCachesClear(CachesClearTarget.SFX_CACHE)
         StorageCachesItem.EmulatorApksClear -> vm.requestCachesClear(CachesClearTarget.EMULATOR_APKS)
         StorageCachesItem.MiscDownloadsClear -> vm.requestCachesClear(CachesClearTarget.MISC_DOWNLOADS)
-        StorageCachesItem.ShadersCatalogClear -> vm.requestCachesClear(CachesClearTarget.SHADERS_CATALOG)
-        StorageCachesItem.FramesClear -> vm.requestCachesClear(CachesClearTarget.FRAMES)
         else -> {}
     }
     return InputResult.HANDLED
@@ -789,7 +761,6 @@ private fun routeDisplaysConfirm(vm: SettingsViewModel, state: SettingsUiState):
         DisplaysItem.DimLevel -> vm.cycleScreenDimmerLevel()
         DisplaysItem.LidSleep -> vm.setLidSleepEnabled(!state.display.lidSleepEnabled)
         DisplaysItem.DualScreenEnabled -> vm.setDualScreenEnabled(!state.display.dualScreenEnabled)
-        DisplaysItem.DualScreenMatchSize -> vm.setDualScreenMatchSize(!state.display.dualScreenMatchSize)
         DisplaysItem.DisplayRoles -> {
             vm.requestEnumPicker(DisplaysItem.DisplayRoles.key)
             return InputResult.handled(SoundType.OPEN_MODAL)
@@ -1082,6 +1053,10 @@ private fun routeNavigationConfirm(vm: SettingsViewModel, state: SettingsUiState
             vm.openButtonCheck()
             return InputResult.handled(SoundType.OPEN_MODAL)
         }
+        NavigationItem.ControllerOrder -> {
+            vm.showControllerOrderModal()
+            return InputResult.handled(SoundType.OPEN_MODAL)
+        }
         NavigationItem.IgnoreControllerTouchpad -> {
             val enabled = !state.controls.ignoreControllerTouchpad
             vm.setIgnoreControllerTouchpad(enabled)
@@ -1276,29 +1251,6 @@ private fun routeAboutConfirm(vm: SettingsViewModel, state: SettingsUiState): In
     return InputResult.HANDLED
 }
 
-private fun routeFramePickerConfirm(vm: SettingsViewModel, state: SettingsUiState): InputResult {
-    val registry = vm.getFrameRegistry()
-    val allFrames = registry.getAllFrames()
-    val installedIds = registry.getInstalledIds()
-    when (state.focusedIndex) {
-        0 -> vm.updatePlatformLibretroSetting(LibretroSettingDef.Frame, null)
-        1 -> vm.updatePlatformLibretroSetting(LibretroSettingDef.Frame, FrameRegistry.NO_FRAME_ID)
-        allFrames.size + 2 -> vm.requestCustomFramePicker()
-        else -> {
-            val frameIndex = state.focusedIndex - 2
-            if (frameIndex in allFrames.indices) {
-                val frame = allFrames[frameIndex]
-                if (frame.id in installedIds) {
-                    vm.updatePlatformLibretroSetting(LibretroSettingDef.Frame, frame.id)
-                } else {
-                    vm.downloadAndSelectFrame(frame.id)
-                }
-            }
-        }
-    }
-    return InputResult.HANDLED
-}
-
 /**
  * Back for the whole settings tree: overlays first, then the section stack. Returning false
  * means nothing here consumed it and the caller should leave settings.
@@ -1334,13 +1286,10 @@ private fun routeDismissTopOverlay(vm: SettingsViewModel): Boolean {
         state.emulators.showEmulatorPicker -> { vm.dismissEmulatorPicker(); true }
         state.bios.showDistributeResultModal -> { vm.dismissDistributeResultModal(); true }
         state.bios.showDownloadFailureModal -> { vm.dismissDownloadFailureModal(); true }
-        state.builtinControls.showControllerOrderModal -> { vm.hideControllerOrderModal(); true }
-        state.builtinControls.showInputMappingModal -> { vm.hideInputMappingModal(); true }
-        state.builtinControls.showHotkeysModal -> { vm.hideHotkeysModal(); true }
+        state.showControllerOrderModal -> { vm.hideControllerOrderModal(); true }
         state.controls.shortcutCaptureTarget != null -> { vm.cancelShortcutCapture(); true }
         state.controls.systemComboCaptureTarget != null -> { vm.cancelSystemComboCapture(); true }
         state.controls.showNavRingModal -> { vm.backNavRing(); true }
-        vm.shaderChainManager.shaderStack.isReordering -> { vm.cancelShaderLift(); true }
         state.accounts.pairing.active -> { vm.cancelAddAccount(); true }
         state.accounts.switchInProgress -> true
         state.clientCert.passwordEntry != null -> { vm.closeClientCertPassword(); true }
@@ -1391,14 +1340,11 @@ internal fun routeMoveFocus(vm: SettingsViewModel, delta: Int): Boolean {
     if (vm._uiState.value.emulators.showEmulatorPicker) {
         vm.emulatorDelegate.moveEmulatorPickerFocus(delta); return true
     }
-    if (vm._uiState.value.currentSection == SettingsSection.CORE_MANAGEMENT) {
-        vm.moveCoreManagementPlatformFocus(delta); return true
-    }
     var moved = false
     vm._uiState.update { state ->
         val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
             state.server.connectionStatus == ConnectionStatus.OFFLINE
-        val maxIndex = computeMaxFocusIndex(vm, state, isConnected)
+        val maxIndex = computeMaxFocusIndex(state, isConnected)
         val newIndex = computeWrappedIndex(state.focusedIndex, delta, maxIndex, state.controls.menuWrapMode)
         moved = newIndex != state.focusedIndex
         state.copy(focusedIndex = newIndex)
@@ -1431,10 +1377,9 @@ private fun routeResetRowSubFocus(vm: SettingsViewModel) {
  * child was open.
  */
 internal fun routeMaxFocusIndexOf(vm: SettingsViewModel, state: SettingsUiState): Int =
-    computeMaxFocusIndex(vm, state, isConnected = false)
+    computeMaxFocusIndex(state, isConnected = false)
 
 private fun computeMaxFocusIndex(
-    vm: SettingsViewModel,
     state: SettingsUiState,
     isConnected: Boolean
 ): Int = when (state.currentSection) {
@@ -1495,20 +1440,10 @@ private fun computeMaxFocusIndex(
     SettingsSection.NAVIGATION -> navigationMaxFocusIndex(state.controls)
     SettingsSection.MANAGED_INSTALLERS -> installersMaxFocusIndex(state.managedInstallers)
     SettingsSection.PLATFORMS -> emulatorsMaxFocusIndex(state.emulators.platforms)
-    SettingsSection.BUILTIN_EMULATOR -> builtinEmulatorLayout.maxFocusIndex(state.emulators)
     SettingsSection.PLATFORM_DETAIL -> platformDetailMaxFocusIndex(state)
-    SettingsSection.BUILTIN_VIDEO -> builtinVideoMaxFocusIndex(state.builtinVideo, state.platformLibretro.platformSettings)
-    SettingsSection.BUILTIN_CONTROLS -> builtinControlsMaxFocusIndex(state.builtinControls)
-    SettingsSection.BUILTIN_SAVES -> builtinSavesMaxFocusIndex(state.builtinVideo, state.platformLibretro.platformSettings)
-    SettingsSection.CORE_MANAGEMENT -> coreManagementMaxFocusIndex(state.coreManagement)
-    SettingsSection.CORE_OPTIONS -> com.nendo.argosy.ui.screens.settings.sections.coreOptionsMaxFocusIndex(state.coreOptions)
-    SettingsSection.SHADER_STACK -> com.nendo.argosy.ui.screens.settings.sections.shaderStackMaxFocusIndex(vm.shaderChainManager.shaderStack)
-    SettingsSection.FRAME_PICKER -> com.nendo.argosy.ui.screens.settings.sections.framePickerMaxFocusIndex(vm.getFrameRegistry())
     SettingsSection.BIOS -> biosMaxFocusIndex(state.bios.platformGroups, state.bios.expandedPlatformIndex)
     SettingsSection.PERMISSIONS -> permissionsMaxFocusIndex(state.permissions)
-    SettingsSection.DRIVERS -> (state.drivers.groups.size - 1).coerceAtLeast(0)
     SettingsSection.ABOUT -> aboutMaxFocusIndex(state.fileLoggingPath != null, aboutHasChangelog(state.updateCheck))
-    SettingsSection.SOCIAL -> com.nendo.argosy.ui.screens.settings.sections.socialMaxFocusIndex(state.social)
 }
 
 private fun routePlatformDetailConfirm(vm: SettingsViewModel, state: SettingsUiState): InputResult {
@@ -1547,10 +1482,6 @@ private fun routePlatformDetailConfirm(vm: SettingsViewModel, state: SettingsUiS
         }
         PlatformDetailItem.LegacyMode -> vm.toggleLegacyMode(config)
         PlatformDetailItem.LaunchArgs -> vm.openLaunchArgsModal(config.platform.id)
-        PlatformDetailItem.BuiltinVideo -> vm.navigateToBuiltinVideoForPlatform(state.platformDetail.platformIndex)
-        PlatformDetailItem.BuiltinControls -> vm.navigateToBuiltinControlsForPlatform(state.platformDetail.platformIndex)
-        PlatformDetailItem.BuiltinSaves -> vm.navigateToBuiltinSavesForPlatform(state.platformDetail.platformIndex)
-        PlatformDetailItem.BuiltinCoreOptions -> vm.navigateToCoreOptionsForPlatform()
         PlatformDetailItem.ClearArtCache -> vm.clearPlatformArtCache(config.platform.slug)
         PlatformDetailItem.ScanFiles -> vm.scanFilesForPlatform(config.platform.id)
         PlatformDetailItem.ScanApps -> vm.scanInstalledAndroidGames()
@@ -1583,34 +1514,3 @@ private fun routePlatformDetailConfirm(vm: SettingsViewModel, state: SettingsUiS
     }
     return InputResult.HANDLED
 }
-
-private fun routeBuiltinEmulatorConfirm(vm: SettingsViewModel, state: SettingsUiState): InputResult {
-    val builtinEnabled = state.emulators.builtinLibretroEnabled
-    when (BuiltinEmulatorItem.entries.getOrNull(state.focusedIndex)) {
-        BuiltinEmulatorItem.ENABLE -> vm.setBuiltinLibretroEnabled(!builtinEnabled)
-        BuiltinEmulatorItem.ARCHITECTURE, BuiltinEmulatorItem.HUD_CORNER -> return InputResult.handled(SoundType.SILENT)
-        BuiltinEmulatorItem.VIDEO -> if (builtinEnabled) vm.navigateToBuiltinVideo()
-        BuiltinEmulatorItem.CONTROLS -> if (builtinEnabled) vm.navigateToBuiltinControls()
-        BuiltinEmulatorItem.SAVES -> if (builtinEnabled) vm.navigateToBuiltinSaves()
-        BuiltinEmulatorItem.CORE_MANAGEMENT -> if (builtinEnabled) vm.navigateToCoreManagement()
-        BuiltinEmulatorItem.CORE_OPTIONS -> if (builtinEnabled) vm.navigateToCoreOptions()
-        BuiltinEmulatorItem.TWO_COLUMN ->
-            if (builtinEnabled) vm.setIngameMenuTwoColumn(!state.emulators.ingameMenuTwoColumn)
-        BuiltinEmulatorItem.HUD_ENABLED ->
-            if (builtinEnabled) vm.setHudEnabled(!state.emulators.hudEnabled)
-        BuiltinEmulatorItem.HUD_BATTERY ->
-            if (builtinEnabled) vm.setHudShowBattery(!state.emulators.hudShowBattery)
-        BuiltinEmulatorItem.HUD_CLOCK ->
-            if (builtinEnabled) vm.setHudShowClock(!state.emulators.hudShowClock)
-        BuiltinEmulatorItem.HUD_PLAYTIME ->
-            if (builtinEnabled) vm.setHudShowPlaytime(!state.emulators.hudShowPlaytime)
-        BuiltinEmulatorItem.HUD_FPS ->
-            if (builtinEnabled) vm.setHudShowFps(!state.emulators.hudShowFps)
-        BuiltinEmulatorItem.HUD_LAST_SAVE ->
-            if (builtinEnabled) vm.setHudShowLastSave(!state.emulators.hudShowLastSave)
-        null -> {}
-    }
-    return InputResult.HANDLED
-}
-
-

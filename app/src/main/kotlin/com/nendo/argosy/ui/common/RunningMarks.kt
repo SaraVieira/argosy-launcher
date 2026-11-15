@@ -18,7 +18,6 @@ import com.nendo.argosy.R
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.background.RunningGamesSnapshot
 import com.nendo.argosy.data.streaming.StreamSessionManager
-import com.nendo.argosy.libretro.slot.GameSlots
 import com.nendo.argosy.ui.theme.LocalMotionTier
 import com.nendo.argosy.ui.theme.MotionTier
 import com.nendo.argosy.ui.theme.generated.MotionTokens
@@ -27,8 +26,7 @@ import kotlin.math.cos
 
 /**
  * A game left running. [order] is its position in the Resume list; [slotIndex] is null for a game
- * an external emulator holds and 0 for the built-in game in Argosy's own task. [snapshotPath] is
- * its last frame, null when none could be read.
+ * an external emulator holds. [snapshotPath] is its last frame, null when none could be read.
  */
 data class RunningGameUi(
     val gameId: Long,
@@ -49,15 +47,14 @@ data class RunningGameUi(
 data class RunningStripUnit(val weight: Int, val isClosing: Boolean)
 
 /**
- * Every running game by game id, plus what the status strip draws: one unit per loaded game slot
- * in slot order, one per game outside the pool, and the free pool units.
+ * Every running game by game id, plus what the status strip draws: one unit per running game.
  */
 data class RunningGamesUi(
     val games: List<RunningGameUi> = emptyList(),
     val appCount: Int = 0,
     val slotUnits: List<RunningStripUnit> = emptyList(),
     val outsidePoolUnits: List<RunningStripUnit> = emptyList(),
-    val freeUnits: Int = GameSlots.CAPACITY_UNITS
+    val freeUnits: Int = 0
 ) {
     private val byGame: Map<Long, RunningGameUi> = games.associateBy { it.gameId }
 
@@ -86,16 +83,12 @@ fun RunningGamesSnapshot.toRunningGamesUi(): RunningGamesUi {
             snapshotTakenAtMillis = snapshots[app.taskId]?.takenAtMillis ?: 0L
         )
     }.distinctBy { it.gameId }
-    val loaded = apps.filter { (it.slotIndex ?: 0) > 0 }.sortedBy { it.slotIndex }
-    val usedUnits = loaded.sumOf { GameSlots.weightOf(it.platformSlug) }
     return RunningGamesUi(
         games = games,
         appCount = apps.size,
-        slotUnits = loaded.map { RunningStripUnit(GameSlots.weightOf(it.platformSlug), it.taskId in closingTaskIds) },
         outsidePoolUnits = apps
-            .filter { it.game != null && (it.slotIndex ?: 0) == 0 && it.packageName != StreamSessionManager.STREAM_PACKAGE }
-            .map { RunningStripUnit(1, it.taskId in closingTaskIds) },
-        freeUnits = (GameSlots.CAPACITY_UNITS - usedUnits).coerceAtLeast(0)
+            .filter { it.game != null && it.packageName != StreamSessionManager.STREAM_PACKAGE }
+            .map { RunningStripUnit(1, it.taskId in closingTaskIds) }
     )
 }
 

@@ -7,7 +7,6 @@ import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.DownloadFileStatusRepository
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.data.repository.PlatformRepository
-import com.nendo.argosy.data.social.FriendActivity
 import com.nendo.argosy.domain.model.PresentationLayout
 import com.nendo.argosy.ui.dualscreen.CompanionDetail
 import com.nendo.argosy.ui.dualscreen.PresentationSlot
@@ -33,12 +32,9 @@ class PresentationShowcaseSource @Inject constructor(
     private val romMRepository: RomMRepository
 ) {
 
-    suspend fun gameDetail(
-        gameId: Long,
-        friendsByIgdbId: Map<Int, List<FriendActivity>> = emptyMap()
-    ): CompanionDetail? {
+    suspend fun gameDetail(gameId: Long): CompanionDetail? {
         val game = gameRepository.getById(gameId) ?: return null
-        return describe(game, friendsByIgdbId)
+        return describe(game)
     }
 
     /**
@@ -62,17 +58,13 @@ class PresentationShowcaseSource @Inject constructor(
             fallbackCount = gameIds.size
         )
 
-    private suspend fun describe(
-        game: GameEntity,
-        friendsByIgdbId: Map<Int, List<FriendActivity>>
-    ): CompanionDetail {
+    private suspend fun describe(game: GameEntity): CompanionDetail {
         val platformName = platformRepository.getById(game.platformId)?.getDisplayName()
-        val friends = game.igdbId?.let { friendsByIgdbId[it.toInt()] }.orEmpty()
         return game.toHomeGameUi(
             downloadStatus,
             gameRepository.getArt(game.id),
             gameRepository.getScreenshots(game.id).firstOrNull()?.sourceUrl,
             platformDisplayName = platformName
-        ).toCompanionDetail(friends)
+        ).toCompanionDetail()
     }
 }

@@ -2,7 +2,7 @@ package com.nendo.argosy.ui.common
 
 import androidx.annotation.StringRes
 import com.nendo.argosy.R
-import com.nendo.argosy.data.social.uploader.PlaySessionPull
+import com.nendo.argosy.data.playsession.PlaySessionPull
 
 /**
  * The label for a play session device id that names no real device, or null when [deviceId]

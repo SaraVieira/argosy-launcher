@@ -22,7 +22,7 @@ import com.nendo.argosy.domain.usecase.MigratePlatformStorageUseCase
 import com.nendo.argosy.domain.usecase.MigrateStorageUseCase
 import com.nendo.argosy.domain.usecase.PurgePlatformUseCase
 import com.nendo.argosy.domain.usecase.sync.SyncPlatformUseCase
-import com.nendo.argosy.libretro.LibretroCoreRegistry
+import com.nendo.argosy.data.libretro.LibretroCoreRegistry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.CancellationException

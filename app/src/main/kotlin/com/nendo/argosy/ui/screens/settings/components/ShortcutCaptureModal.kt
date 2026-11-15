@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.nendo.argosy.R
 import com.nendo.argosy.core.input.actsAsGamepad
-import com.nendo.argosy.libretro.HotkeyManager
+import com.nendo.argosy.data.libretro.HotkeyManager
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.Modal
 import com.nendo.argosy.ui.input.GamepadEvent

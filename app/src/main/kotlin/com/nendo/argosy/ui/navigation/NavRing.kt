@@ -13,8 +13,6 @@ import com.nendo.argosy.ui.DrawerItem
 object NavRing {
     val PAGES: List<DrawerItem> = listOf(
         DrawerItem(Screen.Home.route, R.string.ui_drawer_nav_home),
-        DrawerItem(Screen.Social.route, R.string.ui_drawer_nav_social),
-        DrawerItem(Screen.QuayPass.route, R.string.ui_drawer_nav_quaypass),
         DrawerItem(Screen.Collections.route, R.string.ui_drawer_nav_collections),
         DrawerItem(Screen.Library.route, R.string.ui_drawer_nav_library),
         DrawerItem(Screen.MediaLibrary.route, R.string.ui_drawer_nav_media),
@@ -30,7 +28,6 @@ object NavRing {
         Screen.Home.route,
         Screen.Library.route,
         Screen.Collections.route,
-        Screen.Social.route,
         Screen.MediaLibrary.route,
         Screen.Downloads.route,
         Screen.Settings.route

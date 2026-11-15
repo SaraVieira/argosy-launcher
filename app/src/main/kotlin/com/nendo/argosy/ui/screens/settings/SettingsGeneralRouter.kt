@@ -38,9 +38,6 @@ import com.nendo.argosy.ui.screens.settings.sections.storageFocusIndexOf
 import com.nendo.argosy.ui.screens.settings.sections.storageMediaVisibleLive
 import com.nendo.argosy.ui.screens.settings.sections.storageSteamVisibleLive
 import kotlinx.coroutines.flow.update
-import com.nendo.argosy.data.local.entity.PlatformLibretroSettingsEntity
-import com.nendo.argosy.util.AppPaths
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // --- Navigation ---
@@ -113,9 +110,7 @@ private fun routeReresolveParentFocus(
  */
 private fun routeApplySectionExit(vm: SettingsViewModel, section: SettingsSection) {
     when (section) {
-        SettingsSection.SHADER_STACK -> routeFlushShaderChain(vm)
         SettingsSection.STEAM_SETTINGS -> vm.cancelSteamQrAuth()
-        SettingsSection.DRIVERS -> routeRefreshBuiltinGraphics(vm)
         SettingsSection.SCREENS -> routeRefreshLaunchTargets(vm)
         SettingsSection.LAUNCH_TARGETS -> routeLeaveLaunchTargets(vm)
         else -> {}
@@ -143,8 +138,6 @@ private fun routeApplySectionEntry(vm: SettingsViewModel, section: SettingsSecti
             vm.syncDelegate.loadLibrarySettings(vm.viewModelScope)
             vm.syncDelegate.refreshPlatformsFromServer(vm.viewModelScope)
         }
-        SettingsSection.BUILTIN_CONTROLS -> routeLoadControllerPorts(vm)
-        SettingsSection.BUILTIN_VIDEO -> routeRefreshBuiltinGraphics(vm)
         SettingsSection.STORAGE -> {
             vm.attributionDelegate.latchSteamTileVisible(storageSteamVisibleLive(vm._uiState.value))
             vm.attributionDelegate.latchMediaTileVisible(storageMediaVisibleLive(vm._uiState.value))
@@ -162,10 +155,6 @@ private fun routeApplySectionEntry(vm: SettingsViewModel, section: SettingsSecti
             vm.refreshJellyfinConnection()
         }
         SettingsSection.PERMISSIONS -> vm.permissionsDelegate.refreshPermissions()
-        SettingsSection.SHADER_STACK -> vm.shaderChainManager.loadChain(
-            routeResolveShaderChainSettingsScope(vm._uiState.value).chainJson
-        )
-        SettingsSection.DRIVERS -> vm.driversDelegate.loadDrivers(vm.viewModelScope)
         SettingsSection.SCREENS -> routeRefreshScreens(vm)
         SettingsSection.DISPLAYS -> routeRefreshLaunchTargets(vm)
         SettingsSection.LAUNCH_TARGETS -> routeEnterLaunchTargets(vm)
@@ -238,22 +227,6 @@ internal fun routeHandleVariantPickerItemTap(vm: SettingsViewModel, index: Int) 
         vm._uiState.update { state ->
             state.copy(emulators = state.emulators.copy(variantPickerFocusIndex = index))
         }
-    }
-}
-
-internal fun routeDownloadCore(vm: SettingsViewModel, coreId: String) {
-    vm.viewModelScope.launch {
-        vm.coreManager.downloadCoreById(coreId)
-        vm.emulatorDelegate.updateCoreCounts()
-    }
-}
-
-internal fun routeDeleteCore(vm: SettingsViewModel, coreId: String) {
-    vm.viewModelScope.launch {
-        vm.coreManager.deleteCore(coreId)
-        vm.emulatorDelegate.updateCoreCounts()
-        refreshCoreOptionsInstallState(vm)
-        vm.loadCoreManagementState(preserveFocus = true)
     }
 }
 
@@ -734,18 +707,7 @@ internal fun routeSetPlatformSavePath(vm: SettingsViewModel, platformId: Long, b
     val storageConfig = vm._uiState.value.storage.platformConfigs.find { it.platformId == platformId }
     val emulatorId = storageConfig?.emulatorId ?: return
     val emulatorConfig = vm.emulatorDelegate.state.value.platforms.find { it.platform.id == platformId }
-    if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-        vm.viewModelScope.launch {
-            val current = vm.libretroSettingsRepo.getByPlatformId(platformId)
-                ?: PlatformLibretroSettingsEntity(platformId = platformId)
-            vm.libretroSettingsRepo.upsert(current.copy(savePath = basePath))
-            val evaluatedPath = routeComputeEvaluatedSavePath(vm, platformId, null)
-            vm.storageDelegate.updatePlatformSavePath(platformId, evaluatedPath?.path, true)
-            vm.emulatorDelegate.setModalSavePath(emulatorId, evaluatedPath?.path, isUserOverride = true)
-            vm.loadSettings()
-        }
-        return
-    }
+    if (emulatorId == EmulatorRegistry.BUILTIN_ID) return
     vm.emulatorDelegate.setEmulatorSavePath(
         scope = vm.viewModelScope,
         emulatorId = emulatorId,
@@ -762,22 +724,7 @@ internal fun routeResetPlatformSavePath(vm: SettingsViewModel, platformId: Long)
     val storageConfig = vm._uiState.value.storage.platformConfigs.find { it.platformId == platformId }
     val emulatorId = storageConfig?.emulatorId ?: return
     val emulatorConfig = vm.emulatorDelegate.state.value.platforms.find { it.platform.id == platformId }
-    if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-        vm.viewModelScope.launch {
-            vm.libretroSettingsRepo.getByPlatformId(platformId)?.let { current ->
-                val updated = current.copy(savePath = null)
-                if (updated.hasAnyOverrides()) vm.libretroSettingsRepo.upsert(updated)
-                else vm.libretroSettingsRepo.deleteByPlatformId(platformId)
-            }
-            val defaultPath = routeComputeEvaluatedSavePath(vm, platformId, null)
-            val stillOverridden = defaultPath != null &&
-                vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first().customSavePath != null
-            vm.storageDelegate.updatePlatformSavePath(platformId, defaultPath?.path, stillOverridden)
-            vm.emulatorDelegate.setModalSavePath(emulatorId, defaultPath?.path, isUserOverride = stillOverridden)
-            vm.loadSettings()
-        }
-        return
-    }
+    if (emulatorId == EmulatorRegistry.BUILTIN_ID) return
     vm.emulatorDelegate.resetEmulatorSavePath(
         scope = vm.viewModelScope,
         emulatorId = emulatorId,
@@ -804,16 +751,7 @@ internal data class DisplayedSavePath(
 internal fun routeSetPlatformStatePath(vm: SettingsViewModel, platformId: Long, basePath: String) {
     val storageConfig = vm._uiState.value.storage.platformConfigs.find { it.platformId == platformId }
     val emulatorId = storageConfig?.emulatorId ?: return
-    if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-        vm.viewModelScope.launch {
-            val current = vm.libretroSettingsRepo.getByPlatformId(platformId)
-                ?: PlatformLibretroSettingsEntity(platformId = platformId)
-            vm.libretroSettingsRepo.upsert(current.copy(statePath = basePath))
-            vm.storageDelegate.updatePlatformStatePath(platformId, basePath, true)
-            vm.loadSettings()
-        }
-        return
-    }
+    if (emulatorId == EmulatorRegistry.BUILTIN_ID) return
     val evaluatedPath = routeComputeEvaluatedStatePath(vm, platformId, basePath)
     vm.emulatorDelegate.setEmulatorStatePath(vm.viewModelScope, emulatorId, basePath) {
         vm.storageDelegate.updatePlatformStatePath(platformId, evaluatedPath, true)
@@ -823,20 +761,7 @@ internal fun routeSetPlatformStatePath(vm: SettingsViewModel, platformId: Long, 
 internal fun routeResetPlatformStatePath(vm: SettingsViewModel, platformId: Long) {
     val storageConfig = vm._uiState.value.storage.platformConfigs.find { it.platformId == platformId }
     val emulatorId = storageConfig?.emulatorId ?: return
-    if (emulatorId == EmulatorRegistry.BUILTIN_ID) {
-        vm.viewModelScope.launch {
-            vm.libretroSettingsRepo.getByPlatformId(platformId)?.let { current ->
-                val updated = current.copy(statePath = null)
-                if (updated.hasAnyOverrides()) vm.libretroSettingsRepo.upsert(updated)
-                else vm.libretroSettingsRepo.deleteByPlatformId(platformId)
-            }
-            val custom = vm.libretroSettingsRepo.getBuiltinEmulatorSettings().first().customStatePath
-            val defaultPath = custom ?: AppPaths.libretroStatesDir(vm.context.filesDir).absolutePath
-            vm.storageDelegate.updatePlatformStatePath(platformId, defaultPath, custom != null)
-            vm.loadSettings()
-        }
-        return
-    }
+    if (emulatorId == EmulatorRegistry.BUILTIN_ID) return
     vm.emulatorDelegate.resetEmulatorStatePath(vm.viewModelScope, emulatorId) {
         val defaultPath = routeComputeEvaluatedStatePath(vm, platformId, null)
         vm.storageDelegate.updatePlatformStatePath(platformId, defaultPath, false)

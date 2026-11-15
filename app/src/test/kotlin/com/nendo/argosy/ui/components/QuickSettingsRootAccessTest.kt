@@ -7,8 +7,6 @@ import com.nendo.argosy.data.preferences.BuiltinEmulatorSettings
 import com.nendo.argosy.data.preferences.MenuWrapMode
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.SocialConnectionState
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.hardware.BrightnessController
 import com.nendo.argosy.hardware.DevicePerformance
 import com.nendo.argosy.hardware.DevicePerformanceResolver
@@ -25,7 +23,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -99,12 +96,8 @@ class QuickSettingsRootAccessTest {
             performanceStore = store,
             refreshController = mockk(relaxed = true),
             hardwareStatsReader = mockk(relaxed = true),
-            socialRepository = mockk<SocialRepository>(relaxed = true) {
-                every { connectionState } returns MutableStateFlow(SocialConnectionState.Disconnected)
-            },
             hapticManager = mockk(relaxed = true),
             soundManager = mockk(relaxed = true),
-            quickFriends = mockk(relaxed = true),
             power = mockk<QuickPowerController>(relaxed = true) {
                 every { state } returns MutableStateFlow(QuickPowerState())
             },

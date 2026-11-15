@@ -13,15 +13,11 @@ import com.nendo.argosy.data.remote.github.EmulatorUpdateRepository
 import com.nendo.argosy.data.remote.github.FetchReleaseResult
 import com.nendo.argosy.data.local.entity.EmulatorUpdateEntity
 import com.nendo.argosy.data.local.entity.EmulatorSaveConfigEntity
-import com.nendo.argosy.data.repository.CoreVersionRepository
 import com.nendo.argosy.data.repository.EmulatorConfigRepository
 import com.nendo.argosy.data.emulator.savepath.SavePathRequest
 import com.nendo.argosy.data.emulator.savepath.SavePathVerdict
 import com.nendo.argosy.data.repository.EmulatorSaveConfigRepository
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
-import com.nendo.argosy.libretro.LibretroCoreManager
-import com.nendo.argosy.libretro.LibretroCoreRegistry
-import com.nendo.argosy.ui.common.BuiltinCoreSummaryLoader
 import com.nendo.argosy.ui.components.ListReorder
 import com.nendo.argosy.ui.components.ReorderStep
 import kotlinx.coroutines.flow.Flow
@@ -54,28 +50,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class BuiltinNavigationTarget {
-    VIDEO_SETTINGS,
-    CONTROLS_SETTINGS,
-    SAVES_SETTINGS,
-    CORE_MANAGEMENT,
-    CORE_OPTIONS
-}
-
 class EmulatorSettingsDelegate @Inject constructor(
     private val emulatorDetector: EmulatorDetector,
     private val configureEmulatorUseCase: ConfigureEmulatorUseCase,
     private val soundManager: SoundFeedbackManager,
     private val emulatorSaveConfigRepository: EmulatorSaveConfigRepository,
     private val emulatorConfigRepo: EmulatorConfigRepository,
-    private val coreManager: LibretroCoreManager,
-    private val coreVersionRepository: CoreVersionRepository,
     private val emulatorUpdateManager: EmulatorUpdateManager,
     private val emulatorDownloadManager: EmulatorDownloadManager,
     private val emulatorUpdateRepository: EmulatorUpdateRepository,
     private val saveHandlerRegistry: PlatformSaveHandlerRegistry,
-    private val savePathAuthority: com.nendo.argosy.data.emulator.savepath.SavePathAuthority,
-    private val builtinCoreSummaryLoader: BuiltinCoreSummaryLoader
+    private val savePathAuthority: com.nendo.argosy.data.emulator.savepath.SavePathAuthority
 ) {
     companion object {
         private const val TAG = "EmulatorSettingsDelegate"
@@ -88,9 +73,6 @@ class EmulatorSettingsDelegate @Inject constructor(
 
     private val _launchSavePathPicker = MutableSharedFlow<Unit>()
     val launchSavePathPicker: SharedFlow<Unit> = _launchSavePathPicker.asSharedFlow()
-
-    private val _builtinNavigationEvent = MutableSharedFlow<BuiltinNavigationTarget>()
-    val builtinNavigationEvent: SharedFlow<BuiltinNavigationTarget> = _builtinNavigationEvent.asSharedFlow()
 
     fun updateState(newState: EmulatorState) {
         _state.value = newState
@@ -180,12 +162,6 @@ class EmulatorSettingsDelegate @Inject constructor(
                     installedVariant = update.installedVariant
                 )
             }
-            val builtinCore = if (config.availableEmulators.any { it.def.id == EmulatorRegistry.BUILTIN_ID }) {
-                builtinCoreSummaryLoader.load(gameId = null, platformId = config.platform.id, platformSlug = config.platform.slug)
-            } else {
-                null
-            }
-
             _state.update {
                 it.copy(
                     showEmulatorPicker = true,
@@ -196,8 +172,7 @@ class EmulatorSettingsDelegate @Inject constructor(
                         installedEmulators = config.availableEmulators,
                         downloadableEmulators = config.downloadableEmulators,
                         selectedEmulatorName = config.selectedEmulator,
-                        updates = updateMap,
-                        builtinCore = builtinCore
+                        updates = updateMap
                     ),
                     emulatorPickerFocusIndex = 0,
                     emulatorPickerSelectedIndex = null
@@ -790,53 +765,6 @@ class EmulatorSettingsDelegate @Inject constructor(
         return emulatorConfigRepo.getPreferredExtension(platformId)
     }
 
-
-    fun updateCoreCounts() {
-        val installedCores = coreManager.getInstalledCores()
-        val allCores = LibretroCoreRegistry.getAllCores()
-        _state.update {
-            it.copy(
-                installedCoreCount = installedCores.size,
-                totalCoreCount = allCores.size
-            )
-        }
-    }
-
-    fun observeCoreUpdateCount(): Flow<Int> = coreVersionRepository.observeUpdateCount()
-
-    fun updateCoreUpdatesAvailable(count: Int) {
-        _state.update { it.copy(coreUpdatesAvailable = count) }
-    }
-
-    fun navigateToBuiltinVideo(scope: CoroutineScope) {
-        scope.launch {
-            _builtinNavigationEvent.emit(BuiltinNavigationTarget.VIDEO_SETTINGS)
-        }
-    }
-
-    fun navigateToBuiltinControls(scope: CoroutineScope) {
-        scope.launch {
-            _builtinNavigationEvent.emit(BuiltinNavigationTarget.CONTROLS_SETTINGS)
-        }
-    }
-
-    fun navigateToBuiltinSaves(scope: CoroutineScope) {
-        scope.launch {
-            _builtinNavigationEvent.emit(BuiltinNavigationTarget.SAVES_SETTINGS)
-        }
-    }
-
-    fun navigateToCoreManagement(scope: CoroutineScope) {
-        scope.launch {
-            _builtinNavigationEvent.emit(BuiltinNavigationTarget.CORE_MANAGEMENT)
-        }
-    }
-
-    fun navigateToCoreOptions(scope: CoroutineScope) {
-        scope.launch {
-            _builtinNavigationEvent.emit(BuiltinNavigationTarget.CORE_OPTIONS)
-        }
-    }
 
     fun observeAvailableUpdates(): Flow<List<com.nendo.argosy.data.local.entity.EmulatorUpdateEntity>> =
         emulatorUpdateManager.availableUpdates
