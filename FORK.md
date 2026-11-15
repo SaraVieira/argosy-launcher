@@ -10,17 +10,23 @@ code reaches the fork package in these places:
 
 - `DualScreenManager.launchCompanionApp`, plus its import
 - one line in `PlaySessionTracker.startSession`
-- the in-game dashboard's Game Twin rail item: `dashboardActions` in `PresentationSlotContent`, and the
-  `gameTwinLabel` / `onOpenGameTwin` fields of `DashboardActions` with their rail item in
-  `InGameDashboard`
+- the in-game dashboard's pinned apps: `dashboardActions` and the pins collection in `PresentationSlotContent`,
+  and the `pinnedApps` / `onOpenApp` fields of `DashboardActions` with their rail items in `InGameDashboard`
+- the "Show while playing" menu item: `AppContextMenuItem.TOGGLE_IN_GAME`, the `fork_in_game_apps` key in
+  `AppPreferencesRepository`, the Apps screen menu and the in-game dock's hold menu (`appMenuRowsFor`)
 
 Everything else should be upstream-ready.
 
-## Game Twin on the in-game dashboard
+## Apps on the in-game dashboard
 
-When Game Twin (`com.twinlore.app`) is installed, the in-game dashboard's side rail shows it right after
-the sections (Session, States, Trophies, Manual, Guide), under its own app name. A tap opens it the same way
-the dock does, on the screen the game isn't on, with the now-playing extras below.
+Apps marked **Show while playing** appear in the in-game dashboard's side rail, after the sections (Session,
+States, Trophies, Manual, Guide), under their own names. A tap opens the app the way the dock does: on the
+screen the game isn't on, with the now-playing extras below. Toggle it from an app's menu in the Apps screen,
+or by holding an app in the in-game dock. Game Twin (`com.twinlore.app`) is pinned until you change the
+pins; apps that aren't installed are left out. Labels for this are English-only (`strings_fork.xml`).
+
+The Apps screen's **Mark as game / Not a game** item adds an app to the Android library or removes it, and
+records the choice as a manual category override so later scans and relinks keep it.
 
 ## Game Twin launch log
 

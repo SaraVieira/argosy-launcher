@@ -45,7 +45,8 @@ data class AppUi(
     val isHidden: Boolean = false,
     val isSystemApp: Boolean = false,
     val isOnHome: Boolean = false,
-    val isOnSecondaryHome: Boolean = false
+    val isOnSecondaryHome: Boolean = false,
+    val isPinnedInGame: Boolean = false
 )
 
 data class AppsUiState(
@@ -79,6 +80,7 @@ data class AppsUiState(
             add(AppMenuRow.Action(AppContextMenuItem.TOGGLE_HOME))
             if (hasSecondaryDisplay) {
                 add(AppMenuRow.Action(AppContextMenuItem.TOGGLE_SECONDARY_HOME))
+                add(AppMenuRow.Action(AppContextMenuItem.TOGGLE_IN_GAME))
             }
             add(AppMenuRow.Action(AppContextMenuItem.TOGGLE_VISIBILITY))
             add(AppMenuRow.Action(AppContextMenuItem.REORDER))
@@ -117,6 +119,7 @@ class AppsViewModel @Inject constructor(
     private var hiddenApps: Set<String> = emptySet()
     private var visibleSystemApps: Set<String> = emptySet()
     private var secondaryHomeApps: List<String> = emptyList()
+    private var inGameApps: List<String> = emptyList()
     private var customOrder: List<String> = emptyList()
 
     init {
@@ -137,11 +140,15 @@ class AppsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.preferences.collect { prefs ->
                 secondaryHomeApps = prefs.secondaryHomeApps
+                inGameApps = prefs.inGameApps
                 _uiState.update { state ->
                     state.copy(
                         gridDensity = prefs.gridDensity,
                         apps = state.apps.map { app ->
-                            app.copy(isOnSecondaryHome = app.packageName in secondaryHomeApps)
+                            app.copy(
+                                isOnSecondaryHome = app.packageName in secondaryHomeApps,
+                                isPinnedInGame = app.packageName in inGameApps
+                            )
                         }
                     )
                 }
@@ -178,7 +185,8 @@ class AppsViewModel @Inject constructor(
                             isHidden = isHidden,
                             isSystemApp = app.isSystemApp,
                             isOnHome = app.packageName in homePackages,
-                            isOnSecondaryHome = app.packageName in secondaryHomeApps
+                            isOnSecondaryHome = app.packageName in secondaryHomeApps,
+                            isPinnedInGame = app.packageName in inGameApps
                         )
                     },
                     isLoading = false,
@@ -280,6 +288,9 @@ class AppsViewModel @Inject constructor(
             AppContextMenuItem.TOGGLE_SECONDARY_HOME -> {
                 toggleSecondaryHomeStatus(app.packageName)
             }
+            AppContextMenuItem.TOGGLE_IN_GAME -> {
+                toggleInGamePin(app.packageName)
+            }
             AppContextMenuItem.TOGGLE_VISIBILITY -> {
                 toggleAppVisibility(app.packageName, app.isHidden, app.isSystemApp)
             }
@@ -364,6 +375,13 @@ class AppsViewModel @Inject constructor(
 
             soundManager.play(if (isCurrentlyOnHome) SoundType.UNFAVORITE else SoundType.FAVORITE)
             loadApps()
+        }
+    }
+
+    private fun toggleInGamePin(packageName: String) {
+        viewModelScope.launch {
+            val pinned = preferencesRepository.toggleInGamePin(packageName)
+            soundManager.play(if (pinned) SoundType.FAVORITE else SoundType.UNFAVORITE)
         }
     }
 
@@ -547,14 +565,16 @@ class AppsViewModel @Inject constructor(
         isHidden: Boolean = false,
         isSystemApp: Boolean = false,
         isOnHome: Boolean = false,
-        isOnSecondaryHome: Boolean = false
+        isOnSecondaryHome: Boolean = false,
+        isPinnedInGame: Boolean = false
     ) = AppUi(
         packageName = packageName,
         label = label,
         isHidden = isHidden,
         isSystemApp = isSystemApp,
         isOnHome = isOnHome,
-        isOnSecondaryHome = isOnSecondaryHome
+        isOnSecondaryHome = isOnSecondaryHome,
+        isPinnedInGame = isPinnedInGame
     )
 
     fun createInputHandler(

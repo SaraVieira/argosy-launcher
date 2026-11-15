@@ -145,6 +145,7 @@ class UserPreferencesRepository @Inject constructor(
             iconPack = display.iconPack,
             hiddenApps = app.hiddenApps,
             secondaryHomeApps = app.secondaryHomeApps,
+            inGameApps = app.inGameApps,
             visibleSystemApps = app.visibleSystemApps,
             appOrder = app.appOrder,
             maxConcurrentDownloads = storage.maxConcurrentDownloads,
@@ -603,6 +604,7 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setCloseEmulatorOnSessionEnd(enabled: Boolean) = appPrefs.setCloseEmulatorOnSessionEnd(enabled)
     suspend fun setHiddenApps(apps: Set<String>) = appPrefs.setHiddenApps(apps)
     suspend fun toggleDockPin(packageName: String) = appPrefs.toggleDockPin(packageName)
+    suspend fun toggleInGamePin(packageName: String) = appPrefs.toggleInGamePin(packageName)
     suspend fun reorderDockPins(expected: List<String>, order: List<String>) =
         appPrefs.reorderDockPins(expected, order)
     suspend fun setVisibleSystemApps(apps: Set<String>) = appPrefs.setVisibleSystemApps(apps)
@@ -956,6 +958,7 @@ data class UserPreferences(
     val boxArtCacheEnabled: Boolean = true,
     val hiddenApps: Set<String> = emptySet(),
     val secondaryHomeApps: List<String> = emptyList(),
+    val inGameApps: List<String> = com.nendo.argosy.fork.InGameAppPins.DEFAULT,
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
     val maxConcurrentDownloads: Int = 1,

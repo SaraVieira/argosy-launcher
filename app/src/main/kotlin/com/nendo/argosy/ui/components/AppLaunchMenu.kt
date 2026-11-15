@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Visibility
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -55,6 +57,7 @@ enum class AppContextMenuItem {
     APP_INFO,
     TOGGLE_HOME,
     TOGGLE_SECONDARY_HOME,
+    TOGGLE_IN_GAME,
     TOGGLE_VISIBILITY,
     REORDER,
     UNINSTALL
@@ -108,6 +111,7 @@ fun AppMenuItemRow(
     isAppHidden: Boolean = false,
     isOnHome: Boolean = false,
     isOnSecondaryHome: Boolean = false,
+    isPinnedInGame: Boolean = false,
     @StringRes reorderLabel: Int = R.string.dock_menu_reorder,
     onClick: () -> Unit = {}
 ) {
@@ -128,6 +132,11 @@ fun AppMenuItemRow(
             Icons.Default.PushPin to stringResource(R.string.library_apps_menu_unpin_from_app_bar)
         } else {
             Icons.Outlined.PushPin to stringResource(R.string.library_apps_menu_pin_to_app_bar)
+        }
+        AppContextMenuItem.TOGGLE_IN_GAME -> if (isPinnedInGame) {
+            Icons.Default.VideogameAsset to stringResource(R.string.fork_apps_menu_hide_while_playing)
+        } else {
+            Icons.Outlined.VideogameAsset to stringResource(R.string.fork_apps_menu_show_while_playing)
         }
         AppContextMenuItem.TOGGLE_VISIBILITY -> if (isAppHidden) {
             Icons.Default.Visibility to stringResource(R.string.library_apps_menu_show)
@@ -190,6 +199,7 @@ fun AppLaunchMenu(
     focusIndex: Int,
     isAppHidden: Boolean = false,
     isOnSecondaryHome: Boolean = false,
+    isPinnedInGame: Boolean = false,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -200,6 +210,7 @@ fun AppLaunchMenu(
                 isFocused = index == focusIndex,
                 isAppHidden = isAppHidden,
                 isOnSecondaryHome = isOnSecondaryHome,
+                isPinnedInGame = isPinnedInGame,
                 onClick = { onSelect(index) }
             )
         }

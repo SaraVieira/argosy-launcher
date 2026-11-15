@@ -69,6 +69,7 @@ import com.nendo.argosy.ui.theme.backdrop.surfaceBackdrop
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private const val TIMELINE_SCROLL_DELAY_MS = 1500L
@@ -245,8 +246,14 @@ private fun PresentationSlotScene(
                 val bar = rememberInGameAppBarState()
                 val controls by manager.sessionControls.collectAsState()
                 val context = LocalContext.current
-                val actions = remember(manager) {
-                    dashboardActions(manager, com.nendo.argosy.fork.GameTwinShortcut.label(context.packageManager))
+                val pinnedPackages by remember(manager) {
+                    manager.preferencesRepository.userPreferences.map { it.inGameApps }.distinctUntilChanged()
+                }.collectAsState(initial = emptyList())
+                val actions = remember(manager, pinnedPackages) {
+                    dashboardActions(
+                        manager,
+                        com.nendo.argosy.fork.InGameAppPins.shortcuts(context.packageManager, pinnedPackages)
+                    )
                 }
                 com.nendo.argosy.ui.dualscreen.dashboard.InGameDashboard(
                     state = slot.state,
@@ -269,7 +276,10 @@ internal fun PresentationControlHints(hints: List<CompanionHint>) {
     FooterBarWithState(hints = items, forceVisible = forced)
 }
 
-private fun dashboardActions(manager: com.nendo.argosy.DualScreenManager, gameTwinLabel: String?) =
+private fun dashboardActions(
+    manager: com.nendo.argosy.DualScreenManager,
+    pinnedApps: List<com.nendo.argosy.ui.dualscreen.dashboard.DashboardAppShortcut>
+) =
     com.nendo.argosy.ui.dualscreen.dashboard.DashboardActions(
         onQuickSave = { manager.sessionQuickActions?.quickSave() },
         onLoadState = { manager.sessionQuickActions?.loadState(it.slotNumber, it.savedAtMillis) },
@@ -279,8 +289,8 @@ private fun dashboardActions(manager: com.nendo.argosy.DualScreenManager, gameTw
         onQuit = { manager.quitSession() },
         onOpenDocument = { manager.openDashboardDocument(it) },
         onNextDisc = { manager.streamDashboardActions?.nextDisc() },
-        gameTwinLabel = gameTwinLabel,
-        onOpenGameTwin = { manager.launchCompanionApp(com.nendo.argosy.fork.GameTwinShortcut.PACKAGE) }
+        pinnedApps = pinnedApps,
+        onOpenApp = { manager.launchCompanionApp(it) }
     )
 
 private data class InGameAppBarState(
@@ -393,9 +403,11 @@ private fun InGameAppBar(state: InGameAppBarState, modifier: Modifier = Modifier
         }
         var pinned by remember(packageName) { mutableStateOf(false) }
         var hidden by remember(packageName) { mutableStateOf(false) }
+        var pinnedInGame by remember(packageName) { mutableStateOf(false) }
         LaunchedEffect(packageName) {
             pinned = manager.isAppPinned(packageName)
             hidden = manager.isAppHidden(packageName)
+            pinnedInGame = packageName in manager.preferencesRepository.userPreferences.first().inGameApps
         }
         com.nendo.argosy.ui.components.AppLaunchMenu(
             appLabel = manager.appLabel(packageName),
@@ -403,6 +415,7 @@ private fun InGameAppBar(state: InGameAppBarState, modifier: Modifier = Modifier
             focusIndex = -1,
             isAppHidden = hidden,
             isOnSecondaryHome = pinned,
+            isPinnedInGame = pinnedInGame,
             onSelect = { index ->
                 val row = rows.getOrNull(index)
                 menuPackage = null

@@ -370,6 +370,7 @@ fun AppsScreen(
                                 isAppHidden = uiState.focusedApp?.isHidden ?: false,
                                 isOnHome = uiState.focusedApp?.isOnHome ?: false,
                                 isOnSecondaryHome = uiState.focusedApp?.isOnSecondaryHome ?: false,
+                                isPinnedInGame = uiState.focusedApp?.isPinnedInGame ?: false,
                                 reorderLabel = R.string.library_apps_menu_reorder,
                                 onClick = {
                                     viewModel.selectContextMenuItem(index)
