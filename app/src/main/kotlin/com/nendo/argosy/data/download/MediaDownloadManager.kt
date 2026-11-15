@@ -69,7 +69,6 @@ private const val DOWNLOAD_BUFFER_SIZE = 64 * 1024
 private const val UI_UPDATE_INTERVAL_MS = 500L
 private const val DB_UPDATE_INTERVAL_MS = 5_000L
 private const val THERMAL_PAUSE_POLL_MS = 5_000L
-private const val THROTTLE_STEP_MS = 100
 private const val STORAGE_BUFFER_BYTES = 200 * 1024 * 1024L
 private const val TRANSCODE_HEADROOM = 1.15
 private const val KBPS_TO_BPS = 1000L
@@ -925,6 +924,7 @@ class MediaDownloadManager @Inject constructor(
                 var lastUiUpdate = System.currentTimeMillis()
                 var lastDbUpdate = lastUiUpdate
                 var lastBytesForSpeed = bytesWritten
+                val pacer = ThrottlePacer()
                 while (true) {
                     coroutineContext.ensureActive()
 
@@ -934,14 +934,13 @@ class MediaDownloadManager @Inject constructor(
                         continue
                     }
 
+                    pacer.startChunk()
                     val read = input.read(buffer)
                     if (read == -1) break
                     output.write(buffer, 0, read)
                     bytesWritten += read
 
-                    if (thermal.throttleMultiplier < 1.0f) {
-                        delay((((1.0f / thermal.throttleMultiplier) - 1) * THROTTLE_STEP_MS).toLong())
-                    }
+                    pacer.endChunk(thermal.throttleMultiplier)
 
                     val now = System.currentTimeMillis()
                     if (now - lastUiUpdate > UI_UPDATE_INTERVAL_MS) {

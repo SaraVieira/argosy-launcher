@@ -38,7 +38,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.nendo.argosy.data.download.transfer.TransferCheckpoint
 import com.nendo.argosy.data.download.transfer.TransferResult
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -1321,6 +1320,7 @@ class DownloadManager internal constructor(
         var lastUiUpdate = 0L
         var lastDbUpdate = 0L
         var lastBytes = tempFile.length()
+        val pacer = ThrottlePacer()
         return DownloadTransferRunner(connectivity).run(
             tempFile, checkpoint, retryAttempt, nextRetryAt,
             newCall = { range, ifRange ->
@@ -1361,10 +1361,10 @@ class DownloadManager internal constructor(
             },
             beforeRead = {
                 thermalManager.get().thermalStatus.first { it.state != ThermalState.PAUSED }
+                pacer.startChunk()
             },
             afterWrite = {
-                val multiplier = thermalManager.get().thermalStatus.value.throttleMultiplier
-                if (multiplier < 1.0f) delay((((1.0f / multiplier) - 1) * 100).toLong())
+                pacer.endChunk(thermalManager.get().thermalStatus.value.throttleMultiplier)
             },
             requireZip = progress.isMultiFileRom || progress.fileName.endsWith(".zip", ignoreCase = true),
             initialRange = progress.isMultiFileRom
