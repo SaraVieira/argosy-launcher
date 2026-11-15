@@ -16,16 +16,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -120,9 +120,9 @@ fun AppMenuItemRow(
         AppContextMenuItem.APP_INFO ->
             Icons.Default.Info to stringResource(R.string.library_apps_menu_app_info)
         AppContextMenuItem.TOGGLE_HOME -> if (isOnHome) {
-            Icons.Default.Home to stringResource(R.string.library_apps_menu_remove_from_home)
+            Icons.Default.SportsEsports to stringResource(R.string.library_apps_menu_remove_from_home)
         } else {
-            Icons.Outlined.Home to stringResource(R.string.library_apps_menu_add_to_home)
+            Icons.Outlined.SportsEsports to stringResource(R.string.library_apps_menu_add_to_home)
         }
         AppContextMenuItem.TOGGLE_SECONDARY_HOME -> if (isOnSecondaryHome) {
             Icons.Default.PushPin to stringResource(R.string.library_apps_menu_unpin_from_app_bar)

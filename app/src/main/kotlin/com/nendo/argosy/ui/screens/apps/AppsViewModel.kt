@@ -320,6 +320,7 @@ class AppsViewModel @Inject constructor(
 
     private fun toggleHomeStatus(packageName: String, label: String, isCurrentlyOnHome: Boolean) {
         viewModelScope.launch {
+            androidGameScanner.rememberGameChoice(packageName, isGame = !isCurrentlyOnHome)
             val existing = gameRepository.getByPackageName(packageName)
 
             if (isCurrentlyOnHome) {

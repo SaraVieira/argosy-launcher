@@ -345,10 +345,10 @@
     <string name="library_apps_menu_open_on_screen">Open on screen %1$d</string>
     <!-- Entry in an app's action menu when the app is already on Argosy's home screen. Verb
          phrase, takes it off. -->
-    <string name="library_apps_menu_remove_from_home">Remove from Home</string>
+    <string name="library_apps_menu_remove_from_home">Not a game</string>
     <!-- Entry in an app's action menu when the app is not on Argosy's home screen. Verb
          phrase, puts it there. -->
-    <string name="library_apps_menu_add_to_home">Add to Home</string>
+    <string name="library_apps_menu_add_to_home">Mark as game</string>
     <!-- Entry in an app's action menu when the app is already on the app bar, the strip of app
          icons along the bottom of the control screen. Verb phrase, takes it off. -->
     <string name="library_apps_menu_unpin_from_app_bar">Unpin from App Bar</string>
