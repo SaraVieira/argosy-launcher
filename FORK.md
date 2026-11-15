@@ -62,10 +62,10 @@ version.
    git push origin v3.0.0-beta.5.fork.1
    ```
 3. `Fork Release` builds and signs the APKs and checks that the tag matches the built
-   `versionName`. It then creates a **draft** release with the universal, `-arm64` and `-arm32`
-   APKs. Don't add x86 APKs: older updaters would pick them for the universal build. A tag whose
-   suffix starts with a prerelease qualifier (`beta`, `rc`, ...) is marked as a prerelease.
-4. Write the release notes and publish the draft. The updater ignores drafts.
+   `versionName`. It then publishes the release, with generated notes and the universal, `-arm64`
+   and `-arm32` APKs, so the in-app updater sees it straight away. Don't add x86 APKs: older
+   updaters would pick them for the universal build. A tag whose suffix starts with a prerelease
+   qualifier (`beta`, `rc`, ...) is marked as a prerelease.
 
 ## One-time signing setup
 
