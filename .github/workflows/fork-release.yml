@@ -56,9 +56,20 @@ jobs:
 
       - name: Build release APKs
         run: >
-          ./gradlew assembleRelease -PallAbis
-          -Pkotlin.compiler.execution.strategy=in-process
-          -Dorg.gradle.jvmargs="-Xmx12g -XX:+UseParallelGC -Dfile.encoding=UTF-8"
+          ./gradlew assembleRelease -PallAbis --profile
+          -Dorg.gradle.jvmargs="-Xmx5g -XX:+UseParallelGC -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8 -Xlog:gc*:file=${{ github.workspace }}/gc-gradle.log:uptime"
+          -Pkotlin.daemon.jvmargs="-Xmx8g -XX:+UseG1GC -XX:MaxMetaspaceSize=1g -Xlog:gc*:file=${{ github.workspace }}/gc-kotlin.log:uptime"
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: |
+            gc-gradle.log
+            gc-kotlin.log
+            build/reports/profile/
+          if-no-files-found: ignore
 
       - name: Check tag matches the built version
         id: version
