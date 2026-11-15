@@ -82,12 +82,17 @@ data class VersionInfo(
             return token in PRERELEASE_QUALIFIERS
         }
 
+        private val DOTTED_QUALIFIER = Regex("""^(\d+\.\d+(?:\.\d+)?)\.([A-Za-z][\w.]*)$""")
+        private val LETTER_DIGIT_BOUNDARY = Regex("""(?<=[A-Za-z])(?=\d)|(?<=\d)(?=[A-Za-z])""")
+
         fun parse(version: String): VersionInfo? {
             val cleaned = version.removePrefix("v").trim()
-            val (versionPart, prereleasePart) = if (cleaned.contains("-")) {
-                cleaned.substringBefore("-") to cleaned.substringAfter("-")
-            } else {
-                cleaned to null
+            val dotted = DOTTED_QUALIFIER.find(cleaned)?.takeIf { isRealPrerelease(it.groupValues[2]) }
+            val (versionPart, prereleasePart) = when {
+                cleaned.contains("-") -> cleaned.substringBefore("-") to cleaned.substringAfter("-")
+                dotted != null -> dotted.groupValues[1] to
+                    dotted.groupValues[2].split(".").joinToString(".") { it.replace(LETTER_DIGIT_BOUNDARY, ".") }
+                else -> cleaned to null
             }
             val parts = versionPart.split(".")
             if (parts.size < 2) return null

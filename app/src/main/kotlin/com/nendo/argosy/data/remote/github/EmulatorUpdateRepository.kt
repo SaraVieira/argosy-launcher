@@ -55,7 +55,10 @@ class EmulatorUpdateRepository @Inject constructor(
                 .replace(Regex("[^a-z0-9.-]"), "")
         }
 
-        private val VERSION_PATTERN = Regex("""v?(\d+\.\d+(?:\.\d+)?(?:-[\w.]+)?)""")
+        private val VERSION_PATTERN = Regex(
+            """v?(\d+\.\d+(?:\.\d+)?(?:-[\w.]+|\.(?:alpha|beta|rc|pre|preview|dev|nightly|snapshot|eap|canary)\d*(?:\.(?!apk\b)[a-z]+\d*)*)?)""",
+            RegexOption.IGNORE_CASE
+        )
         private val HEX_PATTERN = Regex("""^[0-9a-fA-F]{7,40}$""")
 
         fun extractVersionFromRelease(release: GitHubRelease): String? {
