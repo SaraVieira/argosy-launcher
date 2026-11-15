@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.PowerManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nendo.argosy.hardware.FanController
@@ -44,9 +45,9 @@ class DownloadThermalManager @Inject constructor(
     val thermalStatus: StateFlow<ThermalStatus> = _thermalStatus.asStateFlow()
 
     private val scope = SafeCoroutineScope(Dispatchers.IO, "DownloadThermalManager")
+    private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val wakeLock: PowerManager.WakeLock =
-        (context.getSystemService(Context.POWER_SERVICE) as PowerManager)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
+        powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG)
     private var monitorJob: Job? = null
     private var fanRefreshJob: Job? = null
     private var isScreenOff = false
@@ -229,31 +230,12 @@ class DownloadThermalManager @Inject constructor(
         if (!isScreenOff) {
             return ThermalStatus(ThermalState.NORMAL, cpuTemp, batteryTemp, 1.0f)
         }
-        val cpuSane = cpuTemp in PLAUSIBLE_CPU_RANGE
-        val batSane = batteryTemp in PLAUSIBLE_BATTERY_RANGE
-        if (!cpuSane || !batSane) {
-            Log.w(TAG, "Implausible thermal reading, treating as NORMAL (cpu=$cpuTemp bat=$batteryTemp)")
-        }
-        val cpuState = when {
-            !cpuSane -> ThermalState.NORMAL
-            cpuTemp >= CPU_PAUSE_TEMP -> ThermalState.PAUSED
-            cpuTemp >= CPU_THROTTLE_TEMP -> ThermalState.THROTTLED
-            else -> ThermalState.NORMAL
-        }
-        val batteryState = when {
-            !batSane -> ThermalState.NORMAL
-            batteryTemp >= BATTERY_PAUSE_TEMP -> ThermalState.PAUSED
-            batteryTemp >= BATTERY_THROTTLE_TEMP -> ThermalState.THROTTLED
-            else -> ThermalState.NORMAL
-        }
-        val worstState = maxOf(cpuState, batteryState)
-        val multiplier = when (worstState) {
-            ThermalState.PAUSED -> 0f
-            ThermalState.THROTTLED -> 0.5f
-            ThermalState.NORMAL -> 1.0f
-        }
-        return ThermalStatus(worstState, cpuTemp, batteryTemp, multiplier)
+        val state = DownloadThermalPolicy.stateFor(readPlatformThermalStatus(), cpuTemp, batteryTemp)
+        return ThermalStatus(state, cpuTemp, batteryTemp, DownloadThermalPolicy.multiplierFor(state))
     }
+
+    private fun readPlatformThermalStatus(): Int? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) powerManager.currentThermalStatus else null
 
     private fun hasActiveRomDownloads(state: DownloadQueueState): Boolean =
         state.activeDownloads.any {
@@ -285,14 +267,6 @@ class DownloadThermalManager @Inject constructor(
         private const val TAG = "DownloadThermalManager"
         private const val MONITOR_INTERVAL_MS = 5000L
         private const val FAN_REFRESH_INTERVAL_MS = 1_000L
-
-        private const val CPU_THROTTLE_TEMP = 85f
-        private const val CPU_PAUSE_TEMP = 90f
-        private const val BATTERY_THROTTLE_TEMP = 38f
-        private const val BATTERY_PAUSE_TEMP = 43f
-
-        private val PLAUSIBLE_CPU_RANGE = 0f..120f
-        private val PLAUSIBLE_BATTERY_RANGE = 0f..70f
 
         private const val FAN_DUTY_MIN = 8000
         private const val FAN_DUTY_MAX = 30000
