@@ -384,3 +384,5 @@ android.defaultConfig {
 }
 
 verifyQuayPassReleaseConfig.configure { enabled = false }
+
+android.lint { ignoreTestSources = true }
