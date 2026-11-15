@@ -110,7 +110,8 @@ object SettingsBackupKeys {
         SettingsBackupKey("app_order", SettingsBackupType.STRING),
         SettingsBackupKey("hidden_apps", SettingsBackupType.STRING),
         SettingsBackupKey("visible_system_apps", SettingsBackupType.STRING),
-        SettingsBackupKey("secondary_home_apps", SettingsBackupType.STRING)
+        SettingsBackupKey("secondary_home_apps", SettingsBackupType.STRING),
+        SettingsBackupKey("fork_in_game_apps", SettingsBackupType.STRING)
     )
 
     private val FEEDBACK = listOf(
