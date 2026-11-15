@@ -242,7 +242,7 @@ class GameDetailViewModel @Inject constructor(
         super.onCleared()
         isDescribing = false
         releaseCompanionSlot()
-        imageCacheManager.resumeBackgroundCaching()
+        imageCacheManager.resumeBackgroundCaching(this)
         gameThemeAudio.exit(currentGameId)
     }
 
@@ -608,12 +608,19 @@ class GameDetailViewModel @Inject constructor(
         }
     }
 
+    fun onScreenStarted() {
+        imageCacheManager.pauseBackgroundCaching(this)
+    }
+
+    fun onScreenStopped() {
+        imageCacheManager.resumeBackgroundCaching(this)
+    }
+
     fun loadGame(gameId: Long) {
         if (gameId != currentGameId) downloadDelegate.reset()
         steamLauncherRefreshVersion++
         currentGameId = gameId
         pageLoadTime = System.currentTimeMillis()
-        imageCacheManager.pauseBackgroundCaching()
         gameThemeAudio.enter(gameId)
         viewModelScope.launch { prefetchGameSaveDataUseCase(gameId) }
         viewModelScope.launch {
