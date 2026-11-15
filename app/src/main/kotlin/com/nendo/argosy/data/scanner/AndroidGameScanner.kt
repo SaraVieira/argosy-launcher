@@ -6,6 +6,7 @@ import com.nendo.argosy.data.local.dao.GameArtDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.resolved
 import com.nendo.argosy.data.local.dao.PlatformDao
+import com.nendo.argosy.data.local.entity.AppCategoryEntity
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.model.GameSource
@@ -151,6 +152,20 @@ class AndroidGameScanner @Inject constructor(
      * app whose row was simply absent and stopped separating games from anything else sharing a
      * name. Package identity does not go through here - an exact package match needs no guess.
      */
+    suspend fun rememberGameChoice(packageName: String, isGame: Boolean) = withContext(Dispatchers.IO) {
+        val known = appCategoryDao.getByPackageName(packageName)
+        appCategoryDao.insert(
+            AppCategoryEntity(
+                id = known?.id ?: 0,
+                packageName = packageName,
+                category = known?.category,
+                isGame = isGame,
+                isManualOverride = true,
+                fetchedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
     private suspend fun looksLikeGame(app: com.nendo.argosy.data.repository.InstalledApp): Boolean {
         val flagged = appCategoryDao.getByPackageName(app.packageName)
         if (flagged?.isManualOverride == true) return flagged.isGame
