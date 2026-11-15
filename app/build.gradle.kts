@@ -372,7 +372,7 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
 }
 
 val forkApplicationId = "dev.saravieira.argosy"
-val forkRevision = 14
+val forkRevision = 15
 
 android.defaultConfig {
     applicationId = forkApplicationId
