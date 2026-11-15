@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.remote.romm
 
+import com.nendo.argosy.data.local.InlineRoomTransactions
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.dao.GameFileDao
@@ -17,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -29,8 +31,16 @@ class RomMLibrarySyncFirmwareTest {
     private lateinit var biosRepository: BiosRepository
     private lateinit var service: RomMLibrarySyncService
 
+    private val transactions = InlineRoomTransactions()
+
+    @After
+    fun releaseTransactions() {
+        transactions.release()
+    }
+
     @Before
     fun setup() {
+        transactions.install()
         api = mockk(relaxed = true)
         biosRepository = mockk(relaxed = true)
         val apiClient = mockk<RomMApiClient>(relaxed = true)

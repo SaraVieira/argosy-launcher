@@ -18,7 +18,6 @@ import com.nendo.argosy.data.local.entity.GameDiscEntity
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
 import com.nendo.argosy.data.local.entity.SyncType
-import com.nendo.argosy.data.cache.recordArtSource
 import com.nendo.argosy.data.model.ArtSlot
 import com.nendo.argosy.data.model.FileOrigin
 import com.nendo.argosy.data.model.GameSource
@@ -1149,11 +1148,43 @@ class RomMLibrarySyncService @Inject constructor(
         val platformSlug = platformDao.getById(rom.platformId)?.slug
             ?: FileNames.sanitizeSlug(PlatformDefinitions.resolveImportSlug(rom.platformSlug, rom.platformName))
         val platformId = if (platformSlug == ANDROID_SLUG) LocalPlatformIds.ANDROID else rom.platformId
-        val existing = gameDao.getByRommId(rom.id)
-
-        val migrationSources = if (existing == null) {
+        val migrationCandidates = if (gameDao.getByRommId(rom.id) == null) {
             findUnlistedMigrationSources(rom, platformId, scope)
         } else emptyList()
+
+        val written = database.withTransaction {
+            writeRom(rom, scope, platformSlug, platformId, migrationCandidates)
+        }
+        written.savedGameId?.let { gameId -> queueRomArt(gameId, rom, written) }
+        return written.isNew to written.game
+    }
+
+    private data class WrittenRom(
+        val isNew: Boolean,
+        val game: GameEntity,
+        val savedGameId: Long?,
+        val artSources: Map<ArtSlot, List<String>>,
+        val queueScreenshots: Boolean
+    )
+
+    private suspend fun queueRomArt(gameId: Long, rom: RomMRom, written: WrittenRom) {
+        written.artSources.forEach { (slot, urls) ->
+            if (urls.isNotEmpty()) {
+                imageCacheManager.queueArtIfStale(gameId, slot, urls, rom.id, null, rom.name)
+            }
+        }
+        if (written.queueScreenshots) imageCacheManager.queueScreenshotCache(gameId, rom.id, rom.name)
+    }
+
+    private suspend fun writeRom(
+        rom: RomMRom,
+        scope: SyncScope,
+        platformSlug: String,
+        platformId: Long,
+        migrationCandidates: List<GameEntity>
+    ): WrittenRom {
+        val existing = gameDao.getByRommId(rom.id)
+        val migrationSources = if (existing == null) migrationCandidates else emptyList()
 
         if (migrationSources.isNotEmpty()) {
             Logger.info(TAG, "syncRom: detected migration for ${rom.name} (igdbId=${rom.igdbId}): ${migrationSources.size} old entries -> new rommId=${rom.id}")
@@ -1277,13 +1308,12 @@ class RomMLibrarySyncService @Inject constructor(
         }
 
         val savedGame = gameDao.getByRommId(rom.id)
+        var queueScreenshots = false
         if (savedGame != null) {
             if (contentChanged) imageCacheManager.forgetCachedArt(savedGame.id)
-            writeArtSources(savedGame.id, rom, artSources)
+            writeArtSources(savedGame.id, artSources)
             val screenshots = gameScreenshotDao.replaceSources(savedGame.id, screenshotUrls)
-            if (screenshotCacheEnabledForSync && screenshots.any { !it.isCachedFromSource }) {
-                imageCacheManager.queueScreenshotCache(savedGame.id, rom.id, rom.name)
-            }
+            queueScreenshots = screenshotCacheEnabledForSync && screenshots.any { !it.isCachedFromSource }
             applyRomUserProperties(savedGame.id, rom, scope)
             syncGameFiles(savedGame.id, rom, platformSlug)
             if (rom.isFolderMultiDisc) {
@@ -1295,13 +1325,19 @@ class RomMLibrarySyncService @Inject constructor(
             }
         }
 
-        return isNew to game
+        return WrittenRom(
+            isNew = isNew,
+            game = game,
+            savedGameId = savedGame?.id,
+            artSources = artSources,
+            queueScreenshots = queueScreenshots
+        )
     }
 
-    private suspend fun writeArtSources(gameId: Long, rom: RomMRom, sources: Map<ArtSlot, List<String>>) {
+    private suspend fun writeArtSources(gameId: Long, sources: Map<ArtSlot, List<String>>) {
         sources.forEach { (slot, urls) ->
             if (urls.isEmpty()) imageCacheManager.forgetCachedArt(gameId, slot)
-            recordArtSource(gameArtDao, imageCacheManager, gameId, slot, urls, rom.name, rommId = rom.id)
+            gameArtDao.setSourceUrl(gameId, slot, urls.firstOrNull())
         }
     }
 
