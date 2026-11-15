@@ -261,7 +261,10 @@ private fun PresentationSlotScene(
                 val manager = com.nendo.argosy.DualScreenManagerHolder.instance ?: return@Box
                 val bar = rememberInGameAppBarState()
                 val controls by manager.sessionControls.collectAsState()
-                val actions = remember(manager) { dashboardActions(manager) }
+                val context = LocalContext.current
+                val actions = remember(manager) {
+                    dashboardActions(manager, com.nendo.argosy.fork.GameTwinShortcut.label(context.packageManager))
+                }
                 com.nendo.argosy.ui.dualscreen.dashboard.InGameDashboard(
                     state = slot.state,
                     controls = controls,
@@ -283,7 +286,7 @@ internal fun PresentationControlHints(hints: List<CompanionHint>) {
     FooterBarWithState(hints = items, forceVisible = forced)
 }
 
-private fun dashboardActions(manager: com.nendo.argosy.DualScreenManager) =
+private fun dashboardActions(manager: com.nendo.argosy.DualScreenManager, gameTwinLabel: String?) =
     com.nendo.argosy.ui.dualscreen.dashboard.DashboardActions(
         onQuickSave = { manager.sessionQuickActions?.quickSave() },
         onLoadState = { manager.sessionQuickActions?.loadState(it.slotNumber, it.savedAtMillis) },
@@ -292,7 +295,9 @@ private fun dashboardActions(manager: com.nendo.argosy.DualScreenManager) =
         onOpenSettings = { manager.sessionQuickActions?.openGameSettings() },
         onQuit = { manager.quitSession() },
         onOpenDocument = { manager.openDashboardDocument(it) },
-        onNextDisc = { manager.streamDashboardActions?.nextDisc() }
+        onNextDisc = { manager.streamDashboardActions?.nextDisc() },
+        gameTwinLabel = gameTwinLabel,
+        onOpenGameTwin = { manager.launchCompanionApp(com.nendo.argosy.fork.GameTwinShortcut.PACKAGE) }
     )
 
 private data class InGameAppBarState(

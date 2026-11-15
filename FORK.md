@@ -6,8 +6,21 @@ and its in-app updater reads releases from `SaraVieira/argosy-launcher`.
 
 Fork-only changes live in the block at the end of `app/build.gradle.kts`, this file,
 `.github/workflows/fork-release.yml` and the `com.nendo.argosy.fork` package (main and test). Upstream
-code reaches the fork package in two places: `DualScreenManager.launchCompanionApp` (plus its import)
-and one line in `PlaySessionTracker.startSession`. Everything else should be upstream-ready.
+code reaches the fork package in these places:
+
+- `DualScreenManager.launchCompanionApp`, plus its import
+- one line in `PlaySessionTracker.startSession`
+- the in-game dashboard's Game Twin rail item: `dashboardActions` in `PresentationSlotContent`, and the
+  `gameTwinLabel` / `onOpenGameTwin` fields of `DashboardActions` with their rail item in
+  `InGameDashboard`
+
+Everything else should be upstream-ready.
+
+## Game Twin on the in-game dashboard
+
+When Game Twin (`com.twinlore.app`) is installed, the in-game dashboard's side rail shows it right after
+the sections (Session, States, Trophies, Manual, Guide), under its own app name. A tap opens it the same way
+the dock does, on the screen the game isn't on, with the now-playing extras below.
 
 ## Game Twin launch log
 
