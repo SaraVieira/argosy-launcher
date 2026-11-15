@@ -82,7 +82,8 @@ version.
 
 ## Releasing
 
-1. Commit any `forkRevision` bump and push `main`.
+1. Commit the `forkRevision` bump and push `main`. There's no need to wait for `main`'s CI: the release
+   workflow builds everything from the tag on its own.
 2. Tag it with the full version name and push the tag:
    ```bash
    git tag v3.0.0-beta.5.fork.1
@@ -93,6 +94,10 @@ version.
    and `-arm32` APKs, so the in-app updater sees it straight away. Don't add x86 APKs: older
    updaters would pick them for the universal build. A tag whose suffix starts with a prerelease
    qualifier (`beta`, `rc`, ...) is marked as a prerelease.
+
+Fork builds lint less than upstream's: the fork block turns off lint on test sources and skips release
+lint (`checkReleaseBuilds = false`), so a release build runs no lint at all. Full lint of the app's
+main sources still runs in `main`'s CI.
 
 ## One-time signing setup
 
