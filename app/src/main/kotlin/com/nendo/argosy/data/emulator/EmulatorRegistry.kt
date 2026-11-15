@@ -41,11 +41,20 @@ data class EmulatorFamily(
     val packagePatterns: List<String>,
     val supportedPlatforms: Set<String>,
     val launchAction: String = Intent.ACTION_VIEW,
+    val launchActionSuffix: String? = null,
     val launchConfig: LaunchConfig = LaunchConfig.FileUri,
     val defaultLaunchMethod: LaunchMethod = LaunchMethod.INTENT,
     val downloadUrl: String? = null,
     val drawsBothScreens: Boolean = false
 )
+
+private val WATERMELONDS_LAUNCH = LaunchConfig.Custom(
+    activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
+    intentExtras = mapOf("uri" to ExtraValue.FileUri),
+    defaultDataBinding = RomBindingFormat.FILE_PROVIDER
+)
+
+private const val WATERMELONDS_RELEASES = "https://github.com/SapphireRhodonite/WatermelonDS/releases"
 
 /**
  * Polymorphic per-subtype defaults for emulator launch dispatch. Centralized here so call sites can
@@ -740,16 +749,12 @@ object EmulatorRegistry {
         EmulatorDef(
             id = "melondualds",
             packageName = "me.magnum.melondualds",
-            displayName = "MelonDualDS",
+            displayName = "WatermelonDS",
             supportedPlatforms = setOf("nds"),
             launchAction = "me.magnum.melondualds.LAUNCH_ROM",
-            launchConfig = LaunchConfig.Custom(
-                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
-                intentExtras = mapOf("uri" to ExtraValue.FileUri),
-                defaultDataBinding = RomBindingFormat.FILE_PROVIDER
-            ),
-            downloadUrl = "https://github.com/SapphireRhodonite/melonDS-android/releases",
-            releaseSource = ReleaseSource.GitHub("SapphireRhodonite/melonDS-android"),
+            launchConfig = WATERMELONDS_LAUNCH,
+            downloadUrl = WATERMELONDS_RELEASES,
+            releaseSource = ReleaseSource.GitHub("SapphireRhodonite/WatermelonDS"),
             drawsBothScreens = true
         ),
         EmulatorDef(
@@ -2041,13 +2046,23 @@ object EmulatorRegistry {
         EmulatorFamily(
             baseId = "melonds",
             displayNamePrefix = "melonDS",
-            packagePatterns = listOf("me.magnum.melonds*", "me.magnum.melondualds*"),
+            packagePatterns = listOf("me.magnum.melonds*"),
             supportedPlatforms = setOf("nds"),
             launchConfig = LaunchConfig.Custom(
                 activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
                 intentExtras = mapOf("PATH" to ExtraValue.FilePath)
             ),
             downloadUrl = "https://github.com/rafaelvcaetano/melonDS-android/releases/tag/nightly-release"
+        ),
+        EmulatorFamily(
+            baseId = "melondualds",
+            displayNamePrefix = "WatermelonDS",
+            packagePatterns = listOf("me.magnum.melondualds*"),
+            supportedPlatforms = setOf("nds"),
+            launchActionSuffix = ".LAUNCH_ROM",
+            launchConfig = WATERMELONDS_LAUNCH,
+            downloadUrl = WATERMELONDS_RELEASES,
+            drawsBothScreens = true
         ),
         EmulatorFamily(
             baseId = "ax360e",
@@ -2174,7 +2189,7 @@ object EmulatorRegistry {
             packageName = packageName,
             displayName = displayName,
             supportedPlatforms = family.supportedPlatforms,
-            launchAction = family.launchAction,
+            launchAction = family.launchActionSuffix?.let { packageName + it } ?: family.launchAction,
             launchConfig = family.launchConfig,
             defaultLaunchMethod = family.defaultLaunchMethod,
             downloadUrl = family.downloadUrl,
