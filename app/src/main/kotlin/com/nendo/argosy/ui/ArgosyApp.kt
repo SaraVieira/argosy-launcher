@@ -1250,25 +1250,34 @@ fun ArgosyApp(
                 }
 
                 var drawerWidthPx by remember { mutableStateOf(0f) }
+                val drawerShowing by remember(drawerState) {
+                    derivedStateOf {
+                        drawerState.currentValue == DrawerValue.Open || drawerState.targetValue == DrawerValue.Open
+                    }
+                }
 
                 ModalNavigationDrawer(
                 drawerState = drawerState,
                 gesturesEnabled = !setupActive,
                 scrimColor = scrimColor,
                 drawerContent = {
-                    MainDrawer(
-                        items = viewModel.drawerItems,
-                        currentRoute = currentRoute,
-                        drawerState = drawerUiState,
-                        isOpen = isDrawerOpen,
-                        onNavigate = { route ->
-                            inputDispatcher.unsubscribeDrawer()
-                            viewModel.setDrawerOpen(false)
-                            scope.launch { drawerState.close() }
-                            navigateFromDrawer(route)
-                        },
-                        modifier = Modifier.onSizeChanged { drawerWidthPx = it.width.toFloat() }
-                    )
+                    CompositionLocalProvider(
+                        com.nendo.argosy.ui.components.LocalArtworkScraping provides (isScrapingArtwork && drawerShowing)
+                    ) {
+                        MainDrawer(
+                            items = viewModel.drawerItems,
+                            currentRoute = currentRoute,
+                            drawerState = drawerUiState,
+                            isOpen = isDrawerOpen,
+                            onNavigate = { route ->
+                                inputDispatcher.unsubscribeDrawer()
+                                viewModel.setDrawerOpen(false)
+                                scope.launch { drawerState.close() }
+                                navigateFromDrawer(route)
+                            },
+                            modifier = Modifier.onSizeChanged { drawerWidthPx = it.width.toFloat() }
+                        )
+                    }
                 }
             ) {
                 val drawerBlurProgress by remember(drawerState) {
