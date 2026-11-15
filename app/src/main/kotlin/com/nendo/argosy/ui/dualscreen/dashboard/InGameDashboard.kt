@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Map
@@ -97,7 +98,9 @@ class DashboardActions(
     val onOpenSettings: () -> Unit,
     val onQuit: () -> Unit,
     val onOpenDocument: (GameDocument) -> Unit,
-    val onNextDisc: () -> Unit
+    val onNextDisc: () -> Unit,
+    val gameTwinLabel: String? = null,
+    val onOpenGameTwin: () -> Unit = {}
 )
 
 private val RAIL_WIDTH = DimensionTokens.Layout.companionRailWidth.dp
@@ -314,6 +317,16 @@ private fun DashboardRail(
                     wide = wide,
                     onTap = { onSelect(section) }
                 )
+            }
+            content.actions.gameTwinLabel?.let { label ->
+                item(key = "game_twin") {
+                    RailItem(
+                        icon = Icons.AutoMirrored.Filled.OpenInNew,
+                        label = label,
+                        wide = wide,
+                        onTap = content.actions.onOpenGameTwin
+                    )
+                }
             }
             if (controls.cheatsAvailable) {
                 item(key = "cheats") {
