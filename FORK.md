@@ -4,8 +4,30 @@ This is a soft fork of [rommapp/argosy-launcher](https://github.com/rommapp/argo
 It installs as `dev.saravieira.argosy` (debug: `dev.saravieira.argosy.debug`) next to stock Argosy,
 and its in-app updater reads releases from `SaraVieira/argosy-launcher`.
 
-Fork-only changes live in the block at the end of `app/build.gradle.kts`, this file and
-`.github/workflows/fork-release.yml`. Everything else should be upstream-ready.
+Fork-only changes live in the block at the end of `app/build.gradle.kts`, this file,
+`.github/workflows/fork-release.yml` and the `com.nendo.argosy.fork` package (main and test). The fork
+package is reached from upstream code in exactly one place: `DualScreenManager.launchCompanionApp`,
+plus its import. Everything else should be upstream-ready.
+
+## Now-playing handoff
+
+On a dual-screen device, an app opened from the in-game dashboard's dock (tap, app drawer or hold menu)
+while a game runs receives these intent extras. It's always on. Values that aren't known are left out.
+
+| Extra | Type |
+| --- | --- |
+| `com.nendo.argosy.extra.NOW_PLAYING_VERSION` | Int, `1`; present on every handoff |
+| `com.nendo.argosy.extra.SOURCE_PACKAGE` | String, the sending build's application id |
+| `com.nendo.argosy.extra.GAME_TITLE` | String |
+| `com.nendo.argosy.extra.PLATFORM_SLUG` | String |
+| `com.nendo.argosy.extra.ROM_PATH` | String, the game's `localPath` (not the active variant file) |
+| `com.nendo.argosy.extra.EMULATOR_PACKAGE` | String; the built-in emulator uses `EmulatorRegistry.BUILTIN_PACKAGE` |
+| `com.nendo.argosy.extra.ROMM_ID`, `IGDB_ID`, `RA_ID` | Long |
+| `com.nendo.argosy.extra.SESSION_START_MS` | Long, epoch ms |
+| `com.nendo.argosy.extra.HARDCORE` | Boolean |
+
+The intent is the app's normal launcher intent. A `singleTask` app that's already running should get it in
+`onNewIntent`; not yet confirmed on a device.
 
 ## Remotes
 
