@@ -15,6 +15,7 @@ jobs:
   release:
     if: github.repository == 'SaraVieira/argosy-launcher'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       TITLEDB_API_SECRET: ${{ secrets.TITLEDB_API_SECRET }}
       CHEATSDB_API_SECRET: ${{ secrets.CHEATSDB_API_SECRET }}
