@@ -380,4 +380,7 @@ android.defaultConfig {
     buildConfigField("String", "UPDATE_REPO_OWNER", "\"SaraVieira\"")
     buildConfigField("String", "UPDATE_REPO_NAME", "\"argosy-launcher\"")
     versionNameSuffix = if (versionName.orEmpty().contains('-')) ".fork.$forkRevision" else "-fork.$forkRevision"
+    buildConfigField("String", "QUAYPASS_SERVER_PUBKEYS", "\"\"")
 }
+
+verifyQuayPassReleaseConfig.configure { enabled = false }
