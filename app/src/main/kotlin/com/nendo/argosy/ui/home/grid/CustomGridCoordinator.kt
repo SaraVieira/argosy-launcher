@@ -61,6 +61,7 @@ class CustomGridCoordinator(
     private val featureFilterOptions: (suspend () -> FeatureFilterOptions)? = null,
     private val raGamePickerEntries: (suspend (String) -> List<TilePickerEntry>)? = null,
     private val onOpenOnScreen: ((HomeTileTargetRef, AppMenuRow.OpenOnScreen) -> Unit)? = null,
+    private val onAppFolderSetup: ((Long?, HomeTileTargetRef.AppFolder?) -> Unit)? = null,
     private val read: () -> CustomGridState,
     private val write: ((CustomGridState) -> CustomGridState) -> Unit
 ) {
@@ -394,6 +395,9 @@ class CustomGridCoordinator(
             CustomTileMenuAction.CROP_COVER -> setFocusedCoverScale(TileCoverScale.CROP)
             CustomTileMenuAction.EDIT_FILTERS -> editFocusedFeature()
             CustomTileMenuAction.EDIT_TILE -> editFocusedFeature()
+            CustomTileMenuAction.EDIT_FOLDER -> current.focusedTile?.let { tile ->
+                (tile.target as? HomeTileTargetRef.AppFolder)?.let { onAppFolderSetup?.invoke(tile.id, it) }
+            }
             CustomTileMenuAction.BROWSE_ACHIEVEMENTS -> browseFocusedRaTile()
             CustomTileMenuAction.REMOVE -> removeFocusedTile()
             CustomTileMenuAction.START_GAME_QUEUE -> startGameQueue()
@@ -997,6 +1001,11 @@ class CustomGridCoordinator(
             refreshPicker()
             return
         }
+        if (entry.target is HomeTileTargetRef.AppFolder && onAppFolderSetup != null) {
+            closePicker()
+            onAppFolderSetup.invoke(null, null)
+            return
+        }
         if (entry.target is HomeTileTargetRef.Media) {
             if (entry.isSeries) {
                 mediaSetupController.begin(entry)
@@ -1476,6 +1485,8 @@ class CustomGridCoordinator(
         write { it.copy(pendingAdd = null) }
         entry.gameId?.let(onResolved)
     }
+
+    fun retargetFolder(tileId: Long, target: HomeTileTargetRef.AppFolder) = retargetTile(tileId, target, emptyList())
 
     private fun retargetTile(tileId: Long, target: HomeTileTargetRef, playlist: List<String>) {
         val tiles = repository ?: return

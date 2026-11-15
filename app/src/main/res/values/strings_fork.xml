@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="fork_apps_menu_show_while_playing" translatable="false">Show while playing</string>
     <string name="fork_apps_menu_hide_while_playing" translatable="false">Hide while playing</string>
+
+    <string name="fork_home_folder_default_name">Folder</string>
+    <string name="fork_home_folder_new">New folder</string>
+    <string name="fork_home_folder_new_subtitle">Group any apps into one tile</string>
+    <plurals name="fork_home_folder_subtitle">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="fork_home_folder_edit">Edit folder</string>
+    <string name="fork_home_folder_name_title">Folder name</string>
+    <string name="fork_home_folder_name_next">Next</string>
+    <string name="fork_home_folder_cancel">Cancel</string>
+    <string name="fork_home_folder_pick_title">Apps in %1$s</string>
+    <string name="fork_home_folder_save">Save folder</string>
+    <string name="fork_home_folder_empty">No installed apps in this folder</string>
 </resources>

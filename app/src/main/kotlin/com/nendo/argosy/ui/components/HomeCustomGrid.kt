@@ -181,6 +181,7 @@ data class CustomGridTileContent(
     val media: com.nendo.argosy.ui.screens.home.HomeMediaUi? = null,
     val isMissing: Boolean = false,
     val packageName: String? = null,
+    val folderPackages: List<String> = emptyList(),
     val coverPath: String? = null,
     val posterUrl: String? = null,
     val subtitle: String? = null,
@@ -780,6 +781,11 @@ private fun CustomGridCellBox(
                 }
                 val cover = com.nendo.argosy.ui.common.rememberFileImageModel(content.coverPath)
                 when {
+                    content.folderPackages.isNotEmpty() ->
+                        com.nendo.argosy.ui.components.appfolder.AppFolderIconMosaic(
+                            packages = content.folderPackages,
+                            size = Dimens.iconXl
+                        )
                     appIcon != null -> coil.compose.AsyncImage(
                         model = appIcon,
                         contentDescription = null,
@@ -1158,6 +1164,12 @@ private fun WideTileBox(
                     .background(theme.surfaceBase)
             ) {
                 when {
+                    content.folderPackages.isNotEmpty() ->
+                        com.nendo.argosy.ui.components.appfolder.AppFolderIconMosaic(
+                            packages = content.folderPackages,
+                            size = Dimens.iconXl,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     appIcon != null -> coil.compose.AsyncImage(
                         model = appIcon,
                         contentDescription = null,

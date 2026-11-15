@@ -762,6 +762,19 @@ data class HomeUiState(
                     subtitle = context.getString(R.string.home_grid_tile_app_subtitle)
                 )
             }
+            is com.nendo.argosy.domain.model.HomeTileTargetRef.AppFolder -> {
+                val installed = target.packages.filter { it in tileApps }
+                com.nendo.argosy.ui.components.CustomGridTileContent(
+                    game = null,
+                    label = target.name.ifBlank { context.getString(R.string.fork_home_folder_default_name) },
+                    folderPackages = installed,
+                    subtitle = context.resources.getQuantityString(
+                        R.plurals.fork_home_folder_subtitle,
+                        installed.size,
+                        installed.size
+                    )
+                )
+            }
             is com.nendo.argosy.domain.model.HomeTileTargetRef.Media -> {
                 val media = tileMedia[target.itemId]
                 com.nendo.argosy.ui.components.CustomGridTileContent(

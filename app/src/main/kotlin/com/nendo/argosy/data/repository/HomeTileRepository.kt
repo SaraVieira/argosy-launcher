@@ -223,6 +223,10 @@ class HomeTileRepository @Inject constructor(
             is HomeTileTargetRef.VirtualCollection ->
                 base.copy(virtualType = target.type, virtualName = target.name)
             is HomeTileTargetRef.App -> base.copy(packageName = target.packageName)
+            is HomeTileTargetRef.AppFolder -> base.copy(
+                virtualName = target.name,
+                featureConfig = target.packages.joinToString(",")
+            )
             is HomeTileTargetRef.Media -> base.copy(
                 mediaItemId = target.itemId,
                 mediaPlayMode = target.playMode.name,
@@ -267,6 +271,7 @@ private fun HomeTileTargetRef.storedType(): String = when (this) {
     is HomeTileTargetRef.Collection -> HomeTileTarget.COLLECTION.name
     is HomeTileTargetRef.VirtualCollection -> HomeTileTarget.VIRTUAL_COLLECTION.name
     is HomeTileTargetRef.App -> HomeTileTarget.APP.name
+    is HomeTileTargetRef.AppFolder -> HomeTileTarget.APP_FOLDER.name
     is HomeTileTargetRef.Media -> HomeTileTarget.MEDIA.name
     is HomeTileTargetRef.LocalMedia -> HomeTileTarget.MEDIA.name
     is HomeTileTargetRef.Feature -> HomeTileTarget.FEATURE.name
@@ -409,6 +414,10 @@ private fun HomeTileEntity.resolveTarget(): HomeTileTargetRef =
             HomeTileTargetRef.VirtualCollection(type, virtualName.orEmpty())
         }
         HomeTileTarget.APP -> packageName?.let { HomeTileTargetRef.App(it) }
+        HomeTileTarget.APP_FOLDER -> HomeTileTargetRef.AppFolder(
+            name = virtualName.orEmpty(),
+            packages = featureConfig?.split(",")?.filter { it.isNotBlank() }?.distinct().orEmpty()
+        )
         HomeTileTarget.MEDIA -> mediaFilePath?.takeIf { it.isNotBlank() }
             ?.let { HomeTileTargetRef.LocalMedia(it) }
             ?: mediaItemId?.let {

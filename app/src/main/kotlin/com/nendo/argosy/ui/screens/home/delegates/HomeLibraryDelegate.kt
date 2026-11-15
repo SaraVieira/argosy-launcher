@@ -833,6 +833,23 @@ class HomeLibraryDelegate @Inject constructor(
         }.thenBy { it.label.lowercase() }
 
     suspend fun appsForTiles(query: String): List<com.nendo.argosy.ui.components.TilePickerEntry> =
+        newFolderEntry(query) + installedAppTileEntries(query)
+
+    private fun newFolderEntry(query: String): List<com.nendo.argosy.ui.components.TilePickerEntry> =
+        if (query.isNotBlank()) emptyList() else listOf(
+            com.nendo.argosy.ui.components.TilePickerEntry(
+                target = com.nendo.argosy.domain.model.HomeTileTargetRef.AppFolder(name = "", packages = emptyList()),
+                title = context.getString(R.string.fork_home_folder_new),
+                subtitle = context.getString(R.string.fork_home_folder_new_subtitle)
+            )
+        )
+
+    suspend fun installedAppsForFolder(): List<com.nendo.argosy.ui.components.appfolder.AppFolderApp> =
+        appsRepository.getInstalledApps(includeSystemApps = false)
+            .sortedBy { it.label.lowercase() }
+            .map { com.nendo.argosy.ui.components.appfolder.AppFolderApp(it.packageName, it.label) }
+
+    private suspend fun installedAppTileEntries(query: String): List<com.nendo.argosy.ui.components.TilePickerEntry> =
         appsRepository.getInstalledApps(includeSystemApps = false)
             .filter { query.isBlank() || it.label.lowercase().contains(query) }
             .sortedWith(tilePickerAppOrder)

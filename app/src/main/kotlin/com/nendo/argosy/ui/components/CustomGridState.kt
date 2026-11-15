@@ -38,6 +38,7 @@ enum class CustomTileMenuAction {
     CROP_COVER,
     EDIT_FILTERS,
     EDIT_TILE,
+    EDIT_FOLDER,
     BROWSE_ACHIEVEMENTS,
     REMOVE,
     START_GAME_QUEUE,
@@ -57,6 +58,7 @@ enum class CustomTileMenuAction {
             CROP_COVER -> R.string.custom_tile_menu_action_crop_cover
             EDIT_FILTERS -> R.string.custom_tile_menu_action_edit_filters
             EDIT_TILE -> R.string.custom_tile_menu_action_edit_tile
+            EDIT_FOLDER -> R.string.fork_home_folder_edit
             BROWSE_ACHIEVEMENTS -> R.string.custom_tile_menu_action_browse_achievements
             REMOVE -> R.string.custom_tile_menu_action_remove
             START_GAME_QUEUE -> R.string.custom_tile_menu_action_start_game_queue
@@ -556,6 +558,7 @@ data class CustomGridState(
             is HomeTileTargetRef.Media -> R.string.ui_custom_grid_confirm_play
             is HomeTileTargetRef.LocalMedia -> R.string.ui_custom_grid_confirm_play
             is HomeTileTargetRef.App -> R.string.ui_custom_grid_confirm_open
+            is HomeTileTargetRef.AppFolder -> R.string.ui_custom_grid_confirm_open
             is HomeTileTargetRef.Collection -> if (target.focusGameId != null) {
                 R.string.ui_custom_grid_confirm_play
             } else {
@@ -621,6 +624,7 @@ data class CustomGridState(
                 if (feature?.kind == FeatureTileKind.RA_SUMMARY && supportsRaTileSetup) {
                     add(CustomTileMenuAction.EDIT_TILE)
                 }
+                if (focused.target is HomeTileTargetRef.AppFolder) add(CustomTileMenuAction.EDIT_FOLDER)
                 if (focused.target.showsGameCover()) {
                     add(
                         if (focused.coverScale == TileCoverScale.FIT) {
