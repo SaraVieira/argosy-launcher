@@ -588,6 +588,7 @@ class PlaySessionTracker @Inject constructor(
                 DualScreenManagerHolder.instance?.assignEmulatorDisplayForSessionStart()
 
                 broadcastSessionChanged(gameId, channelName, isHardcore)
+                game?.let { com.nendo.argosy.fork.CocoonLaunchLog.write(fileAccessLayer, it, startTime) }
 
                 if (isNewGame && game != null && game.playCount <= 1) {
                     socialRepository.get().emitStartedPlaying(

@@ -5,9 +5,23 @@ It installs as `dev.saravieira.argosy` (debug: `dev.saravieira.argosy.debug`) ne
 and its in-app updater reads releases from `SaraVieira/argosy-launcher`.
 
 Fork-only changes live in the block at the end of `app/build.gradle.kts`, this file,
-`.github/workflows/fork-release.yml` and the `com.nendo.argosy.fork` package (main and test). The fork
-package is reached from upstream code in exactly one place: `DualScreenManager.launchCompanionApp`,
-plus its import. Everything else should be upstream-ready.
+`.github/workflows/fork-release.yml` and the `com.nendo.argosy.fork` package (main and test). Upstream
+code reaches the fork package in two places: `DualScreenManager.launchCompanionApp` (plus its import)
+and one line in `PlaySessionTracker.startSession`. Everything else should be upstream-ready.
+
+## Game Twin launch log
+
+Every game launch, built-in or external, overwrites `Argosy/launch_debug.log` on primary storage
+(`/storage/emulated/0/Argosy/` for the main user) with one Cocoon-format launch block. Game Twin reads it
+with no changes on its side:
+
+1. In Game Twin, set the last-played source to **Cocoon**.
+2. Pick the `Argosy` folder as the Cocoon folder.
+3. Launch a game from Argosy. Game Twin switches to it within a few seconds.
+
+The block carries the game title, the ROM path when the game has a local file, and an
+`argosy://launch?game_id=` intent, so starting the game from Game Twin goes back through Argosy. It's
+always on and needs Argosy's storage permission.
 
 ## Now-playing handoff
 
