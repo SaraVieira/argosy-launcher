@@ -2075,6 +2075,11 @@ class DualScreenManager(
         )
         add(
             com.nendo.argosy.ui.components.AppMenuRow.Action(
+                com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_IN_GAME
+            )
+        )
+        add(
+            com.nendo.argosy.ui.components.AppMenuRow.Action(
                 com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_VISIBILITY
             )
         )
@@ -2092,6 +2097,8 @@ class DualScreenManager(
             is com.nendo.argosy.ui.components.AppMenuRow.Action -> when (row.item) {
                 com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_SECONDARY_HOME ->
                     activityIndependentScope.launch { appShortcutActions.togglePinned(packageName) }
+                com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_IN_GAME ->
+                    activityIndependentScope.launch { preferencesRepository.toggleInGamePin(packageName) }
                 com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_VISIBILITY ->
                     activityIndependentScope.launch { appShortcutActions.toggleHidden(packageName) }
                 com.nendo.argosy.ui.components.AppContextMenuItem.UNINSTALL ->

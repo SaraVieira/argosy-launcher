@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.preferences
 
+import com.nendo.argosy.fork.InGameAppPins
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -27,6 +28,7 @@ data class AppPreferences(
     val closeEmulatorOnSessionEnd: Boolean = false,
     val hiddenApps: Set<String> = emptySet(),
     val secondaryHomeApps: List<String> = emptyList(),
+    val inGameApps: List<String> = InGameAppPins.DEFAULT,
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
     val lastSeenVersion: String? = null,
@@ -66,6 +68,7 @@ class AppPreferencesRepository @Inject constructor(
         val CLOSE_EMULATOR_ON_SESSION_END = booleanPreferencesKey("close_emulator_on_session_end")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SECONDARY_HOME_APPS = stringPreferencesKey("secondary_home_apps")
+        val IN_GAME_APPS = stringPreferencesKey("fork_in_game_apps")
         val VISIBLE_SYSTEM_APPS = stringPreferencesKey("visible_system_apps")
         val APP_ORDER = stringPreferencesKey("app_order")
         val PLATFORM_ORDER_CUSTOMISED = booleanPreferencesKey("platform_order_customised")
@@ -110,6 +113,7 @@ class AppPreferencesRepository @Inject constructor(
                 ?.toSet()
                 ?: emptySet(),
             secondaryHomeApps = parseDockPins(prefs[Keys.SECONDARY_HOME_APPS]),
+            inGameApps = prefs[Keys.IN_GAME_APPS]?.let(::parseDockPins) ?: InGameAppPins.DEFAULT,
             visibleSystemApps = prefs[Keys.VISIBLE_SYSTEM_APPS]
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
@@ -250,6 +254,18 @@ class AppPreferencesRepository @Inject constructor(
             val pins = if (pinned) current + packageName else current - packageName
             if (pins.isEmpty()) prefs.remove(Keys.SECONDARY_HOME_APPS)
             else prefs[Keys.SECONDARY_HOME_APPS] = pins.joinToString(",")
+        }
+        return pinned
+    }
+
+    suspend fun toggleInGamePin(packageName: String): Boolean {
+        require(packageName.isNotBlank())
+        var pinned = false
+        dataStore.edit { prefs ->
+            val current = prefs[Keys.IN_GAME_APPS]?.let(::parseDockPins) ?: InGameAppPins.DEFAULT
+            pinned = packageName !in current
+            val pins = if (pinned) current + packageName else current - packageName
+            prefs[Keys.IN_GAME_APPS] = pins.joinToString(",")
         }
         return pinned
     }

@@ -99,9 +99,11 @@ class DashboardActions(
     val onQuit: () -> Unit,
     val onOpenDocument: (GameDocument) -> Unit,
     val onNextDisc: () -> Unit,
-    val gameTwinLabel: String? = null,
-    val onOpenGameTwin: () -> Unit = {}
+    val pinnedApps: List<DashboardAppShortcut> = emptyList(),
+    val onOpenApp: (String) -> Unit = {}
 )
+
+data class DashboardAppShortcut(val packageName: String, val label: String)
 
 private val RAIL_WIDTH = DimensionTokens.Layout.companionRailWidth.dp
 private val RAIL_WIDTH_WIDE = DimensionTokens.Layout.companionRailWidthWide.dp
@@ -318,15 +320,13 @@ private fun DashboardRail(
                     onTap = { onSelect(section) }
                 )
             }
-            content.actions.gameTwinLabel?.let { label ->
-                item(key = "game_twin") {
-                    RailItem(
-                        icon = Icons.AutoMirrored.Filled.OpenInNew,
-                        label = label,
-                        wide = wide,
-                        onTap = content.actions.onOpenGameTwin
-                    )
-                }
+            items(content.actions.pinnedApps, key = { "app:" + it.packageName }) { app ->
+                RailItem(
+                    icon = Icons.AutoMirrored.Filled.OpenInNew,
+                    label = app.label,
+                    wide = wide,
+                    onTap = { content.actions.onOpenApp(app.packageName) }
+                )
             }
             if (controls.cheatsAvailable) {
                 item(key = "cheats") {

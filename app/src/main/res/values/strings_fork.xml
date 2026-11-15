@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fork_apps_menu_show_while_playing" translatable="false">Show while playing</string>
+    <string name="fork_apps_menu_hide_while_playing" translatable="false">Hide while playing</string>
+</resources>
