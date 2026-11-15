@@ -25,6 +25,7 @@ import com.nendo.argosy.data.repository.SaveCacheManager
 import com.nendo.argosy.hardware.CompanionGuardService
 import com.nendo.argosy.util.DisplayRoleResolver
 import com.nendo.argosy.util.Logger
+import com.nendo.argosy.fork.putNowPlaying
 import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.data.remote.ra.RAConsoleIds
 import com.nendo.argosy.ui.common.displayTitleId
@@ -2513,6 +2514,10 @@ class DualScreenManager(
             }
         }
         scope.launch {
+            if (_swappedIsGameActive.value) {
+                com.nendo.argosy.fork.loadNowPlaying(companionSessionGameId, gameDao, sessionStateStore)
+                    ?.let { intent.putNowPlaying(it) }
+            }
             val prefs = preferencesRepository.userPreferences.first()
             val options = displayAffinityHelper.getAppLaunchOptions(
                 preferredScreenKey = pinnedScreenKey ?: prefs.appDisplayTargets[packageName],
