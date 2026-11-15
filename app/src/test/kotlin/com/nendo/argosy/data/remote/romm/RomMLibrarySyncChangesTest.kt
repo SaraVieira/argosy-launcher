@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.remote.romm
 
+import com.nendo.argosy.data.local.InlineRoomTransactions
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PendingSyncQueueDao
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -19,6 +20,7 @@ import io.mockk.slot
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -64,8 +66,16 @@ class RomMLibrarySyncChangesTest {
         sha1Hash = null
     )
 
+    private val transactions = InlineRoomTransactions()
+
+    @After
+    fun releaseTransactions() {
+        transactions.release()
+    }
+
     @Before
     fun setup() {
+        transactions.install()
         api = mockk(relaxed = true)
         apiClient = mockk(relaxed = true)
         gameDao = mockk(relaxed = true)

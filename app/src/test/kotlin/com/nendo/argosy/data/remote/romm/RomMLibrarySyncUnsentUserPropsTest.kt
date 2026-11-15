@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.remote.romm
 
+import com.nendo.argosy.data.local.InlineRoomTransactions
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.GameUserOverlayDao
 import com.nendo.argosy.data.local.dao.PendingSyncQueueDao
@@ -19,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -92,8 +94,16 @@ class RomMLibrarySyncUnsentUserPropsTest {
         source = GameSource.ROMM_REMOTE
     )
 
+    private val transactions = InlineRoomTransactions()
+
+    @After
+    fun releaseTransactions() {
+        transactions.release()
+    }
+
     @Before
     fun setup() {
+        transactions.install()
         api = mockk(relaxed = true)
         apiClient = mockk(relaxed = true)
         gameDao = mockk(relaxed = true)
