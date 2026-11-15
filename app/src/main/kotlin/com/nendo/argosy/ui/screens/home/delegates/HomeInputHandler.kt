@@ -106,6 +106,7 @@ interface HomeInputActions {
 
     fun openEngagedFullscreen()
     fun launchTileApp(packageName: String)
+    fun openAppFolder(target: com.nendo.argosy.domain.model.HomeTileTargetRef.AppFolder) {}
     fun openTileCollection(collectionId: Long)
     fun openTileLibraryLink(filters: com.nendo.argosy.domain.model.LibraryLinkFilters)
     fun playTileMedia(itemId: String)
@@ -383,6 +384,8 @@ class HomeInputHandler(
                 activateTileGame(target.gameId, state)
             is com.nendo.argosy.domain.model.HomeTileTargetRef.App ->
                 actions.launchTileApp(target.packageName)
+            is com.nendo.argosy.domain.model.HomeTileTargetRef.AppFolder ->
+                actions.openAppFolder(target)
             is com.nendo.argosy.domain.model.HomeTileTargetRef.Collection ->
                 if (target.focusGameId != null) {
                     activateTileGame(target.focusGameId, state)

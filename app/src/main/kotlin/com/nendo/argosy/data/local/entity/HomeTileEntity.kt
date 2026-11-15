@@ -86,4 +86,4 @@ data class HomeTileEntity(
  * What a tile points at. Stored as a string so an unknown value from a newer build reads back as
  * unresolvable instead of throwing.
  */
-enum class HomeTileTarget { GAME, COLLECTION, VIRTUAL_COLLECTION, APP, MEDIA, FEATURE, FOLDER, IMAGE, STICKER }
+enum class HomeTileTarget { GAME, COLLECTION, VIRTUAL_COLLECTION, APP, MEDIA, FEATURE, FOLDER, IMAGE, STICKER, APP_FOLDER }

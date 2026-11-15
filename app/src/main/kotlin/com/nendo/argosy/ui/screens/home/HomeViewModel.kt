@@ -255,6 +255,7 @@ class HomeViewModel @Inject constructor(
         raGamePickerEntries = { query -> libraryDelegate.searchRaCompatibleForTiles(query) },
         onOpenOnScreen = { target, screen -> openTileOnScreen(target, screen) },
         autoFolderGames = { rule -> resolveAutoFolderGames(rule) },
+        onAppFolderSetup = { tileId, folder -> beginAppFolderSetup(tileId, folder) },
         read = { _uiState.value.customGrid },
         write = { transform -> _uiState.update { it.copy(customGrid = transform(it.customGrid)) } }
     )
@@ -623,6 +624,12 @@ class HomeViewModel @Inject constructor(
             detail(
                 title = name,
                 subtitle = context.getString(R.string.home_grid_tile_app_subtitle)
+            )
+        }
+        is HomeTileTargetRef.AppFolder -> target.packages.count { it in state.tileApps }.let { count ->
+            detail(
+                title = folderName(target),
+                subtitle = context.resources.getQuantityString(R.plurals.fork_home_folder_subtitle, count, count)
             )
         }
         is HomeTileTargetRef.Media -> state.tileMedia[target.itemId]?.let { media ->
@@ -1223,7 +1230,13 @@ class HomeViewModel @Inject constructor(
             shown.mapNotNull { (it.target as? HomeTileTargetRef.Collection)?.collectionId }.distinct()
         )
         val apps = libraryDelegate.resolveTileApps(
-            shown.mapNotNull { (it.target as? HomeTileTargetRef.App)?.packageName }.distinct()
+            shown.flatMap {
+                when (val target = it.target) {
+                    is HomeTileTargetRef.App -> listOf(target.packageName)
+                    is HomeTileTargetRef.AppFolder -> target.packages
+                    else -> emptyList()
+                }
+            }.distinct()
         )
         val showcases = resolveTileShowcases(shown, libraryLinks, collections, folders)
         mediaDelegate.selectTileItems(
@@ -1742,6 +1755,57 @@ class HomeViewModel @Inject constructor(
      * collections screen rather than pretending to filter something.
      */
     override fun launchTileApp(packageName: String) = launchApp(packageName)
+
+    private val _appFolderOpen = MutableStateFlow<com.nendo.argosy.ui.components.appfolder.AppFolderOpen?>(null)
+    val appFolderOpen: StateFlow<com.nendo.argosy.ui.components.appfolder.AppFolderOpen?> get() = _appFolderOpen
+
+    private val _appFolderDraft = MutableStateFlow<com.nendo.argosy.ui.components.appfolder.AppFolderDraft?>(null)
+    val appFolderDraft: StateFlow<com.nendo.argosy.ui.components.appfolder.AppFolderDraft?> get() = _appFolderDraft
+
+    private fun folderName(target: HomeTileTargetRef.AppFolder): String =
+        target.name.ifBlank { context.getString(R.string.fork_home_folder_default_name) }
+
+    override fun openAppFolder(target: HomeTileTargetRef.AppFolder) {
+        val labels = _uiState.value.tileApps
+        _appFolderOpen.value = com.nendo.argosy.ui.components.appfolder.AppFolderOpen(
+            name = folderName(target),
+            apps = target.packages.mapNotNull { packageName ->
+                labels[packageName]?.let { com.nendo.argosy.ui.components.appfolder.AppFolderApp(packageName, it) }
+            }
+        )
+    }
+
+    fun closeAppFolder() {
+        _appFolderOpen.value = null
+    }
+
+    fun launchFromAppFolder(packageName: String) {
+        _appFolderOpen.value = null
+        launchApp(packageName)
+    }
+
+    private fun beginAppFolderSetup(tileId: Long?, folder: HomeTileTargetRef.AppFolder?) {
+        viewModelScope.launch {
+            _appFolderDraft.value = com.nendo.argosy.ui.components.appfolder.AppFolderDraft(
+                tileId = tileId,
+                name = folder?.name.orEmpty(),
+                selected = folder?.packages.orEmpty(),
+                apps = libraryDelegate.installedAppsForFolder()
+            )
+        }
+    }
+
+    fun saveAppFolder(name: String, packages: List<String>) {
+        val draft = _appFolderDraft.value ?: return
+        _appFolderDraft.value = null
+        val target = HomeTileTargetRef.AppFolder(name, packages)
+        val tileId = draft.tileId
+        if (tileId != null) customGrid.retargetFolder(tileId, target) else customGrid.placeOnFocusedCell(target)
+    }
+
+    fun cancelAppFolderSetup() {
+        _appFolderDraft.value = null
+    }
 
     private fun launchApp(packageName: String, pinnedScreenKey: String? = null) {
         val intent = appsRepository.getLaunchIntent(packageName) ?: return

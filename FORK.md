@@ -12,10 +12,22 @@ code reaches the fork package in these places:
 - one line in `PlaySessionTracker.startSession`
 - the in-game dashboard's pinned apps: `dashboardActions` and the pins collection in `PresentationSlotContent`,
   and the `pinnedApps` / `onOpenApp` fields of `DashboardActions` with their rail items in `InGameDashboard`
+- the app folder tile: `HomeTileTargetRef.AppFolder` and `HomeTileTarget.APP_FOLDER` (stored in the
+  existing `virtualName` / `featureConfig` columns, no migration), the picker's New folder entry, the
+  `EDIT_FOLDER` tile menu action, and the folder modals in `ui/components/appfolder/`, hosted by
+  `HomeViewModel` / `HomeScreen`
 - the "Show while playing" menu item: `AppContextMenuItem.TOGGLE_IN_GAME`, the `fork_in_game_apps` key in
   `AppPreferencesRepository`, the Apps screen menu and the in-game dock's hold menu (`appMenuRowsFor`)
 
 Everything else should be upstream-ready.
+
+## App folders on the home grid
+
+The tile picker's Apps tab starts with **New folder**: name it, tick any installed apps (games or not), and
+save. The tile shows the first four icons and opens a grid of its apps; A or a tap launches one, B closes.
+**Edit folder** in the tile menu changes the name or the apps. Apps that are no longer installed are
+skipped. The folder's name lives in the tile's `virtualName` column and its apps, in order, in
+`featureConfig`.
 
 ## Apps on the in-game dashboard
 

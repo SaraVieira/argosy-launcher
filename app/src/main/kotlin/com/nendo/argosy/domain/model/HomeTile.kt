@@ -66,6 +66,7 @@ sealed interface HomeTileTargetRef {
     ) : HomeTileTargetRef
     data class VirtualCollection(val type: String, val name: String) : HomeTileTargetRef
     data class App(val packageName: String) : HomeTileTargetRef
+    data class AppFolder(val name: String, val packages: List<String>) : HomeTileTargetRef
 
     /**
      * A show or a film on the media server. It is the item's own id rather than an episode's, because

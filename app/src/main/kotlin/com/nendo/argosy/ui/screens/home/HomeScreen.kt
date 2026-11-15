@@ -1769,6 +1769,24 @@ fun HomeScreen(
             )
         }
 
+        val appFolderOpen by viewModel.appFolderOpen.collectAsState()
+        appFolderOpen?.let { folder ->
+            com.nendo.argosy.ui.components.appfolder.AppFolderOverlay(
+                folder = folder,
+                onLaunch = viewModel::launchFromAppFolder,
+                onDismiss = viewModel::closeAppFolder
+            )
+        }
+
+        val appFolderDraft by viewModel.appFolderDraft.collectAsState()
+        appFolderDraft?.let { draft ->
+            com.nendo.argosy.ui.components.appfolder.AppFolderSetupFlow(
+                draft = draft,
+                onSave = viewModel::saveAppFolder,
+                onDismiss = viewModel::cancelAppFolderSetup
+            )
+        }
+
         val mediaTileNotice = uiState.mediaTileNotice
         if (mediaTileNotice != null) {
             com.nendo.argosy.ui.primitives.ArgosyConfirmModal(

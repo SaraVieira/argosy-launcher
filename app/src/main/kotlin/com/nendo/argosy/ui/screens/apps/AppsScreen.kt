@@ -384,7 +384,7 @@ fun AppsScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppCard(
+internal fun AppCard(
     packageName: String,
     label: String,
     isFocused: Boolean,
