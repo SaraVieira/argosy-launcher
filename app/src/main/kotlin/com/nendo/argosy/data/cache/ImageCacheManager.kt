@@ -302,10 +302,10 @@ class ImageCacheManager @Inject constructor(
     private val _screenshotProgress = kotlinx.coroutines.flow.MutableStateFlow(ImageCacheProgress())
     val screenshotProgress: kotlinx.coroutines.flow.StateFlow<ImageCacheProgress> = _screenshotProgress
 
-    @Volatile private var isPaused = false
+    private val backgroundPause = BackgroundCachingPause()
     @Volatile private var heldForPlay = false
 
-    private val isHeld: Boolean get() = isPaused || heldForPlay
+    private val isHeld: Boolean get() = backgroundPause.isPaused || heldForPlay
 
     /**
      * Holds background caching while a game is being played, independent of the pause a screen
@@ -317,14 +317,16 @@ class ImageCacheManager @Inject constructor(
         Log.d(TAG, "Background caching ${if (held) "held for play" else "released after play"}")
     }
 
-    fun pauseBackgroundCaching() {
-        isPaused = true
-        Log.d(TAG, "Background caching paused")
+    /**
+     * Pauses background caching on behalf of [owner] until the same owner calls
+     * [resumeBackgroundCaching]. Caching stays paused while any owner holds a pause.
+     */
+    fun pauseBackgroundCaching(owner: Any) {
+        if (backgroundPause.pause(owner)) Log.d(TAG, "Background caching paused")
     }
 
-    fun resumeBackgroundCaching() {
-        isPaused = false
-        Log.d(TAG, "Background caching resumed")
+    fun resumeBackgroundCaching(owner: Any) {
+        if (backgroundPause.resume(owner)) Log.d(TAG, "Background caching resumed")
     }
 
     fun queueBackgroundCache(url: String, rommId: Long, gameTitle: String = "") =

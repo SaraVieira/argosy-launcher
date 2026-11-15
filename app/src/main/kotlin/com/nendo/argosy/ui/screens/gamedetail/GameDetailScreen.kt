@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleStartEffect
 import coil.compose.AsyncImage
 import com.nendo.argosy.DualScreenManagerHolder
 import com.nendo.argosy.R
@@ -141,6 +142,11 @@ fun GameDetailScreen(
 
     LaunchedEffect(gameId) {
         viewModel.loadGame(gameId)
+    }
+
+    LifecycleStartEffect(viewModel) {
+        viewModel.onScreenStarted()
+        onStopOrDispose { viewModel.onScreenStopped() }
     }
 
     val pendingLaunch by argosyViewModel.pendingLaunch.collectAsState()
