@@ -80,7 +80,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nendo.argosy.R
-import com.nendo.argosy.data.social.FriendActivity
 import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.domain.model.PresentationArt
 import com.nendo.argosy.domain.model.PresentationLayout
@@ -102,7 +101,6 @@ import com.nendo.argosy.ui.components.LocalFrostedBackdrop
 import com.nendo.argosy.ui.components.frostedBackdropSource
 import com.nendo.argosy.ui.components.rememberFrostedBackdrop
 import com.nendo.argosy.ui.components.PlatformIconAssets
-import com.nendo.argosy.ui.components.friends.FriendsActivityBadge
 import com.nendo.argosy.ui.theme.ALauncherColors
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalArgosyTheme
@@ -203,7 +201,6 @@ private fun GameShowcaseContent(
 ) {
     val contentBottom = bottomInset + Dimens.spacingMd
     val theme = LocalArgosyTheme.current
-    val friends = heldDetail?.stats?.friends.orEmpty().takeIf { style.shows(PresentationStat.FRIENDS) }.orEmpty()
     val backdrop = LocalFrostedBackdrop.current ?: rememberFrostedBackdrop()
     val backgroundBlurRadius = when (style.scrim) {
         PresentationScrim.GRADIENT -> backgroundBlur.backgroundBlurDp
@@ -323,7 +320,6 @@ private fun GameShowcaseContent(
                 PresentationLayout.JOURNAL -> JournalShowcase(
                     detail = heldDetail,
                     style = style,
-                    friends = friends,
                     gutter = gutter,
                     bottom = contentBottom,
                     columnWidth = viewportWidth * JOURNAL_COLUMN_WIDTH_SHARE,
@@ -616,7 +612,6 @@ private fun GameHeroMetadata(
     showsRunning: Boolean
 ) {
     val theme = LocalArgosyTheme.current
-    val friends = detail.stats?.friends.orEmpty().takeIf { style.shows(PresentationStat.FRIENDS) }.orEmpty()
     val journey = rememberJourney(detail.stats, style)
     val items = detail.stats?.let { showcaseRailItems(it, style, journeyShown = journey != null) }.orEmpty()
     val developer = items.firstOrNull { it.first == PresentationStat.DEVELOPER }?.second?.text
@@ -642,22 +637,15 @@ private fun GameHeroMetadata(
                 }
                 if (showsRunning) ShowcaseRunningLine(detail)
             }
-            val friendsAfterRatings = friends.isNotEmpty() && rows.any { it.first == RailGroup.RATINGS }
             rows.forEachIndexed { index, row ->
                 Box(Modifier.padding(top = if (index == 0) Dimens.spacingMd else Dimens.spacingSm)) {
                     ShowcaseRailRow(row.second)
-                }
-                if (friendsAfterRatings && row.first == RailGroup.RATINGS) {
-                    ShowcaseFriendsPill(friends = friends, modifier = Modifier.padding(top = Dimens.spacingSm))
                 }
             }
             journey?.let {
                 Box(Modifier.padding(top = Dimens.spacingMd)) {
                     ShowcaseJourneyBar(journey = it)
                 }
-            }
-            if (friends.isNotEmpty() && !friendsAfterRatings) {
-                ShowcaseFriendsPill(friends = friends, modifier = Modifier.padding(top = Dimens.spacingMd))
             }
         }
     }
@@ -667,7 +655,6 @@ private fun GameHeroMetadata(
 private fun JournalShowcase(
     detail: CompanionDetail,
     style: PresentationStyle,
-    friends: List<FriendActivity>,
     gutter: Dp,
     bottom: Dp,
     columnWidth: Dp,
@@ -715,9 +702,6 @@ private fun JournalShowcase(
         Box(modifier = Modifier.weight(1f))
         if (ratings.isNotEmpty()) ShowcaseRailRow(ratings)
         stats?.let { JournalJourneyCard(stats = it, style = style) }
-        if (friends.isNotEmpty()) {
-            FriendsActivityBadge(friends = friends, textColor = theme.textPrimary)
-        }
     }
 }
 
@@ -978,19 +962,6 @@ private fun ShowcaseImage(
     )
 }
 
-@Composable
-private fun ShowcaseFriendsPill(friends: List<FriendActivity>, modifier: Modifier = Modifier) {
-    val theme = LocalArgosyTheme.current
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(Dimens.radiusPill))
-            .background(theme.surfaceBase.copy(alpha = PILL_ALPHA))
-            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingXs)
-    ) {
-        FriendsActivityBadge(friends = friends, textColor = theme.textPrimary)
-    }
-}
-
 private data class RailItem(val icon: ImageVector?, val tint: Color?, val text: String)
 
 @Composable
@@ -1009,7 +980,7 @@ private enum class RailGroup { FACTS, RATINGS, PROGRESS }
 private val PresentationStat.railGroup: RailGroup
     get() = when (this) {
         PresentationStat.DEVELOPER, PresentationStat.RELEASE_YEAR, PresentationStat.PLAYERS,
-        PresentationStat.GENRE, PresentationStat.FRIENDS -> RailGroup.FACTS
+        PresentationStat.GENRE -> RailGroup.FACTS
         PresentationStat.COMMUNITY_RATING, PresentationStat.USER_RATING,
         PresentationStat.DIFFICULTY -> RailGroup.RATINGS
         PresentationStat.PLAY_TIME, PresentationStat.TIME_TO_BEAT,
@@ -1048,7 +1019,6 @@ private fun showcaseRailItems(
             PresentationStat.ACHIEVEMENTS -> stats.achievementCount.takeIf {
                 it > 0 && style.layout != PresentationLayout.JOURNAL
             }?.let { RailItem(Icons.Filled.EmojiEvents, ALauncherColors.TrophyAmber, "${stats.earnedAchievementCount}/$it") }
-            PresentationStat.FRIENDS -> null
         }?.let { stat to it }
     }
 }

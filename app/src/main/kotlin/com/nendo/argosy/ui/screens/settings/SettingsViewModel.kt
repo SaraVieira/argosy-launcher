@@ -15,9 +15,7 @@ import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchConfigParser
-import com.nendo.argosy.data.repository.CoreOptionsRepository
 import com.nendo.argosy.data.repository.EmulatorConfigRepository
-import com.nendo.argosy.data.repository.LibretroSettingsRepository
 import com.nendo.argosy.data.repository.PlatformRepository
 import android.net.Uri
 import com.nendo.argosy.data.local.dao.SaveCacheDao
@@ -34,13 +32,8 @@ import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.model.CustomGridShape
 import com.nendo.argosy.domain.model.ArgosyPermission
 import com.nendo.argosy.data.permissions.PermissionGrant
-import com.nendo.argosy.data.social.SocialAuthManager
-import com.nendo.argosy.data.social.SocialConnectionState
-import com.nendo.argosy.data.social.SocialRepository
-import com.nendo.argosy.data.social.discord.DiscordPresenceManager
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryUseCase
-import com.nendo.argosy.libretro.LibretroCoreManager
 import com.nendo.argosy.ui.ModalResetSignal
 import com.nendo.argosy.ui.input.HapticFeedbackManager
 import com.nendo.argosy.ui.input.HapticPattern
@@ -51,7 +44,6 @@ import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.core.notification.NotificationManager
 import com.nendo.argosy.core.notification.NotificationText
 import com.nendo.argosy.R
-import com.nendo.argosy.ui.screens.settings.components.ScopedMapping
 import com.nendo.argosy.ui.screens.settings.delegates.AccountsSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.AmbientAudioSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.BiosSettingsDelegate
@@ -73,7 +65,6 @@ import com.nendo.argosy.ui.screens.settings.sections.emulatorsItemAtFocusIndex
 import com.nendo.argosy.ui.components.TextEntryRow
 import com.nendo.argosy.ui.components.connections.QuickConnectionsController
 import com.nendo.argosy.ui.components.connections.QuickConnectionsInputHandler
-import com.nendo.argosy.core.emulator.LibretroSettingDef
 import com.nendo.argosy.util.LogLevel
 import com.nendo.argosy.util.PlatformFilterLogic
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -82,16 +73,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -107,8 +94,6 @@ class SettingsViewModel @Inject constructor(
     internal val hapticManager: HapticFeedbackManager,
     internal val platformRepository: PlatformRepository,
     private val reorderPlatforms: com.nendo.argosy.domain.usecase.platform.ReorderPlatformsUseCase,
-    internal val libretroSettingsRepo: LibretroSettingsRepository,
-    internal val touchLayoutRepository: com.nendo.argosy.data.repository.TouchLayoutRepository,
     internal val launchArgsRepo: com.nendo.argosy.data.repository.LaunchArgsRepository,
     internal val keepAlivePolicy: com.nendo.argosy.data.emulator.background.KeepAlivePolicy,
     internal val installedAppResolver: com.nendo.argosy.data.platform.InstalledAppResolver,
@@ -154,22 +139,14 @@ class SettingsViewModel @Inject constructor(
     val clientCertDelegate: ClientCertDelegate,
     val permissionsDelegate: PermissionsSettingsDelegate,
     val biosDelegate: BiosSettingsDelegate,
-    val driversDelegate: com.nendo.argosy.ui.screens.settings.delegates.DriversSettingsDelegate,
     val aboutTools: com.nendo.argosy.ui.screens.settings.delegates.AboutToolsDelegate,
     internal val modalResetSignal: ModalResetSignal,
     internal val gradientColorExtractor: GradientColorExtractor,
-    internal val coreManager: LibretroCoreManager,
     internal val inputConfigRepository: com.nendo.argosy.data.repository.InputConfigRepository,
-    private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker,
-    internal val frameRegistry: com.nendo.argosy.libretro.frame.FrameRegistry,
     internal val displayAffinityHelper: com.nendo.argosy.util.DisplayAffinityHelper,
     internal val lidSleepGuard: com.nendo.argosy.hardware.LidSleepGuard,
     internal val emulatorLaunchTargetResolver: com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver,
     internal val appsRepository: com.nendo.argosy.data.repository.AppsRepository,
-    internal val socialRepository: SocialRepository,
-    internal val discordPresenceManager: DiscordPresenceManager,
-    internal val coreOptionsRepo: CoreOptionsRepository,
-    internal val vulkanDriverRepository: com.nendo.argosy.data.emulator.VulkanDriverRepository,
     private val playStatsRepo: com.nendo.argosy.data.repository.PlayStatsRepository,
     private val biosRepository: com.nendo.argosy.data.repository.BiosRepository,
     private val savePathValidator: com.nendo.argosy.data.emulator.SavePathValidator,
@@ -236,9 +213,6 @@ class SettingsViewModel @Inject constructor(
     internal val _grantPermissionEvent = MutableSharedFlow<ArgosyPermission>()
     val grantPermissionEvent: SharedFlow<ArgosyPermission> = _grantPermissionEvent.asSharedFlow()
 
-    internal val _requestBlePermissionEvent = MutableSharedFlow<Unit>()
-    val requestBlePermissionEvent: SharedFlow<Unit> = _requestBlePermissionEvent.asSharedFlow()
-
     internal val _requestScreenCapturePermissionEvent = MutableSharedFlow<Unit>()
     val requestScreenCapturePermissionEvent: SharedFlow<Unit> = _requestScreenCapturePermissionEvent.asSharedFlow()
 
@@ -262,26 +236,9 @@ class SettingsViewModel @Inject constructor(
     val openMusicBrowserSfxEvent: SharedFlow<SoundType> = soundsDelegate.openMusicBrowserSfxEvent
     val launchPlatformFolderPicker: SharedFlow<Long> = storageDelegate.launchPlatformFolderPicker
     val launchSavePathPicker: SharedFlow<Unit> = emulatorDelegate.launchSavePathPicker
-    val builtinNavigationEvent = emulatorDelegate.builtinNavigationEvent
-
-    private val _avatarEditorEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
-    val avatarEditorEvent: kotlinx.coroutines.flow.SharedFlow<Unit> = _avatarEditorEvent
     val launchPlatformSavePathPicker: SharedFlow<Long> = storageDelegate.launchSavePathPicker
     val resetPlatformSavePathEvent: SharedFlow<Long> = storageDelegate.resetSavePathEvent
     val launchPlatformStatePathPicker: SharedFlow<Long> = storageDelegate.launchStatePathPicker
-    private val _launchBuiltinSavePathPicker = MutableSharedFlow<Unit>()
-    val launchBuiltinSavePathPicker: SharedFlow<Unit> = _launchBuiltinSavePathPicker
-    private val _launchBuiltinStatePathPicker = MutableSharedFlow<Unit>()
-    val launchBuiltinStatePathPicker: SharedFlow<Unit> = _launchBuiltinStatePathPicker
-    private val _launchPlatformBuiltinSavePathPicker = MutableSharedFlow<Long>()
-    val launchPlatformBuiltinSavePathPicker: SharedFlow<Long> = _launchPlatformBuiltinSavePathPicker
-    private val _launchPlatformBuiltinStatePathPicker = MutableSharedFlow<Long>()
-    val launchPlatformBuiltinStatePathPicker: SharedFlow<Long> = _launchPlatformBuiltinStatePathPicker
-
-    fun openBuiltinSavePathBrowser() { viewModelScope.launch { _launchBuiltinSavePathPicker.emit(Unit) } }
-    fun openBuiltinStatePathBrowser() { viewModelScope.launch { _launchBuiltinStatePathPicker.emit(Unit) } }
-    fun openPlatformBuiltinSavePathBrowser(platformId: Long) { viewModelScope.launch { _launchPlatformBuiltinSavePathPicker.emit(platformId) } }
-    fun openPlatformBuiltinStatePathBrowser(platformId: Long) { viewModelScope.launch { _launchPlatformBuiltinStatePathPicker.emit(platformId) } }
     val resetPlatformStatePathEvent: SharedFlow<Long> = storageDelegate.resetStatePathEvent
     val openImageCachePickerEvent: SharedFlow<Unit> = syncDelegate.openImageCachePickerEvent
     val hardResetCompletedEvent: SharedFlow<Unit> = storageDelegate.hardResetCompletedEvent
@@ -302,10 +259,6 @@ class SettingsViewModel @Inject constructor(
     val openCertificatePickerEvent: SharedFlow<Unit> =
         _openCertificatePickerEvent.asSharedFlow()
 
-    internal val _openCustomFramePickerEvent = MutableSharedFlow<Unit>()
-    val openCustomFramePickerEvent: SharedFlow<Unit> =
-        _openCustomFramePickerEvent.asSharedFlow()
-
     internal val _openDeviceSettingsEvent = MutableSharedFlow<Unit>()
     val openDeviceSettingsEvent: SharedFlow<Unit> = _openDeviceSettingsEvent.asSharedFlow()
 
@@ -315,16 +268,12 @@ class SettingsViewModel @Inject constructor(
         routeObserveDelegateEvents(this)
         routeObserveModalResetSignal(this)
         routeObserveConnectionState(this)
-        observeSocialConnectionState()
         reofferPurgeAfterSync()
-        observeAvatarPreferences()
-        routeObservePlatformLibretroSettings(this)
         routeObservePlatforms(this)
         syncDelegate.observeSaveSync(viewModelScope)
         routeObserveControllerOrder(this)
         routeObserveAppUpdate(this)
         loadSettings()
-        driversDelegate.loadGpuInfo()
         raDelegate.initialize(viewModelScope)
         displayDelegate.loadPreviewGame(viewModelScope)
         displayDelegate.observeScreenCapturePermission(viewModelScope)
@@ -343,12 +292,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun cyclePlatformContext(direction: Int) = routeCyclePlatformContext(this, direction)
-
-    fun stepControllerType(port: Int, delta: Int) = routeStepControllerType(this, port, delta)
-
-    fun selectControllerType(port: Int, index: Int) = routeSelectControllerType(this, port, index)
-
     internal fun loadSettings() = routeLoadSettings(this)
 
     fun refreshEmulators() {
@@ -357,15 +300,6 @@ class SettingsViewModel @Inject constructor(
 
     fun checkStoragePermission() = storageDelegate.checkAllFilesAccess()
     fun requestStoragePermission() = storageDelegate.requestAllFilesAccess(viewModelScope)
-
-    fun reloadDrivers(force: Boolean = false) = driversDelegate.loadDrivers(viewModelScope, force)
-    fun downloadDriverArtifact(artifact: com.nendo.argosy.ui.screens.settings.DriverArtifactUi) =
-        driversDelegate.downloadArtifact(viewModelScope, artifact)
-    fun openDriverPicker(index: Int) = driversDelegate.openPicker(index)
-    fun dismissDriverPicker() = driversDelegate.dismissPicker()
-    fun moveDriverPickerFocus(delta: Int) = driversDelegate.movePickerReleaseFocus(delta)
-    fun downloadSelectedDriverRelease() = driversDelegate.downloadFocusedPickerRelease(viewModelScope)
-    fun dismissDriverDownload() = driversDelegate.dismissActiveDownload()
 
     fun requestAccountSwitch(accountId: Long) = accountsDelegate.requestSwitch(accountId)
     fun requestAccountRemoval(accountId: Long) =
@@ -408,27 +342,6 @@ class SettingsViewModel @Inject constructor(
     fun selectVariant() = emulatorDelegate.selectVariant()
     fun confirmVariantSelection() = emulatorDelegate.selectVariant()
     fun dismissVariantPicker() = emulatorDelegate.dismissVariantPicker()
-    fun navigateToBuiltinVideo() = emulatorDelegate.navigateToBuiltinVideo(viewModelScope)
-    fun navigateToBuiltinControls() = emulatorDelegate.navigateToBuiltinControls(viewModelScope)
-    fun navigateToBuiltinSaves() = emulatorDelegate.navigateToBuiltinSaves(viewModelScope)
-    fun navigateToCoreManagement() = emulatorDelegate.navigateToCoreManagement(viewModelScope)
-    fun navigateToCoreOptions() = emulatorDelegate.navigateToCoreOptions(viewModelScope)
-    fun navigateToCoreOptionsForPlatform() {
-        val s = _uiState.value
-        val currentSlug = s.emulators.platforms.getOrNull(s.platformDetail.platformIndex)?.platform?.slug
-        val targetIndex = s.builtinVideo.availablePlatforms
-            .indexOfFirst { it.platformSlug == currentSlug }
-            .takeIf { it >= 0 } ?: s.coreOptions.platformContextIndex
-        _uiState.update {
-            it.copy(
-                coreOptions = it.coreOptions.copy(
-                    platformContextIndex = targetIndex,
-                    selectedCoreIndex = 0
-                )
-            )
-        }
-        emulatorDelegate.navigateToCoreOptions(viewModelScope)
-    }
     fun openPlatformDetailById(platformId: Long) {
         viewModelScope.launch {
             val platforms = kotlinx.coroutines.withTimeoutOrNull(5000) {
@@ -653,79 +566,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun navigateToBuiltinVideoForPlatform(platformIndex: Int) {
-        if (!selectBuiltinPlatformContext(platformIndex)) return
-        emulatorDelegate.navigateToBuiltinVideo(viewModelScope)
-    }
-
-    fun navigateToBuiltinControlsForPlatform(platformIndex: Int) {
-        if (!selectBuiltinPlatformContext(platformIndex)) return
-        emulatorDelegate.navigateToBuiltinControls(viewModelScope)
-    }
-
-    fun navigateToBuiltinSavesForPlatform(platformIndex: Int) {
-        if (!selectBuiltinPlatformContext(platformIndex)) return
-        emulatorDelegate.navigateToBuiltinSaves(viewModelScope)
-    }
-
-    private fun selectBuiltinPlatformContext(platformIndex: Int): Boolean {
-        val config = _uiState.value.emulators.platforms.getOrNull(platformIndex) ?: return false
-        val ctxIndex = _uiState.value.builtinVideo.availablePlatforms
-            .indexOfFirst { it.platformId == config.platform.id }
-        if (ctxIndex >= 0) {
-            _uiState.update {
-                it.copy(builtinVideo = it.builtinVideo.copy(platformContextIndex = ctxIndex + 1))
-            }
-        }
-        return true
-    }
-
-    fun getInstalledCoreIds(): Set<String> =
-        coreManager.getInstalledCores().map { it.coreId }.toSet()
-
-    fun downloadCore(coreId: String) = routeDownloadCore(this, coreId)
-    fun downloadCoreWithNotification(coreId: String) = routeDownloadCoreWithNotification(this, coreId)
-    fun deleteCore(coreId: String) = routeDeleteCore(this, coreId)
-
-    fun requestDeleteCore(coreId: String) = _uiState.update {
-        it.copy(coreOptions = it.coreOptions.copy(pendingDeleteCoreId = coreId))
-    }
-
-    fun cancelDeleteCore() = _uiState.update {
-        it.copy(coreOptions = it.coreOptions.copy(pendingDeleteCoreId = null))
-    }
-
-    fun confirmDeleteCore() {
-        val coreId = _uiState.value.coreOptions.pendingDeleteCoreId ?: return
-        cancelDeleteCore()
-        deleteCore(coreId)
-    }
-
-    fun setBuiltinArchitecture(value: String) = routeSetBuiltinArchitecture(this, value)
-    fun setBuiltinShader(value: String) = routeSetBuiltinShader(this, value)
-    fun setBuiltinFramesEnabled(enabled: Boolean) = routeSetBuiltinFramesEnabled(this, enabled)
-    fun setBuiltinLibretroEnabled(enabled: Boolean) = routeSetBuiltinLibretroEnabled(this, enabled)
-    fun setIngameMenuTwoColumn(enabled: Boolean) = routeSetIngameMenuTwoColumn(this, enabled)
-    fun setHudEnabled(enabled: Boolean) = routeSetHudEnabled(this, enabled)
-    fun setHudCorner(corner: String) = routeSetHudCorner(this, corner)
-    fun setHudShowBattery(enabled: Boolean) = routeSetHudShowBattery(this, enabled)
-    fun setHudShowClock(enabled: Boolean) = routeSetHudShowClock(this, enabled)
-    fun setHudShowPlaytime(enabled: Boolean) = routeSetHudShowPlaytime(this, enabled)
-    fun setHudShowFps(enabled: Boolean) = routeSetHudShowFps(this, enabled)
-    fun setHudShowLastSave(enabled: Boolean) = routeSetHudShowLastSave(this, enabled)
-    fun setBuiltinFilter(value: String) = routeSetBuiltinFilter(this, value)
-    fun setBuiltinAspectRatio(value: String) = routeSetBuiltinAspectRatio(this, value)
-    fun setBuiltinPortraitPosition(value: String) = routeSetBuiltinPortraitPosition(this, value)
-    fun setBuiltinSkipDuplicateFrames(enabled: Boolean) = routeSetBuiltinSkipDuplicateFrames(this, enabled)
-    fun setBuiltinLowLatencyAudio(enabled: Boolean) = routeSetBuiltinLowLatencyAudio(this, enabled)
-    fun setBuiltinVSync(enabled: Boolean) = routeSetBuiltinVSync(this, enabled)
-    fun setBuiltinFastForwardEnabled(enabled: Boolean) = routeSetBuiltinFastForwardEnabled(this, enabled)
-    fun setBuiltinRewindEnabled(enabled: Boolean) = routeSetBuiltinRewindEnabled(this, enabled)
-    fun setBuiltinAutoSaveState(enabled: Boolean) = routeSetBuiltinAutoSaveState(this, enabled)
-    fun setBuiltinAutoRestoreState(enabled: Boolean) = routeSetBuiltinAutoRestoreState(this, enabled)
-    fun setBuiltinPreferNewerServerSave(enabled: Boolean) = routeSetBuiltinPreferNewerServerSave(this, enabled)
-    fun setBuiltinHwCoreSaveStates(enabled: Boolean) = routeSetBuiltinHwCoreSaveStates(this, enabled)
-    fun setBuiltinDefaultToHardcore(mode: String) = routeSetBuiltinDefaultToHardcore(this, mode)
+    fun setBuiltinDefaultToHardcore(mode: String) = raDelegate.setDefaultToHardcore(viewModelScope, mode)
     fun cycleRADefaultMode(direction: Int) {
         val options = listOf("ask", "casual", "hardcore")
         val current = _uiState.value.retroAchievements.defaultToHardcore
@@ -733,14 +574,6 @@ class SettingsViewModel @Inject constructor(
         val nextIndex = (currentIndex + direction + options.size) % options.size
         setBuiltinDefaultToHardcore(options[nextIndex])
     }
-    fun setBuiltinSavePath(path: String) = routeSetBuiltinSavePath(this, path)
-    fun resetBuiltinSavePath() = routeResetBuiltinSavePath(this)
-    fun setBuiltinStatePath(path: String) = routeSetBuiltinStatePath(this, path)
-    fun resetBuiltinStatePath() = routeResetBuiltinStatePath(this)
-    fun setPlatformBuiltinSavePath(platformId: Long, path: String) = routeSetPlatformBuiltinSavePath(this, platformId, path)
-    fun resetPlatformBuiltinSavePath(platformId: Long) = routeResetPlatformBuiltinSavePath(this, platformId)
-    fun setPlatformBuiltinStatePath(platformId: Long, path: String) = routeSetPlatformBuiltinStatePath(this, platformId, path)
-    fun resetPlatformBuiltinStatePath(platformId: Long) = routeResetPlatformBuiltinStatePath(this, platformId)
 
     fun openLaunchArgsModal(platformId: Long) = routeOpenLaunchArgsModal(this, platformId)
     fun closeLaunchArgsModal() = routeCloseLaunchArgsModal(this)
@@ -761,201 +594,14 @@ class SettingsViewModel @Inject constructor(
     fun closeAppPickerModal() = routeCloseAppPickerModal(this)
     fun moveAppPickerFocus(delta: Int) = routeMoveAppPickerFocus(this, delta)
     fun confirmAppPickerSelection() = routeConfirmAppPickerSelection(this)
-    fun setBuiltinRumbleEnabled(enabled: Boolean) = routeSetBuiltinRumbleEnabled(this, enabled)
-    fun setBuiltinMotionEnabled(enabled: Boolean) = routeSetBuiltinMotionEnabled(this, enabled)
-    fun setBuiltinGyroAimInvertX(enabled: Boolean) = routeSetBuiltinGyroAimInvertX(this, enabled)
-    fun setBuiltinGyroAimInvertY(enabled: Boolean) = routeSetBuiltinGyroAimInvertY(this, enabled)
-    fun stepBuiltinGyroAimSensitivity(direction: Int) = routeStepBuiltinGyroAimSensitivity(this, direction)
-    fun setBuiltinLimitHotkeysToPlayer1(enabled: Boolean) = routeSetBuiltinLimitHotkeysToPlayer1(this, enabled)
-    fun setBuiltinConfirmReturnHome(enabled: Boolean) = routeSetBuiltinConfirmReturnHome(this, enabled)
-    fun setSpeedrunStartOnReset(enabled: Boolean) = routeSetSpeedrunStartOnReset(this, enabled)
-    fun setSpeedrunPanelSide(side: String) = routeSetSpeedrunPanelSide(this, side)
-    fun adjustSpeedrunPanelWidth(delta: Int) = routeAdjustSpeedrunPanelWidth(this, delta)
-    fun setBuiltinFastForwardMode(mode: com.nendo.argosy.data.local.entity.FastForwardMode) = routeSetBuiltinFastForwardMode(this, mode)
-    fun setBuiltinFastForwardPreservePitch(enabled: Boolean) = routeSetBuiltinFastForwardPreservePitch(this, enabled)
-    fun setBuiltinSelectAsBack(mode: com.nendo.argosy.data.local.entity.SelectAsBackMode) = routeSetBuiltinSelectAsBack(this, mode)
-    fun setBuiltinAnalogAsDpad(enabled: Boolean) = routeSetBuiltinAnalogAsDpad(this, enabled)
-    fun setBuiltinDpadAsAnalog(enabled: Boolean) = routeSetBuiltinDpadAsAnalog(this, enabled)
-    fun showControllerOrderModal() = routeShowControllerOrderModal(this)
-    fun hideControllerOrderModal() = routeHideControllerOrderModal(this)
-    fun showInputMappingModal() = routeShowInputMappingModal(this)
-    fun hideInputMappingModal() = routeHideInputMappingModal(this)
-    fun setTouchEnabled(enabled: Boolean) = routeSetTouchEnabled(this, enabled)
-    fun setTouchOpacityLandscape(value: Float) = routeSetTouchOpacityLandscape(this, value)
-    fun setTouchOpacityPortrait(value: Float) = routeSetTouchOpacityPortrait(this, value)
-    fun setTouchSizeScale(value: Float) = routeSetTouchSizeScale(this, value)
-    fun setTouchHaptic(enabled: Boolean) = routeSetTouchHaptic(this, enabled)
-    fun setTouchFadeOnIdle(enabled: Boolean) = routeSetTouchFadeOnIdle(this, enabled)
-    fun setTouchSwapHanded(enabled: Boolean) = routeSetTouchSwapHanded(this, enabled)
-    fun setTouchLockOrientation(enabled: Boolean) = routeSetTouchLockOrientation(this, enabled)
-    fun setTouchMirror180(enabled: Boolean) = routeSetTouchMirror180(this, enabled)
-    fun setTouchColouredFaceButtons(enabled: Boolean) = routeSetTouchColouredFaceButtons(this, enabled)
-    fun setTouchGenesis6Button(enabled: Boolean) = routeSetTouchGenesis6Button(this, enabled)
-    fun showTouchLayoutEditor() = routeShowTouchLayoutEditor(this)
-    fun hideTouchLayoutEditor() = routeHideTouchLayoutEditor(this)
-    val connectedControllers: StateFlow<List<com.nendo.argosy.data.repository.ControllerInfo>> =
-        inputConfigRepository.observeConnectedControllers()
-            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val activeController: StateFlow<com.nendo.argosy.core.input.ActiveController?> =
-        connectedControllerTracker.activeController
-    fun holdActiveController(held: Boolean) = connectedControllerTracker.holdActiveController(held)
-
-    suspend fun getControllerMapping(
-        controller: com.nendo.argosy.data.repository.ControllerInfo,
-        platformId: String? = null
-    ): ScopedMapping {
-        val device = android.view.InputDevice.getDevice(controller.deviceId)
-            ?: return ScopedMapping()
-        return ScopedMapping(
-            mapping = inputConfigRepository.getOrCreateExtendedMappingForDevice(device, platformId),
-            inherited = inputConfigRepository.getInheritedExtendedMappingForDevice(device, platformId)
-        )
+    fun showControllerOrderModal() {
+        controllerSeats.open()
+        _uiState.update { it.copy(showControllerOrderModal = true) }
     }
 
-    suspend fun saveControllerMapping(
-        controller: com.nendo.argosy.data.repository.ControllerInfo,
-        mapping: Map<com.nendo.argosy.data.repository.InputSource, Int>,
-        presetName: String?,
-        isAutoDetected: Boolean,
-        platformId: String? = null
-    ) {
-        val device = android.view.InputDevice.getDevice(controller.deviceId) ?: return
-        inputConfigRepository.saveExtendedMapping(device, mapping, presetName, isAutoDetected, platformId)
+    fun hideControllerOrderModal() {
+        _uiState.update { it.copy(showControllerOrderModal = false) }
     }
-
-    suspend fun applyControllerPreset(controller: com.nendo.argosy.data.repository.ControllerInfo, presetName: String) {
-        val device = android.view.InputDevice.getDevice(controller.deviceId) ?: return
-        inputConfigRepository.applyPreset(device, presetName)
-    }
-
-    fun showHotkeysModal() = routeShowHotkeysModal(this)
-    fun hideHotkeysModal() = routeHideHotkeysModal(this)
-    fun observeHotkeys() = inputConfigRepository.observeHotkeys()
-
-    suspend fun saveHotkey(
-        action: com.nendo.argosy.data.local.entity.HotkeyAction,
-        keyCodes: List<Int>,
-        scopeType: com.nendo.argosy.data.local.entity.HotkeyScopeType,
-        scopeKey: String?
-    ) {
-        inputConfigRepository.setHotkey(action, keyCodes, scopeType = scopeType, scopeKey = scopeKey)
-    }
-
-    suspend fun clearHotkey(
-        action: com.nendo.argosy.data.local.entity.HotkeyAction,
-        scopeType: com.nendo.argosy.data.local.entity.HotkeyScopeType,
-        scopeKey: String?
-    ) {
-        inputConfigRepository.clearScopedHotkey(action, scopeType, scopeKey)
-    }
-
-    suspend fun setHotkeyHoldMs(
-        action: com.nendo.argosy.data.local.entity.HotkeyAction,
-        holdMs: Long,
-        scopeType: com.nendo.argosy.data.local.entity.HotkeyScopeType,
-        scopeKey: String?
-    ) {
-        inputConfigRepository.setHotkeyHoldMs(action, holdMs, scopeType = scopeType, scopeKey = scopeKey)
-    }
-
-    suspend fun saveCoreControlHotkey(
-        coreId: String,
-        retropadId: Int,
-        mode: com.nendo.argosy.data.local.entity.CoreInputMode,
-        keyCodes: List<Int>
-    ) {
-        inputConfigRepository.setCoreControlHotkey(
-            id = null,
-            keyCodes = keyCodes,
-            retropadId = retropadId,
-            mode = mode,
-            coreId = coreId
-        )
-    }
-
-    suspend fun deleteCoreBind(id: Long) {
-        inputConfigRepository.deleteHotkeyById(id)
-    }
-
-    fun setBuiltinBlackFrameInsertion(enabled: Boolean) = routeSetBuiltinBlackFrameInsertion(this, enabled)
-    fun cycleBuiltinShader(direction: Int) = routeCycleBuiltinShader(this, direction)
-
-    internal val _shaderRegistry by lazy {
-        com.nendo.argosy.libretro.shader.ShaderRegistry(context)
-    }
-    internal val _shaderDownloader by lazy {
-        com.nendo.argosy.libretro.shader.ShaderDownloader(_shaderRegistry.getCatalogDir())
-    }
-
-    fun getFrameRegistry(): com.nendo.argosy.libretro.frame.FrameRegistry = frameRegistry
-
-    val shaderChainManager by lazy { routeInitShaderChainManager(this) }
-
-    fun getShaderRegistry(): com.nendo.argosy.libretro.shader.ShaderRegistry = _shaderRegistry
-    fun openShaderChainConfig() = routeOpenShaderChainConfig(this)
-    fun openFrameConfig() = routeOpenFrameConfig(this)
-    fun downloadAndSelectFrame(frameId: String) = routeDownloadAndSelectFrame(this, frameId)
-
-    fun requestCustomFramePicker() {
-        viewModelScope.launch { _openCustomFramePickerEvent.emit(Unit) }
-    }
-
-    fun importCustomFrame(path: String) = routeImportCustomFrame(this, path)
-    fun requestCustomFrameRemoval(frameId: String) = routeRequestCustomFrameRemoval(this, frameId)
-    fun confirmCustomFrameRemoval() = routeConfirmCustomFrameRemoval(this)
-    fun cancelCustomFrameRemoval() = routeCancelCustomFrameRemoval(this)
-
-    fun addShaderToStack(id: String, name: String) = shaderChainManager.addShaderToStack(id, name)
-    fun removeShaderFromStack() = shaderChainManager.removeShaderFromStack()
-    fun liftShader() = shaderChainManager.liftShader()
-    fun moveHeldShader(delta: Int) = shaderChainManager.moveHeldShader(delta)
-    fun dropShader() = shaderChainManager.dropShader()
-    fun cancelShaderLift() = shaderChainManager.cancelShaderLift()
-    fun selectShaderInStack(index: Int) = shaderChainManager.selectShaderInStack(index)
-    fun cycleShaderTab(direction: Int) = shaderChainManager.cycleShaderTab(direction)
-    fun showShaderPicker() = shaderChainManager.showShaderPicker()
-    fun dismissShaderPicker() = shaderChainManager.dismissShaderPicker()
-    fun setShaderPickerFocusIndex(index: Int) = shaderChainManager.setShaderPickerFocusIndex(index)
-    fun moveShaderPickerFocus(delta: Int) = shaderChainManager.moveShaderPickerFocus(delta)
-    fun jumpShaderPickerSection(direction: Int) = shaderChainManager.jumpShaderPickerSection(direction)
-    fun confirmShaderPickerSelection() = shaderChainManager.confirmShaderPickerSelection()
-    fun moveShaderParamFocus(delta: Int) = shaderChainManager.moveShaderParamFocus(delta)
-    fun adjustShaderParam(direction: Int) = shaderChainManager.adjustShaderParam(direction)
-    fun resetShaderParam() = shaderChainManager.resetShaderParam()
-
-    fun cycleBuiltinFilter(direction: Int) = routeCycleBuiltinFilter(this, direction)
-    fun cycleBuiltinAspectRatio(direction: Int) = routeCycleBuiltinAspectRatio(this, direction)
-    fun cycleBuiltinPortraitPosition(direction: Int) = routeCycleBuiltinPortraitPosition(this, direction)
-    fun cycleBuiltinFastForwardSpeed(direction: Int) = routeCycleBuiltinFastForwardSpeed(this, direction)
-    fun cycleBuiltinAudioVolume(direction: Int) = routeCycleBuiltinAudioVolume(this, direction)
-    fun cycleBuiltinRotation(direction: Int) = routeCycleBuiltinRotation(this, direction)
-    fun cycleBuiltinOverscanCrop(direction: Int) = routeCycleBuiltinOverscanCrop(this, direction)
-    fun cycleBuiltinRewindSpeed(direction: Int) = routeCycleBuiltinRewindSpeed(this, direction)
-    fun cycleBuiltinRewindBufferDuration(direction: Int) = routeCycleBuiltinRewindBufferDuration(this, direction)
-    fun cycleGraphicsBackend(direction: Int) = routeCycleGraphicsBackend(this, direction)
-    fun selectGraphicsBackend(index: Int) = routeSelectGraphicsBackend(this, index)
-    fun resetGraphicsBackend() = routeResetGraphicsBackend(this)
-    fun cycleGpuDriver(direction: Int) = routeCycleGpuDriver(this, direction)
-    fun setGpuDriver(token: String) = routeSetGpuDriver(this, token)
-    fun resetGpuDriver() = routeResetGpuDriver(this)
-    fun installVulkanDriver(fileName: String) = routeInstallVulkanDriver(this, fileName)
-    fun updatePlatformLibretroSetting(setting: LibretroSettingDef, value: String?) = routeUpdatePlatformLibretroSetting(this, setting, value)
-    fun resetAllPlatformLibretroSettings() = routeResetAllPlatformLibretroSettings(this)
-    fun updatePlatformControlSetting(field: String, value: Boolean?) = routeUpdatePlatformControlSetting(this, field, value)
-    fun resetAllPlatformControlSettings() = routeResetAllPlatformControlSettings(this)
-    fun loadCoreManagementState(preserveFocus: Boolean = false) = routeLoadCoreManagementState(this, preserveFocus)
-    fun moveCoreManagementPlatformFocus(delta: Int): Boolean = routeMoveCoreManagementPlatformFocus(this, delta)
-    fun moveCoreManagementCoreFocus(delta: Int): Boolean = routeMoveCoreManagementCoreFocus(this, delta)
-    fun confirmCoreManagement() = routeCoreManagementConfirm(this)
-    fun selectCoreAt(rowIndex: Int, coreIndex: Int) = routeSelectCoreAt(this, rowIndex, coreIndex)
-    fun updateAllCores() = routeTapUpdateAllCores(this)
-
-    fun loadCoreOptionsState() = routeLoadCoreOptionsState(this)
-    fun cycleCoreOptionsPlatformContext(direction: Int) = routeCycleCoreOptionsPlatformContext(this, direction)
-    fun cycleCoreSelector(direction: Int) = routeCycleCoreSelector(this, direction)
-    fun cycleCoreOptionValue(optionKey: String, direction: Int) = routeCycleCoreOptionValue(this, optionKey, direction)
-    fun resetCoreOption(optionKey: String) = routeResetCoreOption(this, optionKey)
-    fun resetAllCoreOptions() = routeResetAllCoreOptions(this)
 
     fun movePlatformSubFocus(delta: Int, maxIndex: Int): Boolean =
         emulatorDelegate.movePlatformSubFocus(delta, maxIndex)
@@ -1346,19 +992,11 @@ class SettingsViewModel @Inject constructor(
     fun cancelClearStateCache() = syncDelegate.cancelClearStateCache()
     fun confirmClearStateCache() = syncDelegate.confirmClearStateCache(viewModelScope)
 
-    fun requestCachesClear(target: CachesClearTarget) {
-        val driverBusy = _uiState.value.drivers.activeDownload
-            ?.let { it.error == null && !it.isComplete } == true
-        storageCachesDelegate.requestClear(target, driverDownloadActive = driverBusy)
-    }
+    fun requestCachesClear(target: CachesClearTarget) = storageCachesDelegate.requestClear(target)
 
     fun cancelCachesClear() = storageCachesDelegate.cancelClear()
 
-    fun confirmCachesClear() = storageCachesDelegate.confirmClear(viewModelScope) { target ->
-        if (target == CachesClearTarget.SHADERS_CATALOG) {
-            getShaderRegistry().invalidateInstalledCache()
-        }
-    }
+    fun confirmCachesClear() = storageCachesDelegate.confirmClear(viewModelScope)
 
     fun toggleGamesSortMode() = attributionDelegate.setGamesSortMode(
         when (_uiState.value.attribution.gamesSortMode) {
@@ -1541,10 +1179,51 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowStatusNetwork(show: Boolean) = displayDelegate.setShowStatusNetwork(viewModelScope, show)
 
-    fun loadPreviewGames() = routeLoadPreviewGames(this)
-    fun cyclePrevPreviewGame() = routeCyclePrevPreviewGame(this)
-    fun cycleNextPreviewGame() = routeCycleNextPreviewGame(this)
-    fun extractGradientForPreview() = routeExtractGradientForPreview(this)
+    fun loadPreviewGames() {
+        viewModelScope.launch {
+            val supportedPlatforms = com.nendo.argosy.data.libretro.LibretroCoreRegistry.getSupportedPlatforms()
+            val games = displayDelegate.loadPreviewGames(supportedPlatforms)
+            _uiState.update {
+                it.copy(
+                    previewGames = games,
+                    previewGameIndex = 0,
+                    previewGame = games.firstOrNull() ?: it.previewGame
+                )
+            }
+            if (games.isNotEmpty()) extractGradientForPreview()
+        }
+    }
+
+    fun cyclePrevPreviewGame() {
+        val games = _uiState.value.previewGames
+        if (games.isEmpty()) return
+        val currentIndex = _uiState.value.previewGameIndex
+        val prevIndex = if (currentIndex <= 0) games.lastIndex else currentIndex - 1
+        _uiState.update { it.copy(previewGameIndex = prevIndex, previewGame = games[prevIndex]) }
+        extractGradientForPreview()
+    }
+
+    fun cycleNextPreviewGame() {
+        val games = _uiState.value.previewGames
+        if (games.isEmpty()) return
+        val currentIndex = _uiState.value.previewGameIndex
+        val nextIndex = if (currentIndex >= games.lastIndex) 0 else currentIndex + 1
+        _uiState.update { it.copy(previewGameIndex = nextIndex, previewGame = games[nextIndex]) }
+        extractGradientForPreview()
+    }
+
+    fun extractGradientForPreview() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val coverPath = _uiState.value.previewGame?.coverPath ?: return@launch
+            val config = _uiState.value.gradientConfig
+            val bitmap = android.graphics.BitmapFactory.decodeFile(coverPath) ?: return@launch
+            val result = gradientColorExtractor.extractWithMetrics(bitmap, config)
+            bitmap.recycle()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                _uiState.update { it.copy(gradientExtractionResult = result) }
+            }
+        }
+    }
 
     fun cycleGradientSampleGrid(direction: Int) = routeCycleGradientSampleGrid(this, direction)
     fun cycleGradientRadius(direction: Int) = routeCycleGradientRadius(this, direction)
@@ -1570,8 +1249,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setDualScreenEnabled(enabled: Boolean) = routeSetDualScreenEnabled(this, enabled)
     fun setLidSleepEnabled(enabled: Boolean) = displayDelegate.setLidSleepEnabled(viewModelScope, enabled)
-
-    fun setDualScreenMatchSize(enabled: Boolean) = displayDelegate.setDualScreenMatchSize(viewModelScope, enabled)
 
 
     fun cycleDisplayRoleOverride(direction: Int = 1) = routeCycleDisplayRoleOverride(this, direction)
@@ -1947,9 +1624,6 @@ class SettingsViewModel @Inject constructor(
     fun confirmMigration() = storageDelegate.confirmMigration(viewModelScope)
     fun cancelMigration() = storageDelegate.cancelMigration()
     fun skipMigration() = storageDelegate.skipMigration(viewModelScope)
-    fun confirmBuiltinPathMigration() = routeConfirmBuiltinPathMigration(this)
-    fun cancelBuiltinPathMigration() = routeCancelBuiltinPathMigration(this)
-    fun skipBuiltinPathMigration() = routeSkipBuiltinPathMigration(this)
     fun togglePlatformSync(platformId: Long, enabled: Boolean) {
         storageDelegate.togglePlatformSync(viewModelScope, platformId, enabled)
         _uiState.update { state ->
@@ -2329,8 +2003,6 @@ class SettingsViewModel @Inject constructor(
     private var pendingBiosCopyPlatformSlug: String? = null
     val hasPendingBiosCopy: Boolean get() = pendingBiosCopyPlatformSlug != null
 
-    internal var shaderChainPersistJob: kotlinx.coroutines.Job? = null
-
     fun requestRemoveLocalFiles() {
         _uiState.update { it.copy(platformDetail = it.platformDetail.copy(showRemoveConfirm = true)) }
     }
@@ -2414,253 +2086,8 @@ class SettingsViewModel @Inject constructor(
     fun dismissGpuDriverPrompt() = biosDelegate.dismissGpuDriverPrompt()
     fun moveGpuDriverPromptFocus(delta: Int) = biosDelegate.moveGpuDriverPromptFocus(delta)
 
-    override fun onCleared() {
-        super.onCleared()
-        shaderChainManager.destroy()
-    }
-
     fun createInputHandler(onBack: () -> Unit): InputHandler =
         SettingsInputHandler(this, onBack)
-
-    // --- Social ---
-
-    private fun observeSocialConnectionState() {
-        socialRepository.connectionState.onEach { state ->
-            when (state) {
-                is SocialConnectionState.Disconnected -> {
-                    val prefs = preferencesRepository.userPreferences.first()
-                    if (prefs.isSocialLinked) {
-                        _uiState.update { it.copy(social = it.social.copy(
-                            authStatus = SocialAuthStatus.CONNECTING
-                        )) }
-                    } else {
-                        _uiState.update { it.copy(social = SocialState(
-                            authStatus = SocialAuthStatus.NOT_LINKED
-                        )) }
-                    }
-                }
-                is SocialConnectionState.Connecting -> {
-                    _uiState.update { it.copy(social = it.social.copy(
-                        authStatus = SocialAuthStatus.CONNECTING
-                    )) }
-                }
-                is SocialConnectionState.Connected -> {
-                    val prefs = preferencesRepository.userPreferences.first()
-                    _uiState.update { it.copy(social = SocialState(
-                        authStatus = SocialAuthStatus.CONNECTED,
-                        username = state.user.username,
-                        displayName = state.user.displayName,
-                        avatarColor = state.user.avatarColor,
-                        avatarDoodle = prefs.socialAvatarDoodle,
-                        avatarUseDoodle = prefs.socialAvatarUseDoodle,
-                        onlineStatusEnabled = prefs.socialOnlineStatusEnabled,
-                        showNowPlaying = prefs.socialShowNowPlaying,
-                        notifyFriendOnline = prefs.socialNotifyFriendOnline,
-                        notifyFriendPlaying = prefs.socialNotifyFriendPlaying,
-                        suppressNotificationsInGame = prefs.socialSuppressNotificationsInGame,
-                        discordLinked = socialRepository.discordLinked.value,
-                        discordUsername = socialRepository.discordUsername.value,
-                        discordRichPresenceEnabled = prefs.discordRichPresenceEnabled,
-                        discordPresenceState = discordPresenceManager.state.value,
-                        quayPassEnabled = prefs.quayPassEnabled
-                    )) }
-                }
-                is SocialConnectionState.AwaitingAuth -> {
-                    _uiState.update { it.copy(social = it.social.copy(
-                        authStatus = SocialAuthStatus.AWAITING_AUTH,
-                        qrUrl = state.qrUrl,
-                        loginCode = state.loginCode
-                    )) }
-                }
-                is SocialConnectionState.Failed -> {
-                    _uiState.update { it.copy(social = it.social.copy(
-                        authStatus = SocialAuthStatus.ERROR,
-                        errorMessage = state.reason
-                    )) }
-                }
-            }
-        }.launchIn(viewModelScope)
-
-        socialRepository.discordLinked.onEach { linked ->
-            _uiState.update { it.copy(social = it.social.copy(
-                discordLinked = linked,
-                discordUsername = socialRepository.discordUsername.value
-            )) }
-        }.launchIn(viewModelScope)
-
-        discordPresenceManager.state.onEach { presenceState ->
-            _uiState.update { it.copy(social = it.social.copy(
-                discordPresenceState = presenceState
-            )) }
-        }.launchIn(viewModelScope)
-
-        preferencesRepository.userPreferences
-            .map { it.quayPassEnabled }
-            .distinctUntilChanged()
-            .onEach { enabled ->
-                _uiState.update { it.copy(social = it.social.copy(
-                    quayPassEnabled = enabled
-                )) }
-            }
-            .launchIn(viewModelScope)
-    }
-
-    internal fun handleSocialConfirm(state: SettingsUiState): InputResult {
-        return when (state.social.authStatus) {
-            SocialAuthStatus.NOT_LINKED -> {
-                startSocialAuth()
-                InputResult.HANDLED
-            }
-            SocialAuthStatus.AWAITING_AUTH -> {
-                cancelSocialAuth()
-                InputResult.HANDLED
-            }
-            SocialAuthStatus.CONNECTED -> {
-                val layoutState = com.nendo.argosy.ui.screens.settings.sections.SocialLayoutState(
-                    isConnected = true,
-                    hasAvatarDoodle = state.social.avatarDoodle != null
-                )
-                when (com.nendo.argosy.ui.screens.settings.sections.socialItemAtFocusIndex(state.focusedIndex, layoutState)) {
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.EditAvatar -> {
-                        openAvatarEditor()
-                        InputResult.HANDLED
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.UseDoodleAvatar -> {
-                        setSocialAvatarUseDoodle(!state.social.avatarUseDoodle)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.OnlineStatus -> {
-                        setSocialOnlineStatus(!state.social.onlineStatusEnabled)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.ShowNowPlaying -> {
-                        if (state.social.onlineStatusEnabled) setSocialShowNowPlaying(!state.social.showNowPlaying)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.NotifyFriendOnline -> {
-                        if (state.social.onlineStatusEnabled) setSocialNotifyFriendOnline(!state.social.notifyFriendOnline)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.NotifyFriendPlaying -> {
-                        if (state.social.onlineStatusEnabled) setSocialNotifyFriendPlaying(!state.social.notifyFriendPlaying)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.SuppressInGame -> {
-                        if (state.social.onlineStatusEnabled) setSocialSuppressNotificationsInGame(!state.social.suppressNotificationsInGame)
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.QuayPassEnabled -> {
-                        if (state.social.quayPassEnabled) setQuayPassEnabled(false)
-                        else requestEnableQuayPass()
-                        InputResult.handled(SoundType.TOGGLE)
-                    }
-                    is com.nendo.argosy.ui.screens.settings.sections.SocialItem.Unlink -> {
-                        logoutSocial()
-                        InputResult.HANDLED
-                    }
-                    else -> InputResult.HANDLED
-                }
-            }
-            else -> InputResult.UNHANDLED
-        }
-    }
-
-    fun startSocialAuth() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(social = it.social.copy(
-                authStatus = SocialAuthStatus.CONNECTING
-            )) }
-
-            val result = socialRepository.startAuth()
-
-            when (result) {
-                is SocialAuthManager.AuthResult.Success -> {
-                    _uiState.update { it.copy(social = SocialState(
-                        authStatus = SocialAuthStatus.CONNECTED,
-                        username = result.user.username,
-                        displayName = result.user.displayName,
-                        avatarColor = result.user.avatarColor,
-                        onlineStatusEnabled = true,
-                        showNowPlaying = true,
-                        discordRichPresenceEnabled = true
-                    )) }
-                }
-                is SocialAuthManager.AuthResult.Error -> {
-                    _uiState.update { it.copy(social = it.social.copy(
-                        authStatus = SocialAuthStatus.ERROR,
-                        errorMessage = result.message
-                    )) }
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            socialRepository.authState.collect { state ->
-                when (state) {
-                    is SocialAuthManager.AuthState.AwaitingLogin -> {
-                        _uiState.update { it.copy(social = it.social.copy(
-                            authStatus = SocialAuthStatus.AWAITING_AUTH,
-                            qrUrl = state.qrUrl,
-                            loginCode = state.loginCode
-                        )) }
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    fun cancelSocialAuth() {
-        socialRepository.cancelAuth()
-        _uiState.update { it.copy(social = SocialState(
-            authStatus = SocialAuthStatus.NOT_LINKED
-        )) }
-    }
-
-    fun logoutSocial() {
-        viewModelScope.launch {
-            socialRepository.logout()
-            _uiState.update { it.copy(social = SocialState(
-                authStatus = SocialAuthStatus.NOT_LINKED
-            )) }
-        }
-    }
-
-    private fun observeAvatarPreferences() {
-        viewModelScope.launch {
-            preferencesRepository.userPreferences.collect { prefs ->
-                _uiState.update {
-                    if (it.social.avatarDoodle == prefs.socialAvatarDoodle &&
-                        it.social.avatarUseDoodle == prefs.socialAvatarUseDoodle
-                    ) it
-                    else it.copy(social = it.social.copy(
-                        avatarDoodle = prefs.socialAvatarDoodle,
-                        avatarUseDoodle = prefs.socialAvatarUseDoodle
-                    ))
-                }
-            }
-        }
-    }
-
-    fun setSocialAvatarUseDoodle(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialAvatarUseDoodle(enabled)
-            _uiState.update { it.copy(social = it.social.copy(avatarUseDoodle = enabled)) }
-        }
-    }
-
-    fun openAvatarEditor() {
-        viewModelScope.launch { _avatarEditorEvent.emit(Unit) }
-    }
-
-    fun setSocialOnlineStatus(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialOnlineStatusEnabled(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                onlineStatusEnabled = enabled
-            )) }
-        }
-    }
 
     fun startJellyfinConfig() = jellyfinDelegate.startServerConfig(::resetFocusIndex)
     fun setJellyfinConfigUrl(url: String) = jellyfinDelegate.setConfigUrl(url)
@@ -2773,69 +2200,4 @@ class SettingsViewModel @Inject constructor(
     fun confirmMediaRelocation() = jellyfinDelegate.confirmMediaRelocation(viewModelScope)
     fun skipMediaRelocation() = jellyfinDelegate.skipMediaRelocation(viewModelScope)
     fun cancelMediaRelocation() = jellyfinDelegate.cancelMediaRelocation()
-
-    fun setSocialShowNowPlaying(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialShowNowPlaying(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                showNowPlaying = enabled
-            )) }
-        }
-    }
-
-    fun setSocialNotifyFriendOnline(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialNotifyFriendOnline(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                notifyFriendOnline = enabled
-            )) }
-        }
-    }
-
-    fun setSocialNotifyFriendPlaying(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialNotifyFriendPlaying(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                notifyFriendPlaying = enabled
-            )) }
-        }
-    }
-
-    fun setSocialSuppressNotificationsInGame(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setSocialSuppressNotificationsInGame(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                suppressNotificationsInGame = enabled
-            )) }
-        }
-    }
-
-    fun setQuayPassEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setQuayPassEnabled(enabled)
-        }
-    }
-
-    /**
-     * Begins enabling QuayPass: requests BLE runtime permissions first (the
-     * service cannot scan/advertise without them on Android 12+).
-     */
-    fun requestEnableQuayPass() {
-        viewModelScope.launch { _requestBlePermissionEvent.emit(Unit) }
-    }
-
-    fun onBlePermissionResult(granted: Boolean) {
-        if (granted) {
-            viewModelScope.launch { preferencesRepository.setQuayPassEnabled(true) }
-        }
-    }
-
-    fun setDiscordRichPresence(enabled: Boolean) {
-        viewModelScope.launch {
-            preferencesRepository.setDiscordRichPresenceEnabled(enabled)
-            _uiState.update { it.copy(social = it.social.copy(
-                discordRichPresenceEnabled = enabled
-            )) }
-        }
-    }
 }

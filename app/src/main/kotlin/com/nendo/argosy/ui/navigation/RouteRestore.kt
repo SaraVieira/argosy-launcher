@@ -5,10 +5,7 @@ import androidx.navigation.NavBackStackEntry
 
 object RouteRestore {
     private val unrestorable = setOf(
-        Screen.FirstRun.route,
-        Screen.Doodle.route,
-        Screen.AvatarDoodle.route,
-        Screen.PostEditor.route
+        Screen.FirstRun.route
     )
 
     fun concreteRoute(pattern: String, args: Map<String, String>, encode: (String) -> String): String? {
@@ -40,7 +37,6 @@ object RouteRestore {
             }
             Screen.ROUTE_SAVE_TIMELINE -> listOf("${Screen.ROUTE_GAME_DETAIL}/${segments[1]}")
             Screen.ROUTE_MEDIA_DETAIL -> listOf(Screen.MediaLibrary.route)
-            Screen.ROUTE_SOCIAL -> if (segments.size > 1) listOf(Screen.Social.route) else emptyList()
             else -> emptyList()
         }
         return parents + route

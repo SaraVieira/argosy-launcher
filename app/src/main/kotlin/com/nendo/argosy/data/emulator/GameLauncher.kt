@@ -9,11 +9,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
-import com.nendo.argosy.data.download.ZipExtractor
 import com.nendo.argosy.data.emulator.savepath.SavePathRequest
 import com.nendo.argosy.data.local.dao.GameFileDao
-import com.nendo.argosy.data.storage.StorageAttributionRepository
-import com.nendo.argosy.data.storage.StorageCategory
 import com.nendo.argosy.data.storage.StoragePathUtils
 import com.nendo.argosy.data.storage.StorageVolumeHealth
 import com.nendo.argosy.data.launcher.GameNativeLauncher
@@ -22,27 +19,19 @@ import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.EmulatorLaunchArgsDao
 import com.nendo.argosy.data.local.entity.EmulatorLaunchArgsEntity
-import com.nendo.argosy.data.repository.BiosRepository
-import com.nendo.argosy.libretro.LibretroActivity
-import com.nendo.argosy.libretro.LibretroCoreManager
-import com.nendo.argosy.libretro.LibretroCoreRegistry
 import com.nendo.argosy.data.local.dao.GameDao
-import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.coreoptions.CoreOptionResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import com.nendo.argosy.data.local.entity.GameDiscEntity
-import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.platform.PlatformFolderResolver
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.model.VariantCategory
 import com.nendo.argosy.util.LogSanitizer
 import com.nendo.argosy.util.Logger
-import com.nendo.argosy.domain.model.LaunchStep
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.time.Instant
@@ -117,34 +106,21 @@ class GameLauncher @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gameDao: GameDao,
     private val overlayWriter: com.nendo.argosy.data.repository.GameUserOverlayWriter,
-    private val platformDao: PlatformDao,
     private val gameDiscDao: GameDiscDao,
     private val emulatorConfigDao: EmulatorConfigDao,
     private val emulatorLaunchArgsDao: EmulatorLaunchArgsDao,
     private val variantResolver: VariantResolver,
-    private val platformLibretroSettingsDao: com.nendo.argosy.data.local.dao.PlatformLibretroSettingsDao,
     private val emulatorDetector: EmulatorDetector,
-    private val builtinCoreResolver: BuiltinCoreResolver,
     private val m3uManager: M3uManager,
-    private val libretroCoreMgr: LibretroCoreManager,
-    private val biosRepository: BiosRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val coreOptionResolver: CoreOptionResolver,
-    private val builtinGraphicsResolver: BuiltinGraphicsResolver,
-    private val coreSystemDataManager: CoreSystemDataManager,
     private val gameFileDao: GameFileDao,
     private val emulatorSaveConfigRepository: com.nendo.argosy.data.repository.EmulatorSaveConfigRepository,
     private val savePathAuthority: com.nendo.argosy.data.emulator.savepath.SavePathAuthority,
     private val saveHandlerRegistry: com.nendo.argosy.data.sync.platform.PlatformSaveHandlerRegistry,
-    private val libretroStatePathResolver: LibretroStatePathResolver,
-    private val builtinSaveBase: BuiltinSaveBase,
-    private val notificationManager: com.nendo.argosy.core.notification.NotificationManager,
-    private val attributionRepository: StorageAttributionRepository,
     private val accountSwitchMarkerStore: com.nendo.argosy.data.preferences.AccountSwitchMarkerStore,
     private val extContentOrganizer: com.nendo.argosy.data.download.ExtContentOrganizer,
     private val baseRomFileResolver: BaseRomFileResolver,
     private val platformFolderResolver: PlatformFolderResolver,
-    private val dreamcastVmuMigrator: DreamcastVmuMigrator,
     private val volumeHealth: StorageVolumeHealth,
     private val launchProgressTracker: LaunchProgressTracker,
     private val steamInstallReports: SteamInstallReports,
@@ -164,9 +140,6 @@ class GameLauncher @Inject constructor(
 
     @Volatile
     private var shellLaunchRejected: Boolean = false
-
-    @Volatile
-    private var lastCoreDownloadError: String? = null
 
     /**
      * Resolving a launch reads and rewrites the disk - it walks rom folders, extracts archives,
@@ -302,7 +275,6 @@ class GameLauncher @Inject constructor(
         variantFileId: Long?,
     ): LaunchResult {
         val gameId = game.id
-        val cacheKey = variantFileId?.let { variantCacheKey(it) } ?: PRIMARY_CACHE_KEY
         val isPrimary = variantFileId == null
         var romFile = initialRomFile
 
@@ -319,26 +291,9 @@ class GameLauncher @Inject constructor(
 
         ps2MemcardGate(gameId, game, emulator)?.let { return it }
 
-        biosGate(game, emulator)?.let { return it }
-
         consolidateExtContent(game, emulator)?.let { romFile = it }
 
-        if (emulator.launchConfig.isInProcess) {
-            romFile = extractArchiveIfNeeded(romFile, game, cacheKey)
-        }
-
-        var builtInDiscM3u: String? = null
-        if (emulator.launchConfig.isInProcess && romFile.extension.equals("m3u", ignoreCase = true)) {
-            romFile = repairedPlaylistOr(game, romFile)
-            val firstDisc = if (selectedDiscPath != null) File(selectedDiscPath) else M3uManager.parseFirstDisc(romFile)
-            if (firstDisc != null && firstDisc.exists()) {
-                Logger.info(TAG, "Built-in: loading disc ${firstDisc.name} directly instead of m3u ${romFile.name}")
-                builtInDiscM3u = romFile.absolutePath
-                romFile = firstDisc
-            } else {
-                romFile = validateAndResolveLaunchFile(game, romFile)
-            }
-        } else if (romFile.extension.lowercase() == "m3u" && !M3uManager.supportsM3u(game.platformSlug)) {
+        if (romFile.extension.lowercase() == "m3u" && !M3uManager.supportsM3u(game.platformSlug)) {
             val discFiles = M3uManager.parseAllDiscs(romFile)
             if (discFiles.size > 1 && selectedDiscPath == null) {
                 val discOptions = discFiles.mapIndexed { index, file ->
@@ -379,10 +334,10 @@ class GameLauncher @Inject constructor(
             romFile = validateAndResolveLaunchFile(game, romFile)
         }
 
-        val intent = buildIntent(emulator, romFile, game, forResume, variantFileId, builtInDiscM3u)
+        val intent = buildIntent(emulator, romFile, game, forResume)
             ?: return when (emulator.launchConfig) {
-                is LaunchConfig.RetroArch, is LaunchConfig.BuiltIn -> {
-                    LaunchResult.NoCore(game.platformSlug, lastCoreDownloadError).also {
+                is LaunchConfig.RetroArch -> {
+                    LaunchResult.NoCore(game.platformSlug).also {
                         Logger.warn(TAG, "launch() failed: no core for platform=${game.platformSlug}")
                     }
                 }
@@ -431,7 +386,7 @@ class GameLauncher @Inject constructor(
             val m3u = variant.m3uPath?.let { File(it) }
             if (m3u != null && m3u.exists()) {
                 val emulator = resolveEmulator(game) ?: return LaunchResult.NoEmulator(game.platformSlug)
-                val intent = buildIntent(emulator, m3u, game, forResume, variant.id) ?: return LaunchResult.NoCore(game.platformSlug, lastCoreDownloadError)
+                val intent = buildIntent(emulator, m3u, game, forResume) ?: return LaunchResult.NoCore(game.platformSlug)
                 overlayWriter.recordPlayStart(game.id, java.time.Instant.now())
                 val alreadyLaunched = intent.getBooleanExtra(EXTRA_ALREADY_LAUNCHED, false)
                 return LaunchResult.Success(
@@ -451,25 +406,6 @@ class GameLauncher @Inject constructor(
             selectedDiscPath = null,
             variantFileId = variant.id,
         )
-    }
-
-    /**
-     * Registers the discs of a game whose files say it is multi-disc but whose own row does not,
-     * which is how a library synced before disc promotion existed still looks. Without it the
-     * launcher hands the core one disc instead of the playlist, and a core that decides an m3u by
-     * substring reads that disc as a playlist and fails to open it.
-     */
-    private suspend fun repairedPlaylistOr(game: GameEntity, playlist: File): File {
-        if (M3uManager.parseFirstDisc(playlist)?.exists() == true) return playlist
-        Logger.warn(TAG, "playlist ${playlist.name} names no disc that exists; rebuilding it for gameId=${game.id}")
-        return when (val result = m3uManager.ensureM3u(game)) {
-            is M3uResult.Valid -> result.m3uFile
-            is M3uResult.Generated -> result.m3uFile.also {
-                Logger.info(TAG, "playlist rebuilt for gameId=${game.id}: ${it.absolutePath}")
-            }
-            is M3uResult.SingleDisc -> result.discFile
-            else -> playlist
-        }
     }
 
     private suspend fun backfillDiscModel(game: GameEntity): GameEntity {
@@ -591,18 +527,9 @@ class GameLauncher @Inject constructor(
             File(targetDisc.localPath!!)
         }
 
-        val discM3u = launchFile.takeIf { it.extension.equals("m3u", ignoreCase = true) }?.absolutePath
-        if (discM3u == null) {
-            Logger.warn(
-                TAG,
-                "launchMultiDiscGame: launching ${launchFile.name} without an m3u, " +
-                    "in-game disc switching will be unavailable for gameId=${game.id}"
-            )
-        }
-
-        val intent = buildIntent(emulator, launchFile, game, forResume, discM3uPath = discM3u)
+        val intent = buildIntent(emulator, launchFile, game, forResume)
             ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformSlug, lastCoreDownloadError).also {
+                LaunchResult.NoCore(game.platformSlug).also {
                     Logger.warn(TAG, "launchMultiDiscGame() failed: no core for platform=${game.platformSlug}")
                 }
             } else {
@@ -722,121 +649,6 @@ class GameLauncher @Inject constructor(
         return LaunchResult.Success(intent)
     }
 
-    private suspend fun buildBuiltInIntent(romFile: File, game: GameEntity, variantFileId: Long? = null, discM3uPath: String? = null): Intent? {
-        Logger.debug(TAG, "[BuiltIn] Preparing launch: rom=${romFile.name}, platform=${game.platformSlug}")
-        lastCoreDownloadError = null
-
-        val selectedCoreId = resolveBuiltinCoreId(game)
-        var corePath = libretroCoreMgr.getCorePathForPlatform(game.platformSlug, selectedCoreId)
-        if (corePath == null) {
-            if (!com.nendo.argosy.util.NetworkUtils.isOnline(context)) {
-                lastCoreDownloadError = "Built-in core for ${game.platformSlug} isn't installed yet. Connect to a network so Argosy can download it, then try again."
-                Logger.error(TAG, "[BuiltIn] Core missing for ${game.platformSlug} (selected=$selectedCoreId) and device is offline; aborting launch")
-                return null
-            }
-            Logger.info(TAG, "[BuiltIn] Core not downloaded for ${game.platformSlug} (selected=$selectedCoreId), attempting download...")
-            launchProgressTracker.report(LaunchStep.DownloadingCore(fraction = null))
-            val downloadResult = libretroCoreMgr.downloadCoreForPlatform(game.platformSlug, selectedCoreId) { fraction, zipBytes ->
-                launchProgressTracker.report(LaunchStep.DownloadingCore(fraction, zipBytes))
-            }
-            corePath = downloadResult.getOrElse { err ->
-                val reason = err.message ?: "Unknown error"
-                lastCoreDownloadError = com.nendo.argosy.libretro.formatCoreDownloadError(reason)
-                Logger.error(TAG, "[BuiltIn] Failed to download core for platform ${game.platformSlug}: $reason")
-                return null
-            }
-            Logger.info(TAG, "[BuiltIn] Successfully downloaded core for ${game.platformSlug}")
-        }
-
-        val coreFile = File(corePath)
-        Logger.debug(TAG, "[BuiltIn] Core: ${coreFile.name}, exists=${coreFile.exists()}, size=${coreFile.length()}b")
-
-        launchProgressTracker.report(LaunchStep.PreparingSystemFiles)
-        biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)
-        val systemDir = biosRepository.getLibretroSystemDir()
-
-        val coreName = LibretroCoreRegistry.getCoreByFileName(coreFile.name)?.coreId
-            ?: coreFile.nameWithoutExtension
-                .removeSuffix("_libretro_android")
-                .removeSuffix("_libretro")
-
-        if (!coreSystemDataManager.ensureCoreSystemData(coreName, systemDir)) {
-            Logger.error(TAG, "Failed to download system data for $coreName")
-            return null
-        }
-
-        val resolvedVariables = coreOptionResolver.resolveVariables(
-            coreName,
-            gameId = game.id.takeIf { game.perGameSettingsEnabled }
-        )
-
-        Logger.info(TAG, "[BuiltIn] Launching: rom=${romFile.name}, core=$coreName, romSize=${romFile.length()}b, coreVars=${resolvedVariables.size}")
-        val builtinSettings = userPreferencesRepository.getBuiltinEmulatorSettings().first()
-        val graphics = builtinGraphicsResolver.resolve(
-            gameId = game.id,
-            platformId = game.platformId,
-            coreId = coreName,
-            resolvedVariables = resolvedVariables.toList(),
-            globalDriver = builtinSettings.gpuDriver
-        )
-        val coreVariables = graphics.coreVariables
-        val vulkanDriver = graphics.driver.takeIf { graphics.preferVulkan }
-        Logger.info(TAG, buildString {
-            append("[BuiltIn] Graphics: backend=${graphics.backendValue}, preferVulkan=${graphics.preferVulkan}")
-            if (graphics.preferVulkan) {
-                append(", driver=${vulkanDriver?.id ?: GpuDriverToken.SYSTEM}")
-                if (graphics.choice.fellBackToSystem) append(" (requested ${graphics.choice.requested})")
-            }
-        })
-        val platformLibretroOverride = platformLibretroSettingsDao.getByPlatformId(game.platformId)
-        val effectiveSavePath = builtinSaveBase.forGame(game, romFile.absolutePath)
-        val effectiveStatePath = libretroStatePathResolver
-            .liveStateBaseDir(platformLibretroOverride?.statePath, builtinSettings.customStatePath)
-            .absolutePath
-        dreamcastVmuMigrator.seedLegacyCard(
-            platformSlug = game.platformSlug,
-            romFile = romFile,
-            saveDir = liveSaveDir(effectiveSavePath, variantFileId),
-            systemDir = systemDir,
-            saveId = game.saveId ?: game.titleId,
-            perContentVmus = coreVariables
-                .firstOrNull { it.key == DreamcastVmuMigrator.PER_CONTENT_VMUS_KEY }?.value
-        )
-        return Intent(context, LibretroActivity::class.java).apply {
-            putExtra(LibretroActivity.EXTRA_ROM_PATH, romFile.absolutePath)
-            putExtra(LibretroActivity.EXTRA_VARIANT_FILE_ID, variantFileId ?: -1L)
-            discM3uPath?.let { putExtra(LibretroActivity.EXTRA_DISC_M3U_PATH, it) }
-            putExtra(LibretroActivity.EXTRA_CORE_PATH, corePath)
-            putExtra(LibretroActivity.EXTRA_SYSTEM_DIR, systemDir.absolutePath)
-            putExtra(LibretroActivity.EXTRA_GAME_NAME, game.title)
-            putExtra(LibretroActivity.EXTRA_GAME_ID, game.id)
-            putExtra(LibretroActivity.EXTRA_PLATFORM_SLUG, game.platformSlug)
-            putExtra(LibretroActivity.EXTRA_CORE_NAME, coreName)
-            putExtra(LibretroActivity.EXTRA_CORE_VAR_KEYS, coreVariables.map { it.key }.toTypedArray())
-            putExtra(LibretroActivity.EXTRA_CORE_VAR_VALUES, coreVariables.map { it.value }.toTypedArray())
-            putExtra(LibretroActivity.EXTRA_PREFER_VULKAN, graphics.preferVulkan)
-            vulkanDriver?.let {
-                putExtra(LibretroActivity.EXTRA_VULKAN_DRIVER_DIR, it.directory.absolutePath)
-                putExtra(LibretroActivity.EXTRA_VULKAN_DRIVER_LIBRARY, it.libraryName)
-            }
-            effectiveSavePath?.let { putExtra(LibretroActivity.EXTRA_SAVES_DIR, it) }
-            putExtra(LibretroActivity.EXTRA_STATES_DIR, effectiveStatePath)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
-    /**
-     * Where the built-in core will really write its saves. LibretroActivity isolates a version
-     * variant into its own subdirectory, so anything that seeds a file for the core to read has to
-     * land in the same place rather than in the base directory.
-     */
-    private fun liveSaveDir(basePath: String, variantFileId: Long?): File =
-        if (variantFileId != null && variantFileId >= 0) {
-            File(basePath, "variants/$variantFileId")
-        } else {
-            File(basePath)
-        }
-
     private suspend fun launchGameNativeStoreGame(game: GameEntity): LaunchResult {
         val appId = game.steamAppId?.toInt()
             ?: return LaunchResult.Error("Missing GameNative id for ${game.title}")
@@ -887,7 +699,6 @@ class GameLauncher @Inject constructor(
 
     private suspend fun ps2MemcardGate(gameId: Long, game: GameEntity, emulator: EmulatorDef): LaunchResult? {
         if (game.platformSlug != "ps2") return null
-        if (emulator.launchConfig.isInProcess) return null
         if (emulatorConfigDao.getSelectedMemcardForGame(gameId) != null) return null
         val emulatorId = savePathAuthority.configIdFor(
             SavePathRequest(
@@ -914,59 +725,12 @@ class GameLauncher @Inject constructor(
         )
     }
 
-    /**
-     * Firmware a platform cannot boot without, as paths relative to the libretro system directory
-     * and spelled exactly as the core looks them up. Each inner list is a set of alternatives, one
-     * of which must be present. SAME CDi searches `same_cdi/bios/` rather than the system root, so
-     * the CD-i entry carries that prefix.
-     */
-    private val mandatoryBios: Map<String, List<List<String>>> = mapOf(
-        "saturn" to listOf(listOf("sega_101.bin", "mpr-17933.bin")),
-        "3do" to listOf(listOf("panafz10.bin", "panafz1.bin", "goldstar.bin")),
-        "tgcd" to listOf(listOf("syscard3.pce")),
-        "pcfx" to listOf(listOf("pcfx.rom")),
-        "cdi" to listOf(listOf("same_cdi/bios/cdimono1.zip")),
-        "scd" to listOf(listOf("bios_CD_U.bin", "bios_CD_E.bin", "bios_CD_J.bin"))
-    )
-
-    private suspend fun biosGate(game: GameEntity, emulator: EmulatorDef): LaunchResult? {
-        if (!emulator.launchConfig.isInProcess) return null
-        val requirements = mandatoryBios[PlatformDefinitions.getCanonicalSlug(game.platformSlug)]
-        val biosDir = BiosPathRegistry.getBuiltinPlatformBiosDir(game.platformSlug)
-        if (requirements == null && biosDir == null) return null
-        return try {
-            biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)
-            val systemDir = biosRepository.getLibretroSystemDir()
-            val unmetGroups = requirements.orEmpty().filter { group -> group.none { File(systemDir, it).exists() } }
-            val unmetDir = biosDir?.takeIf { File(systemDir, it).listFiles()?.any { file -> file.isFile } != true }
-            if (unmetGroups.isNotEmpty() || unmetDir != null) {
-                Logger.warn(
-                    TAG,
-                    "[Launch] BIOS gate: ${game.platformSlug} missing required firmware | " +
-                        "files=$unmetGroups folder=$unmetDir systemDir=${systemDir.absolutePath}"
-                )
-                val platformName = platformDao.getById(game.platformId)?.name?.takeIf { it.isNotBlank() }
-                    ?: game.platformSlug
-                LaunchResult.MissingBios(game.platformSlug, platformName, unmetGroups, unmetDir)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Logger.warn(TAG, "BIOS gate check failed, allowing launch", e)
-            null
-        }
-    }
-
     private suspend fun resolveEmulator(game: GameEntity): EmulatorDef? =
         emulatorResolver.resolveEmulatorForGame(game.id, game.platformId, game.platformSlug)
 
-    private suspend fun buildIntent(emulator: EmulatorDef, romFile: File, game: GameEntity, forResume: Boolean, variantFileId: Long? = null, discM3uPath: String? = null): Intent? {
+    private suspend fun buildIntent(emulator: EmulatorDef, romFile: File, game: GameEntity, forResume: Boolean): Intent? {
         val configType = emulator.launchConfig::class.simpleName
         Logger.debug(TAG, "buildIntent: emulator=${emulator.displayName}, config=$configType, rom=${romFile.name}, forResume=$forResume")
-
-        if (emulator.launchConfig.isInProcess) {
-            return buildBuiltInIntent(romFile, game, variantFileId, discM3uPath)
-        }
 
         val built = buildEffectiveCommand(emulator, romFile, game, forResume) ?: return null
         val command = built.pinnedPastPathPattern(romFile.extension) { path -> resolveViewActivity(built, path) }
@@ -1335,25 +1099,6 @@ class GameLauncher @Inject constructor(
         }
     }
 
-    private suspend fun resolveBuiltinCoreId(game: GameEntity): String? {
-        val resolution = builtinCoreResolver.resolve(game.id, game.platformId, game.platformSlug)
-        val default = resolution.coreId
-        Logger.debug(TAG, "[BuiltIn] core selection -> $default")
-
-        val rejected = resolution.rejectedCoreId
-        if (rejected != null && default != null) {
-            val registry = com.nendo.argosy.libretro.LibretroCoreRegistry
-            notificationManager.show(
-                title = com.nendo.argosy.core.notification.NotificationText.Res(
-                    com.nendo.argosy.R.string.sync_launch_core_fallback,
-                    listOf(registry.displayNameFor(rejected), registry.displayNameFor(default))
-                ),
-                type = com.nendo.argosy.core.notification.NotificationType.WARNING
-            )
-        }
-        return default
-    }
-
     private suspend fun resolveCoreName(game: GameEntity): String? {
         val gameConfig = emulatorConfigDao.getByGameId(game.id)
         if (gameConfig?.coreName != null) {
@@ -1393,7 +1138,7 @@ class GameLauncher @Inject constructor(
             return coreName
         }
 
-        val isBuiltinCore = com.nendo.argosy.libretro.LibretroCoreRegistry
+        val isBuiltinCore = com.nendo.argosy.data.libretro.LibretroCoreRegistry
             .getCoresForPlatform(platformSlug).any { it.coreId == coreName }
         if (isBuiltinCore) {
             val fallback = EmulatorRegistry.getDefaultSelectableCore(platformSlug, isBuiltIn = false)?.id
@@ -2023,137 +1768,7 @@ class GameLauncher @Inject constructor(
         return romFile
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun getRomCacheDir(platformSlug: String, gameId: Long, cacheKey: String): File {
-        return File(context.filesDir, "rom_cache/$platformSlug/$gameId/$cacheKey")
-    }
-
-    private fun findCachedRom(cacheDir: File): File? {
-        if (!cacheDir.exists() || !cacheDir.isDirectory) return null
-        return cacheDir.listFiles()
-            ?.filter { it.isFile && !it.name.startsWith(".") }
-            ?.maxByOrNull { it.lastModified() }
-    }
-
-    private suspend fun extractArchiveIfNeeded(romFile: File, game: GameEntity, cacheKey: String): File {
-        if (!ZipExtractor.isArchiveFile(romFile)) {
-            return romFile
-        }
-
-        if (ZipExtractor.usesZipAsRomFormat(game.platformSlug)) {
-            Logger.debug(TAG, "Platform ${game.platformSlug} uses ZIP as ROM format, skipping extraction")
-            return romFile
-        }
-
-        val cacheDir = getRomCacheDir(game.platformSlug, game.id, cacheKey)
-        val cachedRom = findCachedRom(cacheDir)
-
-        if (cachedRom != null && cachedRom.exists()) {
-            Logger.info(TAG, "Using cached extraction: ${cachedRom.name}")
-            return cachedRom
-        }
-
-        val validation = ZipExtractor.validateArchive(romFile)
-        if (validation is ZipExtractor.ArchiveValidationResult.Invalid) {
-            Logger.error(
-                TAG,
-                "Archive ${romFile.name} failed validation before launch: ${validation.reason}"
-            )
-            return romFile
-        }
-
-        Logger.info(TAG, "Extracting archive to cache: ${romFile.name}")
-
-        return try {
-            cacheDir.mkdirs()
-
-            val extractedFile = if (ZipExtractor.shouldExtractArchive(romFile, game.platformSlug)) {
-                val gameTitle = game.title.ifEmpty { romFile.nameWithoutExtension }
-                val extracted = ZipExtractor.extractFolderRom(
-                    archiveFilePath = romFile,
-                    gameTitle = gameTitle,
-                    platformDir = cacheDir,
-                    platformSlug = game.platformSlug
-                )
-                File(extracted.launchPath)
-            } else {
-                extractSingleFileArchive(romFile, cacheDir)
-            }
-
-            if (extractedFile.exists()) {
-                Logger.info(TAG, "Extracted to cache: ${extractedFile.name}")
-                attributionRepository.markDirty(StorageCategory.ROM_EXTRACTION)
-                extractedFile
-            } else {
-                Logger.error(TAG, "Extraction failed: extracted file doesn't exist: ${extractedFile.absolutePath}")
-                cacheDir.deleteRecursively()
-                attributionRepository.markDirty(StorageCategory.ROM_EXTRACTION)
-                romFile
-            }
-        } catch (e: Exception) {
-            Logger.error(TAG, "Failed to extract archive: ${e.message}", e)
-            cacheDir.deleteRecursively()
-            attributionRepository.markDirty(StorageCategory.ROM_EXTRACTION)
-            romFile
-        }
-    }
-
-    private fun extractSingleFileArchive(archiveFile: File, targetDir: File): File {
-        if (ZipExtractor.isSevenZFile(archiveFile)) {
-            return extractSingleFile7z(archiveFile, targetDir)
-        }
-
-        java.util.zip.ZipFile(archiveFile).use { zip ->
-            val entry = ArchiveRomNaming.primaryZipEntry(zip)
-                ?: throw IllegalStateException("Archive is empty")
-
-            val fileName = ArchiveRomNaming.launchFileName(entry.name)
-            val targetFile = File(targetDir, fileName)
-
-            zip.getInputStream(entry).use { input ->
-                targetFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-
-            Logger.debug(TAG, "Extracted single file: ${entry.name} -> ${targetFile.name}")
-            return targetFile
-        }
-    }
-
-    private fun extractSingleFile7z(archiveFile: File, targetDir: File): File {
-        org.apache.commons.compress.archivers.sevenz.SevenZFile.builder()
-            .setFile(archiveFile)
-            .get()
-            .use { sevenZ ->
-                var entry = sevenZ.nextEntry
-                while (entry != null) {
-                    if (ArchiveRomNaming.isUsableEntry(entry.name, entry.isDirectory)) {
-                        val fileName = ArchiveRomNaming.launchFileName(entry.name)
-                        val targetFile = File(targetDir, fileName)
-
-                        targetFile.outputStream().use { output ->
-                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                            val inputStream = sevenZ.getInputStream(entry)
-                            var bytes = inputStream.read(buffer)
-                            while (bytes >= 0) {
-                                output.write(buffer, 0, bytes)
-                                bytes = inputStream.read(buffer)
-                            }
-                        }
-
-                        Logger.debug(TAG, "Extracted single file from 7z: ${entry.name} -> ${targetFile.name}")
-                        return targetFile
-                    }
-                    entry = sevenZ.nextEntry
-                }
-            }
-        throw IllegalStateException("No valid files found in 7z archive")
-    }
-
     private companion object {
-        const val PRIMARY_CACHE_KEY = "base"
-        fun variantCacheKey(fileId: Long) = "v$fileId"
         val UPDATE_DLC_SUFFIX = Regex("(?i)[ _-]+(update|dlc)([ _-]?\\d+)?$")
         val UPDATE_DLC_TAG = Regex("(?i)\\[(upd|update|dlc)]")
     }

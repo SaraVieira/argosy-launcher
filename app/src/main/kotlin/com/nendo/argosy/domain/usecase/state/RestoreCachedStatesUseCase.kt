@@ -13,7 +13,7 @@ import com.nendo.argosy.data.emulator.provenStateKey
 import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.repository.StateCacheManager
-import com.nendo.argosy.libretro.LibretroStateFormat
+import com.nendo.argosy.data.libretro.LibretroStateFormat
 import com.nendo.argosy.data.sync.StateClaim
 import com.nendo.argosy.data.sync.StateOwnershipTracker
 import java.io.File

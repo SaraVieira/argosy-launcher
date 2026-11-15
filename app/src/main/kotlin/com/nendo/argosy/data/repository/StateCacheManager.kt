@@ -10,7 +10,7 @@ import com.nendo.argosy.data.emulator.StateNameKey
 import com.nendo.argosy.data.emulator.StatePathConfig
 import com.nendo.argosy.data.emulator.StatePathRegistry
 import com.nendo.argosy.data.emulator.VersionValidationResult
-import com.nendo.argosy.libretro.LibretroStateFormat
+import com.nendo.argosy.data.libretro.LibretroStateFormat
 import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PendingSyncQueueDao

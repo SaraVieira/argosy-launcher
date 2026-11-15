@@ -4,7 +4,6 @@ import com.nendo.argosy.data.local.entity.PlatformEntity
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.PlatformRepository
-import com.nendo.argosy.data.setup.SetupCoreDownloads
 import com.nendo.argosy.ui.components.PLATFORM_HEADER_COUNT
 import com.nendo.argosy.ui.components.PLATFORM_HEADER_SEARCH
 import com.nendo.argosy.ui.components.PLATFORM_HEADER_SORT
@@ -18,16 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * The platform list and the built-in emulator offer on the platforms page.
+ * The platform list on the platforms page.
  */
 class SetupPlatformsDelegate @Inject constructor(
     private val romMRepository: RomMRepository,
-    private val platformRepository: PlatformRepository,
-    private val coreDownloads: SetupCoreDownloads
+    private val platformRepository: PlatformRepository
 ) {
     private val _state = MutableStateFlow(SetupPlatformsState())
     val state: StateFlow<SetupPlatformsState> = _state.asStateFlow()
@@ -41,8 +38,7 @@ class SetupPlatformsDelegate @Inject constructor(
     }
 
     /**
-     * Fetches the library's platforms and the emulators they lack, and answers whether the
-     * platforms page is offered. A library above the threshold starts with every platform off so
+     * Fetches the library's platforms and answers whether the platforms page is offered. A library above the threshold starts with every platform off so
      * the person picks; a smaller one syncs them all.
      */
     suspend fun load(platformCount: Int): Boolean {
@@ -51,9 +47,8 @@ class SetupPlatformsDelegate @Inject constructor(
             is RomMResult.Success -> result.data
             is RomMResult.Error -> platformRepository.observeAllPlatforms().first()
         }
-        val missing = missingFor(all)
-        _state.update { it.copy(all = all, shown = filtered(all, it), missingCoreIds = missing, loaded = true) }
-        return offersPlatforms(maxOf(platformCount, all.size), missing.size)
+        _state.update { it.copy(all = all, shown = filtered(all, it), loaded = true) }
+        return offersPlatforms(maxOf(platformCount, all.size), 0)
     }
 
     fun toggle(platformId: Long) {
@@ -64,15 +59,6 @@ class SetupPlatformsDelegate @Inject constructor(
     fun toggleAll() {
         val all = _state.value.all
         update(all, !all.all { it.syncEnabled })
-    }
-
-    fun toggleDownloadCores() {
-        _state.update { it.copy(downloadCores = !it.downloadCores) }
-    }
-
-    fun startCoreDownloads() {
-        val current = _state.value
-        if (current.downloadCores) coreDownloads.start(current.missingCoreIds)
     }
 
     fun moveHeader(delta: Int) {
@@ -143,17 +129,11 @@ class SetupPlatformsDelegate @Inject constructor(
         }
         scope.launch {
             ids.forEach { platformRepository.updateSyncEnabled(it, enabled) }
-            val missing = missingFor(_state.value.all)
-            _state.update { it.copy(missingCoreIds = missing) }
         }
     }
 
     private fun refilter() {
         _state.update { it.copy(shown = filtered(it.all, it)) }
-    }
-
-    private suspend fun missingFor(all: List<PlatformEntity>): List<String> = withContext(ioDispatcher) {
-        coreDownloads.missingCoreIds(all.filter { it.syncEnabled }.map { it.slug }.toSet())
     }
 
     private fun filtered(all: List<PlatformEntity>, state: SetupPlatformsState): List<PlatformEntity> =

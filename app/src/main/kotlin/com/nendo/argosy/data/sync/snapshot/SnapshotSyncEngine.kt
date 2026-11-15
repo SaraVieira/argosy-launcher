@@ -4,8 +4,8 @@ import android.content.Context
 import com.nendo.argosy.data.emulator.ArchiveRomNaming
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.EmulatorResolver
-import com.nendo.argosy.libretro.LibretroStateFormat
-import com.nendo.argosy.libretro.LibretroStateSlots
+import com.nendo.argosy.data.libretro.LibretroStateFormat
+import com.nendo.argosy.data.libretro.LibretroStateSlots
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.SaveCacheDao
 import com.nendo.argosy.data.local.dao.SnapshotChannelDao

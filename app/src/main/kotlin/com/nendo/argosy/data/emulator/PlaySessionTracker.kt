@@ -2,10 +2,6 @@ package com.nendo.argosy.data.emulator
 
 import android.app.Activity
 import android.app.Application
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -20,7 +16,6 @@ import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.SaveCacheManager
 import com.nendo.argosy.data.repository.SaveSyncRepository
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.data.streaming.StreamClaim
 import com.nendo.argosy.data.streaming.StreamClaimReleaser
 import com.nendo.argosy.data.streaming.StreamSessionManager
@@ -107,7 +102,6 @@ class PlaySessionTracker @Inject constructor(
     private val gameUpdateBus: GameUpdateBus,
     private val emulatorResolver: EmulatorResolver,
     private val fileAccessLayer: FileAccessLayer,
-    private val socialRepository: dagger.Lazy<SocialRepository>,
     private val saveRecoveryGate: com.nendo.argosy.data.sync.SaveRecoveryGate,
     private val reconcileAchievementsOnSessionEndUseCase: dagger.Lazy<com.nendo.argosy.domain.usecase.achievement.ReconcileAchievementsOnSessionEndUseCase>,
     private val savePathAuthority: com.nendo.argosy.data.emulator.savepath.SavePathAuthority,
@@ -211,33 +205,8 @@ class PlaySessionTracker @Inject constructor(
     private var wasInBackground = false
     private var lastPauseTime: Instant? = null
 
-    private var lastScreenOnTime: Instant? = null
-    private var isScreenOn = true
-    private var lastScreenOffTime: Instant? = null
-    private var marathonSegmentDuration: Duration = Duration.ZERO
-    private var longestMarathonSegment: Duration = Duration.ZERO
-
-    private val builtInClock = ForegroundClock()
-
-    fun onBuiltInGameResumed() = builtInClock.resume()
-
-    fun onBuiltInGamePaused() = builtInClock.pause()
-
-    private val screenReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (_activeSession.value == null) return
-            when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> onScreenOff()
-                Intent.ACTION_SCREEN_ON -> onScreenOn()
-            }
-        }
-    }
-
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) {
-            registerLifecycleCallbacks()
-            registerScreenReceiver()
-        }
+        registerLifecycleCallbacks()
     }
 
     private suspend fun insertPlaySessionIfAbsent(entity: PlaySessionEntity): Long? {
@@ -282,7 +251,6 @@ class PlaySessionTracker @Inject constructor(
                     scope, sessionId, orphaned.gameId, orphaned.emulatorPackage, recapFacts, orphaned.startTime, endTime
                 )
                 Logger.info(TAG, "[SaveSync] ORPHAN gameId=${orphaned.gameId} | Play session entity created | activePlayMs=$activePlayMs, standbyMs=$standbyMs")
-                socialRepository.get().syncPlaySessions()
                 reconcileAchievementsInBackground(orphaned.gameId)
                 recordPlayTime(
                     ActiveSession(
@@ -371,11 +339,6 @@ class PlaySessionTracker @Inject constructor(
         )
         saveObserved.set(false)
         sessionServiceStarted.set(false)
-        isScreenOn = true
-        lastScreenOnTime = Instant.now()
-        lastScreenOffTime = null
-        marathonSegmentDuration = Duration.ZERO
-        longestMarathonSegment = Duration.ZERO
 
         _activeSession.value = ActiveSession(
             gameId = persisted.gameId,
@@ -453,61 +416,15 @@ class PlaySessionTracker @Inject constructor(
         emulatorPackage: String,
         startTime: Instant,
         endTime: Instant,
-        totalMs: Long,
-        builtInForegroundMs: Long? = null
+        totalMs: Long
     ): Pair<Long, Long> {
-        val statsPackage = if (emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE) {
-            application.packageName
-        } else {
-            emulatorPackage
-        }
         val durations = permissionHelper.getSessionDurations(
             application,
-            statsPackage,
+            emulatorPackage,
             startTime.toEpochMilli(),
             endTime.toEpochMilli()
         )
-        return splitActivePlayTime(totalMs, builtInForegroundMs ?: durations.foregroundMs, durations.screenOnMs)
-    }
-
-    private fun registerScreenReceiver() {
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_SCREEN_ON)
-        }
-        application.registerReceiver(screenReceiver, filter)
-    }
-
-    private fun onScreenOn() {
-        if (!isScreenOn) {
-            isScreenOn = true
-            lastScreenOnTime = Instant.now()
-
-            val offTime = lastScreenOffTime
-            if (offTime != null) {
-                val gap = Duration.between(offTime, Instant.now())
-                if (gap.toMinutes() > 10) {
-                    if (marathonSegmentDuration > longestMarathonSegment) {
-                        longestMarathonSegment = marathonSegmentDuration
-                    }
-                    marathonSegmentDuration = Duration.ZERO
-                }
-            }
-            lastScreenOffTime = null
-
-            Logger.debug(TAG, "Screen ON - resuming active time tracking")
-        }
-    }
-
-    private fun onScreenOff() {
-        if (isScreenOn && lastScreenOnTime != null) {
-            isScreenOn = false
-            val elapsed = Duration.between(lastScreenOnTime, Instant.now())
-            marathonSegmentDuration = marathonSegmentDuration.plus(elapsed)
-            lastScreenOnTime = null
-            lastScreenOffTime = Instant.now()
-            Logger.debug(TAG, "Screen OFF - paused after ${elapsed.toMinutes()} minutes active")
-        }
+        return splitActivePlayTime(totalMs, durations.foregroundMs, durations.screenOnMs)
     }
 
     /**
@@ -536,12 +453,6 @@ class PlaySessionTracker @Inject constructor(
         }
         saveObserved.set(false)
         sessionServiceStarted.set(false)
-        lastScreenOnTime = Instant.now()
-        isScreenOn = true
-        lastScreenOffTime = null
-        marathonSegmentDuration = Duration.ZERO
-        longestMarathonSegment = Duration.ZERO
-        builtInClock.reset(running = emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE)
 
         val startTime = Instant.now()
         sessionRecapFactsRecorder.onSessionStarted(scope, gameId, emulatorPackage, startTime)
@@ -589,14 +500,6 @@ class PlaySessionTracker @Inject constructor(
 
                 broadcastSessionChanged(gameId, channelName, isHardcore)
                 game?.let { com.nendo.argosy.fork.CocoonLaunchLog.write(fileAccessLayer, it, startTime) }
-
-                if (isNewGame && game != null && game.playCount <= 1) {
-                    socialRepository.get().emitStartedPlaying(
-                        igdbId = game.igdbId,
-                        gameTitle = game.title,
-                        platformSlug = game.platformSlug
-                    )
-                }
 
                 startGameSessionService(gameId, emulatorPackage, coreName, isHardcore, startTime.toEpochMilli())
             }
@@ -809,10 +712,8 @@ class PlaySessionTracker @Inject constructor(
             val endTime = Instant.now()
             val sessionDuration = Duration.between(session.startTime, endTime)
             val totalMs = sessionDuration.toMillis()
-            val builtInForeground = builtInClock.elapsedMs()
-                .takeIf { session.emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE }
             val (activePlayMs, standbyMs) = resolveActivePlayTime(
-                session.emulatorPackage, session.startTime, endTime, totalMs, builtInForeground
+                session.emulatorPackage, session.startTime, endTime, totalMs
             )
             Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Session ended | duration=${sessionDuration.seconds}s, activePlayMs=$activePlayMs, standbyMs=$standbyMs, emulator=${session.emulatorPackage}")
             try {
@@ -846,38 +747,12 @@ class PlaySessionTracker @Inject constructor(
                         scope, sessionId, session.gameId, session.emulatorPackage, recapFacts, session.startTime, endTime
                     )
                     Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Play session entity created | activePlayMs=$activePlayMs, standbyMs=$standbyMs")
-                    socialRepository.get().syncPlaySessions()
                 }
             } catch (e: Exception) {
                 Logger.error(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Failed to create play session entity", e)
             }
             reconcileAchievementsInBackground(session.gameId)
             queueSessionScreenshots(session.gameId, session.emulatorPackage, session.startTime, endTime, "SESSION")
-
-            if (isScreenOn) {
-                marathonSegmentDuration = marathonSegmentDuration.plus(
-                    Duration.between(lastScreenOnTime ?: session.startTime, Instant.now())
-                )
-            }
-            if (marathonSegmentDuration > longestMarathonSegment) {
-                longestMarathonSegment = marathonSegmentDuration
-            }
-            val marathonMins = longestMarathonSegment.toMinutes()
-            if (marathonMins >= 240) {
-                try {
-                    val game = gameDao.getById(session.gameId)
-                    if (game != null) {
-                        socialRepository.get().emitMarathonSession(
-                            igdbId = game.igdbId,
-                            gameTitle = game.title,
-                            durationMins = marathonMins.toInt(),
-                            platformSlug = game.platformSlug
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.warn(TAG, "Failed to emit marathon session event", e)
-                }
-            }
 
             val effectiveSkipSaveSync = skipSaveSync || session.isNetplayGuest || session.variantFileId != null
             val outcome = try {

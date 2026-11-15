@@ -11,7 +11,6 @@ import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.domain.model.BatteryEvent
 import com.nendo.argosy.domain.model.BatteryStep
 import com.nendo.argosy.hardware.BatteryMonitor
-import com.nendo.argosy.libretro.slot.ResumedGameRouter
 import com.nendo.argosy.ui.theme.generated.ColorTokens
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +28,6 @@ private const val MINUTES_PER_HOUR = 60L
 enum class BatteryNoticeKind {
     LOW,
     CRITICAL,
-    CRITICAL_GAME_SAVED,
     CHARGING,
     UNPLUGGED
 }
@@ -40,11 +38,9 @@ enum class BatteryNoticeKind {
  */
 fun batteryNoticeFor(
     events: List<BatteryEvent>,
-    builtInGameInFront: Boolean,
     gameRunning: Boolean
 ): BatteryNoticeKind? = when {
-    BatteryEvent.CRITICAL_5 in events ->
-        if (builtInGameInFront) BatteryNoticeKind.CRITICAL_GAME_SAVED else BatteryNoticeKind.CRITICAL
+    BatteryEvent.CRITICAL_5 in events -> BatteryNoticeKind.CRITICAL
     BatteryEvent.LOW_15 in events -> BatteryNoticeKind.LOW
     !gameRunning -> null
     BatteryEvent.PLUGGED in events -> BatteryNoticeKind.CHARGING
@@ -53,8 +49,7 @@ fun batteryNoticeFor(
 }
 
 /**
- * Posts the main process's battery cards from [BatteryMonitor]. The built-in game's own save at
- * the critical levels is [com.nendo.argosy.libretro.BatterySaveGuard]'s job, in the game's process.
+ * Posts the main process's battery cards from [BatteryMonitor].
  */
 @Singleton
 class BatteryNoticePoster @Inject constructor(
@@ -77,7 +72,6 @@ class BatteryNoticePoster @Inject constructor(
         val level = step.sample.level
         val kind = batteryNoticeFor(
             events = step.events,
-            builtInGameInFront = ResumedGameRouter.hasGameInFront,
             gameRunning = playSessionTracker.activeSession.value != null
         ) ?: return
         when (kind) {
@@ -89,13 +83,8 @@ class BatteryNoticePoster @Inject constructor(
                 immediate = true,
                 category = NotificationCategory.BATTERY
             )
-            BatteryNoticeKind.CRITICAL, BatteryNoticeKind.CRITICAL_GAME_SAVED -> notificationManager.show(
+            BatteryNoticeKind.CRITICAL -> notificationManager.show(
                 title = NotificationText.Res(R.string.notif_battery_critical_title, listOf(level)),
-                subtitle = if (kind == BatteryNoticeKind.CRITICAL_GAME_SAVED) {
-                    NotificationText.Res(R.string.notif_battery_critical_saved)
-                } else {
-                    null
-                },
                 type = NotificationType.ERROR,
                 duration = NotificationDuration.LONG,
                 key = LEVEL_KEY,

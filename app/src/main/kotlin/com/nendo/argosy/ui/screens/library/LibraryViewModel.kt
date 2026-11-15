@@ -42,8 +42,6 @@ import com.nendo.argosy.data.preferences.LibraryLayout
 import com.nendo.argosy.data.preferences.LibraryListStyle
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.SaveListStatusRepository
-import com.nendo.argosy.data.social.FriendActivity
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.domain.model.SaveListState
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
@@ -293,7 +291,6 @@ data class LibraryUiState(
     val libraryListStyle: LibraryListStyle = LibraryListStyle.RELAXED,
     val boxArt3d: Boolean = false,
     val saveStates: Map<Long, SaveListState> = emptyMap(),
-    val friendsActivity: Map<Int, List<FriendActivity>> = emptyMap(),
     val isLoading: Boolean = true,
     val activeFilters: ActiveFilters = ActiveFilters(),
     val filterOptions: FilterOptions = FilterOptions(),
@@ -503,7 +500,6 @@ class LibraryViewModel @Inject constructor(
     private val steamLauncherLinkController: com.nendo.argosy.data.steam.SteamLauncherLinkController,
     private val downloadFileStatusRepository: com.nendo.argosy.data.repository.DownloadFileStatusRepository,
     private val siblingChoice: com.nendo.argosy.ui.screens.common.SiblingChoiceDelegate,
-    private val socialRepository: SocialRepository,
     private val saveListStatusRepository: SaveListStatusRepository,
     private val libraryDefaultPlatformMigration: com.nendo.argosy.data.repository.LibraryDefaultPlatformMigration,
     private val showcaseSource: com.nendo.argosy.ui.common.PresentationShowcaseSource,
@@ -878,16 +874,13 @@ class LibraryViewModel @Inject constructor(
             .distinctUntilChanged()
             .flatMapLatest { layout ->
                 if (layout == LibraryLayout.LIST) {
-                    combine(
-                        saveListStatusRepository.observeWorstByGame(),
-                        socialRepository.friendsActivity
-                    ) { saves, friends -> saves to friends }
+                    saveListStatusRepository.observeWorstByGame()
                 } else {
-                    flowOf(emptyMap<Long, SaveListState>() to emptyMap<Int, List<FriendActivity>>())
+                    flowOf(emptyMap<Long, SaveListState>())
                 }
             }
-            .onEach { (saves, friends) ->
-                _uiState.update { it.copy(saveStates = saves, friendsActivity = friends) }
+            .onEach { saves ->
+                _uiState.update { it.copy(saveStates = saves) }
             }
             .launchIn(viewModelScope)
     }
@@ -1041,12 +1034,11 @@ class LibraryViewModel @Inject constructor(
     private suspend fun publishCompanionDetail(gameId: Long?) {
         if (!isDescribing) return
         val dsm = DualScreenManagerHolder.instance ?: return
-        val friends = _uiState.value.friendsActivity
-        val detail = gameId?.let { showcaseSource.gameDetail(it, friends) }
+        val detail = gameId?.let { showcaseSource.gameDetail(it) }
         if (!isDescribing) return
         dsm.setCompanionDetail(companionOwner, detail)
         if (gameId != null && showcaseSource.backfillLogo(gameId)) {
-            val withLogo = showcaseSource.gameDetail(gameId, friends)
+            val withLogo = showcaseSource.gameDetail(gameId)
             if (isDescribing) dsm.setCompanionDetail(companionOwner, withLogo)
         }
     }

@@ -6,7 +6,6 @@ import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.GameFileEntity
 import com.nendo.argosy.data.model.VariantCategory
 import com.nendo.argosy.data.platform.LocalPlatformIds
-import com.nendo.argosy.data.preferences.BuiltinEmulatorPreferencesRepository
 import com.nendo.argosy.data.preferences.DownloadDefaults
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
@@ -15,7 +14,6 @@ import com.nendo.argosy.data.repository.PlatformRepository
 import com.nendo.argosy.data.update.ApkInstallManager
 import com.nendo.argosy.util.Logger
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 private const val TAG = "PushInstallUseCase"
@@ -43,19 +41,17 @@ class PushInstallUseCase @Inject constructor(
     private val platformRepository: PlatformRepository,
     private val gameRepository: GameRepository,
     private val emulatorDetector: EmulatorDetector,
-    private val builtinPreferences: BuiltinEmulatorPreferencesRepository,
     private val downloadGameUseCase: DownloadGameUseCase,
     private val apkInstallManager: ApkInstallManager
 ) {
     suspend operator fun invoke(romId: Long, requestedFileIds: List<Long>): PushInstallOutcome {
-        val builtinEnabled = builtinPreferences.isBuiltinLibretroEnabled().first()
         val knownPlatformIds = platformRepository.getAllPlatformIds()
         val game = resolveGame(romId)
             ?: return PushInstallOutcome.Failed(PushInstallFailure.ROM_UNRESOLVED)
         if (game.platformId !in knownPlatformIds) platformRepository.updateVisibility(game.platformId, true)
 
         if (gameRepository.validateAndDiscoverGame(game.id)) return PushInstallOutcome.AlreadyInstalled
-        if (!hasEmulatorFor(game, builtinEnabled)) return PushInstallOutcome.Failed(PushInstallFailure.NO_EMULATOR)
+        if (!hasEmulatorFor(game)) return PushInstallOutcome.Failed(PushInstallFailure.NO_EMULATOR)
 
         val selection = selectInstallFiles(gameFileDao.getFilesForGame(game.id), requestedFileIds)
         if (requestedFileIds.isNotEmpty() && selection == null) {
@@ -110,11 +106,11 @@ class PushInstallUseCase @Inject constructor(
         }
     }
 
-    private suspend fun hasEmulatorFor(game: GameEntity, builtinEnabled: Boolean): Boolean {
+    private suspend fun hasEmulatorFor(game: GameEntity): Boolean {
         if (game.platformId == LocalPlatformIds.ANDROID) return true
-        if (emulatorDetector.getPreferredEmulator(game.platformSlug, builtinEnabled) != null) return true
+        if (emulatorDetector.getPreferredEmulator(game.platformSlug) != null) return true
         emulatorDetector.detectEmulators()
-        return emulatorDetector.getPreferredEmulator(game.platformSlug, builtinEnabled) != null
+        return emulatorDetector.getPreferredEmulator(game.platformSlug) != null
     }
 
     private fun selectInstallFiles(files: List<GameFileEntity>, requested: List<Long>): List<Long>? {

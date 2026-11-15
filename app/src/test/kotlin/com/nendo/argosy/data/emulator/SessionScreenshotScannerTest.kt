@@ -15,7 +15,6 @@ import com.nendo.argosy.data.storage.FileInfo
 import com.nendo.argosy.data.sync.ScreenshotPayload
 import com.nendo.argosy.data.sync.ScreenshotUploadLedger
 import com.nendo.argosy.data.sync.SyncPayloadCodec
-import com.nendo.argosy.libretro.LibretroActivity
 import com.nendo.argosy.util.PermissionHelper
 import com.squareup.moshi.Moshi
 import io.mockk.coEvery
@@ -64,7 +63,6 @@ class SessionScreenshotScannerTest {
     fun setup() {
         coEvery { gameDao.getById(GAME_ID) } returns game
         every { folderRegistry.folders() } returns listOf(SYSTEM_DIR, BUILTIN_DIR)
-        every { folderRegistry.builtinFolder() } returns BUILTIN_DIR
         every { permissionHelper.foregroundSpans(any(), any(), any(), any(), any()) } returns listOf(START..END)
         every { fileAccessLayer.listFiles(any()) } returns emptyList()
         every { fileAccessLayer.getInputStream(any()) } answers { ByteArrayInputStream(byteArrayOf(1, 2, 3)) }
@@ -202,30 +200,6 @@ class SessionScreenshotScannerTest {
         every { fileAccessLayer.listFiles(SYSTEM_DIR) } returns listOf(image(SYSTEM_DIR, "a.png", START + 1))
 
         assertEquals(0, scan())
-    }
-
-    @Test
-    fun `without usage access a built-in session reads only Argosy's folder`() = runTest {
-        every { permissionHelper.foregroundSpans(any(), any(), any(), any(), any()) } returns null
-        every { fileAccessLayer.listFiles(SYSTEM_DIR) } returns listOf(image(SYSTEM_DIR, "a.png", START + 1))
-        every { fileAccessLayer.listFiles(BUILTIN_DIR) } returns listOf(image(BUILTIN_DIR, "argosy_1.png", START + 1))
-
-        assertEquals(1, scan(EmulatorRegistry.BUILTIN_PACKAGE))
-        assertEquals(
-            "$BUILTIN_DIR/argosy_1.png",
-            codec.decodeScreenshot(inserted.single().payloadJson)!!.sourcePath
-        )
-    }
-
-    @Test
-    fun `a built-in session counts only the game activity's time in front`() = runTest {
-        every { fileAccessLayer.listFiles(any()) } returns emptyList()
-
-        scan(EmulatorRegistry.BUILTIN_PACKAGE)
-
-        io.mockk.verify {
-            permissionHelper.foregroundSpans(any(), any(), LibretroActivity::class.java.name, START, END)
-        }
     }
 
     private suspend fun scan(emulatorPackage: String = EMULATOR) =

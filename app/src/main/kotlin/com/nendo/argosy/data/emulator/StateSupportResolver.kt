@@ -2,7 +2,7 @@ package com.nendo.argosy.data.emulator
 
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.preferences.EffectiveLibretroSettingsResolver
-import com.nendo.argosy.libretro.LibretroCoreRegistry
+import com.nendo.argosy.data.libretro.LibretroCoreRegistry
 import javax.inject.Inject
 import javax.inject.Singleton
 

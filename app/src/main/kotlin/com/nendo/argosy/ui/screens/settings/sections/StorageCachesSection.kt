@@ -101,14 +101,10 @@ internal sealed class StorageCachesItem(
     data object EmulatorApksClear : StorageCachesItem("emulatorApksClear", "media")
     data object MiscDownloadsClear : StorageCachesItem("miscDownloadsClear", "media")
 
-    data object ShadersCatalogClear : StorageCachesItem("shadersCatalogClear", "system")
-    data object FramesClear : StorageCachesItem("framesClear", "system")
-
     companion object {
         const val KEY_ARTWORK_CACHE_INFO = "artworkCacheInfo"
         const val KEY_BIOS_INFO = "biosInfo"
         const val KEY_CORES_INFO = "coresInfo"
-        const val KEY_SHADERS_CUSTOM_INFO = "shadersCustomInfo"
         const val KEY_FONTS_INFO = "fontsInfo"
         const val KEY_DATABASE_INFO = "databaseInfo"
         const val KEY_STEAM_TOTAL_INFO = "steamTotalInfo"
@@ -128,9 +124,6 @@ internal sealed class StorageCachesItem(
                 Header("systemHeader", "system", R.string.settings_caches_section_system),
                 InfoRow(KEY_BIOS_INFO, "system"),
                 InfoRow(KEY_CORES_INFO, "system"),
-                ShadersCatalogClear,
-                InfoRow(KEY_SHADERS_CUSTOM_INFO, "system"),
-                FramesClear,
                 InfoRow(KEY_FONTS_INFO, "system"),
                 InfoRow(KEY_DATABASE_INFO, "system"),
                 SectionSpacer("steamSpacer", "steam", { it.steamVisible }),
@@ -462,32 +455,6 @@ fun StorageCachesSection(uiState: SettingsUiState, viewModel: SettingsViewModel)
                 isEnabled = !isBusy(CachesClearTarget.MISC_DOWNLOADS),
                 onClick = { viewModel.requestCachesClear(CachesClearTarget.MISC_DOWNLOADS) }
             )
-
-            StorageCachesItem.ShadersCatalogClear -> ActionPreference(
-                title = stringResource(R.string.settings_caches_shaders_title),
-                subtitle = if (isBusy(CachesClearTarget.SHADERS_CATALOG)) {
-                    stringResource(R.string.settings_caches_shaders_busy)
-                } else {
-                    stringResource(R.string.settings_caches_shaders_subtitle)
-                },
-                trailingText = formatBytes(categoryBytes(snapshot, StorageCategory.SHADERS_CATALOG)),
-                isFocused = isFocused(item),
-                isEnabled = !isBusy(CachesClearTarget.SHADERS_CATALOG),
-                onClick = { viewModel.requestCachesClear(CachesClearTarget.SHADERS_CATALOG) }
-            )
-
-            StorageCachesItem.FramesClear -> ActionPreference(
-                title = stringResource(R.string.settings_caches_frames_title),
-                subtitle = if (isBusy(CachesClearTarget.FRAMES)) {
-                    stringResource(R.string.settings_caches_frames_busy)
-                } else {
-                    stringResource(R.string.settings_caches_frames_subtitle)
-                },
-                trailingText = formatBytes(categoryBytes(snapshot, StorageCategory.FRAMES)),
-                isFocused = isFocused(item),
-                isEnabled = !isBusy(CachesClearTarget.FRAMES),
-                onClick = { viewModel.requestCachesClear(CachesClearTarget.FRAMES) }
-            )
         }
     }
 }
@@ -510,11 +477,6 @@ private fun CachesInfoRow(item: StorageCachesItem.InfoRow, uiState: SettingsUiSt
             stringResource(R.string.settings_caches_info_cores_title),
             stringResource(R.string.settings_caches_info_cores_subtitle),
             formatBytes(categoryBytes(snapshot, StorageCategory.CORES_SYSTEM))
-        )
-        StorageCachesItem.KEY_SHADERS_CUSTOM_INFO -> Triple(
-            stringResource(R.string.settings_caches_info_shaders_title),
-            stringResource(R.string.settings_caches_info_shaders_subtitle),
-            formatBytes(categoryBytes(snapshot, StorageCategory.SHADERS_CUSTOM))
         )
         StorageCachesItem.KEY_FONTS_INFO -> Triple(
             stringResource(R.string.settings_caches_info_fonts_title),

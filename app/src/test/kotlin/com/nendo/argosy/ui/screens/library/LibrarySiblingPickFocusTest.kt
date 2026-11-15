@@ -181,7 +181,6 @@ class LibrarySiblingPickFocusTest {
         steamLauncherLinkController = mockk(relaxed = true),
         downloadFileStatusRepository = mockk(relaxed = true),
         siblingChoice = siblingChoice,
-        socialRepository = mockk(relaxed = true),
         saveListStatusRepository = mockk(relaxed = true),
         libraryDefaultPlatformMigration = mockk(relaxed = true),
         showcaseSource = mockk(relaxed = true),

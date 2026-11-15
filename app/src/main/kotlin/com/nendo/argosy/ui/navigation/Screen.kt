@@ -63,17 +63,6 @@ sealed class Screen(val route: String) {
     }
     data object Search : Screen("search")
     data object ManagePins : Screen("manage_pins")
-    data object Social : Screen("social")
-    data object SocialEventDetail : Screen("social/event/{eventId}") {
-        fun createRoute(eventId: String) = "social/event/$eventId"
-    }
-    data object UserProfile : Screen("social/profile/{userId}") {
-        fun createRoute(userId: String) = "social/profile/$userId"
-    }
-    data object Doodle : Screen("doodle")
-    data object AvatarDoodle : Screen("doodle/avatar")
-    data object PostEditor : Screen("post_editor")
-    data object QuayPass : Screen("quaypass")
 
     companion object {
         const val ROUTE_HOME = "home"
@@ -93,11 +82,5 @@ sealed class Screen(val route: String) {
         const val ROUTE_MEDIA_DETAIL = "media_item"
         const val ROUTE_SEARCH = "search"
         const val ROUTE_MANAGE_PINS = "manage_pins"
-        const val ROUTE_SOCIAL = "social"
-        const val ROUTE_SOCIAL_EVENT_DETAIL = "social/event"
-        const val ROUTE_USER_PROFILE = "social/profile"
-        const val ROUTE_DOODLE = "doodle"
-        const val ROUTE_POST_EDITOR = "post_editor"
-        const val ROUTE_QUAYPASS = "quaypass"
     }
 }

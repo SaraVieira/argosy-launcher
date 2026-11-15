@@ -2,7 +2,7 @@ package com.nendo.argosy.data.emulator
 
 import android.content.Intent
 import com.nendo.argosy.data.platform.PlatformDefinitions
-import com.nendo.argosy.libretro.LibretroCoreRegistry
+import com.nendo.argosy.data.libretro.LibretroCoreRegistry
 
 sealed class ReleaseSource {
     data class GitHub(val repo: String) : ReleaseSource()
@@ -372,16 +372,7 @@ object EmulatorRegistry {
         intentExtras = mapOf("rom_uri" to ExtraValue.FileUriString)
     )
 
-    private val builtinEmulator = EmulatorDef(
-        id = BUILTIN_ID,
-        packageName = BUILTIN_PACKAGE,
-        displayName = "Built-in",
-        supportedPlatforms = LibretroCoreRegistry.getSupportedPlatforms(),
-        launchConfig = LaunchConfig.BuiltIn
-    )
-
     private val emulators = listOf(
-        builtinEmulator,
         EmulatorDef(
             id = "retroarch",
             packageName = "com.retroarch",
@@ -1286,74 +1277,74 @@ object EmulatorRegistry {
     fun getRecommendedEmulators(): Map<String, List<String>> = recommendedEmulators
 
     private val recommendedEmulators: Map<String, List<String>> = mapOf(
-        "psx" to listOf(BUILTIN_ID, "duckstation", "armsx1", "retroarch", "retroarch_64", "retroarch_32"),
-        "ps2" to listOf(BUILTIN_ID, "nethersx2", "armsx2_refresh", "armsx2", "psx2", "pcsx2"),
+        "psx" to listOf("duckstation", "armsx1", "retroarch", "retroarch_64", "retroarch_32"),
+        "ps2" to listOf("nethersx2", "armsx2_refresh", "armsx2", "psx2", "pcsx2"),
         "psp" to listOf(
-            BUILTIN_ID, "ppsspp", "ppsspp_gold", "ppsspp_legacy", "retroarch", "retroarch_64", "retroarch_32"
+            "ppsspp", "ppsspp_gold", "ppsspp_legacy", "retroarch", "retroarch_64", "retroarch_32"
         ),
         "vita" to listOf("vita3k-zx", "vita3k", "vita3k-plus"),
         "n64" to listOf(
-            BUILTIN_ID, "mupen64plus_fz", "mupen64plus_fz_pro", "retroarch", "retroarch_64", "retroarch_32"
+            "mupen64plus_fz", "mupen64plus_fz_pro", "retroarch", "retroarch_64", "retroarch_32"
         ),
-        "nds" to listOf(BUILTIN_ID, "drastic", "seedlessds", "melonds", "melondualds", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
+        "nds" to listOf("drastic", "seedlessds", "melonds", "melondualds", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
         "3ds" to listOf(
-            BUILTIN_ID, "azahar", "citra_mmj", "borked3ds", "citra",
+            "azahar", "citra_mmj", "borked3ds", "citra",
             "retroarch", "retroarch_64", "retroarch_32"
         ),
-        "gc" to listOf(BUILTIN_ID, "dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
-        "wii" to listOf(BUILTIN_ID, "dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
+        "gc" to listOf("dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
+        "wii" to listOf("dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
         "wiiu" to listOf("cemu", "cemu_dualscreen"),
         "switch" to listOf("eden", "eden_duo", "lemon", "citron", "sudachi", "ryujinx", "yuzu", "strato", "skyline"),
         "switch2" to listOf("eden_nx2"),
-        "gba" to listOf(BUILTIN_ID, "pizza_boy_gba_pro", "pizza_boy_gba", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
-        "gb" to listOf(BUILTIN_ID, "pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
-        "gbc" to listOf(BUILTIN_ID, "pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
-        "nes" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "snes" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "genesis" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "sms" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "sg1000" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "gg" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "scd" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "32x" to listOf(BUILTIN_ID, "md_emu", "retroarch", "retroarch_64", "retroarch_32"),
-        "dreamcast" to listOf(BUILTIN_ID, "redream", "flycast"),
+        "gba" to listOf("pizza_boy_gba_pro", "pizza_boy_gba", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
+        "gb" to listOf("pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
+        "gbc" to listOf("pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
+        "nes" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "snes" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "genesis" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "sms" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "sg1000" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "gg" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "scd" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "32x" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
+        "dreamcast" to listOf("redream", "flycast"),
         "saturn" to listOf(
-            BUILTIN_ID, "yabasanshiro", "yabasanshiro_pro", "saturn_emu", "retroarch", "retroarch_64", "retroarch_32"
+            "yabasanshiro", "yabasanshiro_pro", "saturn_emu", "retroarch", "retroarch_64", "retroarch_32"
         ),
-        "arcade" to listOf(BUILTIN_ID, "flycast", "mame4droid", "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "fbneo" to listOf(BUILTIN_ID, "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "mame" to listOf(BUILTIN_ID, "mame4droid", "retroarch", "retroarch_64", "retroarch_32"),
-        "cps1" to listOf(BUILTIN_ID, "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "cps2" to listOf(BUILTIN_ID, "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "cps3" to listOf(BUILTIN_ID, "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "neogeo" to listOf(BUILTIN_ID, "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
-        "dos" to listOf(BUILTIN_ID, "magic_dosbox", "dosbox_turbo"),
-        "scummvm" to listOf(BUILTIN_ID, "scummvm", "retroarch", "retroarch_64", "retroarch_32"),
+        "arcade" to listOf("flycast", "mame4droid", "fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "fbneo" to listOf("fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "mame" to listOf("mame4droid", "retroarch", "retroarch_64", "retroarch_32"),
+        "cps1" to listOf("fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "cps2" to listOf("fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "cps3" to listOf("fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "neogeo" to listOf("fbalpha", "retroarch", "retroarch_64", "retroarch_32"),
+        "dos" to listOf("magic_dosbox", "dosbox_turbo"),
+        "scummvm" to listOf("scummvm", "retroarch", "retroarch_64", "retroarch_32"),
         "ps3" to listOf("armsx3", "armsx3_play", "aps3e"),
-        "atari2600" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "lynx" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "tg16" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "tgcd" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "pcfx" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "cdi" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "jaguar" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "3do" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "ngp" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "ngpc" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "wonderswan" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "wsc" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "pokemini" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "gameandwatch" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
+        "atari2600" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "lynx" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "tg16" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "tgcd" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "pcfx" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "cdi" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "jaguar" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "3do" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "ngp" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "ngpc" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "wonderswan" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "wsc" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "pokemini" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "gameandwatch" to listOf("retroarch", "retroarch_64", "retroarch_32"),
         "xbox" to listOf("hakux"),
         "xbox360" to listOf("xendroid", "ax360e", "ax360e_free", "xendroid-plus"),
         "steam" to listOf("gamehub", "gamehub_lite", "gamenative"),
         "windows" to listOf("gamenative"),
         "pc" to listOf("gamenative"),
-        "c64" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
+        "c64" to listOf("retroarch", "retroarch_64", "retroarch_32"),
         "vic20" to listOf("retroarch", "retroarch_64", "retroarch_32"),
-        "amiga" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "pc9800" to listOf(BUILTIN_ID, "retroarch", "retroarch_64", "retroarch_32"),
-        "pico8" to listOf(BUILTIN_ID, "picpic", "pico8_android", "retroarch", "retroarch_64", "retroarch_32")
+        "amiga" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "pc9800" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "pico8" to listOf("picpic", "pico8_android", "retroarch", "retroarch_64", "retroarch_32")
     )
 
     fun getPreferredCore(platformId: String): String? {
@@ -1766,7 +1757,7 @@ object EmulatorRegistry {
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         val curated = platformCores[canonical] ?: emptyList()
         val curatedIds = curated.map { it.id }.toSet()
-        val builtIn = com.nendo.argosy.libretro.LibretroCoreRegistry
+        val builtIn = com.nendo.argosy.data.libretro.LibretroCoreRegistry
             .getCoresForPlatform(canonical)
             .filter { it.coreId !in curatedIds }
             .map { RetroArchCore(it.coreId, it.displayName) }
@@ -1783,7 +1774,7 @@ object EmulatorRegistry {
     fun getSelectableCores(platformId: String, isBuiltIn: Boolean): List<RetroArchCore> {
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return if (isBuiltIn) {
-            com.nendo.argosy.libretro.LibretroCoreRegistry.getCoresForPlatform(canonical)
+            com.nendo.argosy.data.libretro.LibretroCoreRegistry.getCoresForPlatform(canonical)
                 .map { RetroArchCore(it.coreId, it.displayName) }
         } else {
             platformCores[canonical] ?: emptyList()
@@ -1793,7 +1784,7 @@ object EmulatorRegistry {
     fun getDefaultSelectableCore(platformId: String, isBuiltIn: Boolean): RetroArchCore? =
         if (isBuiltIn) {
             val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
-            com.nendo.argosy.libretro.LibretroCoreRegistry.getDefaultCoreForPlatform(canonical)
+            com.nendo.argosy.data.libretro.LibretroCoreRegistry.getDefaultCoreForPlatform(canonical)
                 ?.let { RetroArchCore(it.coreId, it.displayName) }
         } else {
             getSelectableCores(platformId, false).firstOrNull()

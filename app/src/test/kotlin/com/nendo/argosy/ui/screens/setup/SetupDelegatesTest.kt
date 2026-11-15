@@ -5,14 +5,12 @@ import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.PlatformRepository
-import com.nendo.argosy.data.setup.SetupCoreDownloads
 import com.nendo.argosy.data.setup.SetupFolderProbe
 import com.nendo.argosy.data.setup.SetupStateRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,7 +22,6 @@ class SetupDelegatesTest {
 
     private val romM = mockk<RomMRepository>(relaxed = true)
     private val platformRepository = mockk<PlatformRepository>(relaxed = true)
-    private val coreDownloads = mockk<SetupCoreDownloads>(relaxed = true)
     private val probe = mockk<SetupFolderProbe>(relaxed = true)
     private val preferences = mockk<UserPreferencesRepository>(relaxed = true)
     private val setupState = mockk<SetupStateRepository>(relaxed = true)
@@ -39,49 +36,22 @@ class SetupDelegatesTest {
     )
 
     @Test
-    fun `a small library syncs every platform and offers the page when emulators are missing`() = runTest {
+    fun `a small library syncs every platform and skips the page`() = runTest {
         coEvery { romM.fetchAndStorePlatforms(true) } returns RomMResult.Success(listOf(platform(1, "snes", true)))
-        every { coreDownloads.missingCoreIds(setOf("snes")) } returns listOf("snes9x")
-        val delegate = SetupPlatformsDelegate(romM, platformRepository, coreDownloads).also { it.bind(backgroundScope) }
-
-        assertTrue(delegate.load(platformCount = 3))
-        assertEquals(listOf("snes9x"), delegate.state.value.missingCoreIds)
-
-        delegate.startCoreDownloads()
-        verify(exactly = 1) { coreDownloads.start(listOf("snes9x")) }
-    }
-
-    @Test
-    fun `a small library with every emulator installed skips the page`() = runTest {
-        coEvery { romM.fetchAndStorePlatforms(true) } returns RomMResult.Success(listOf(platform(1, "snes", true)))
-        every { coreDownloads.missingCoreIds(any()) } returns emptyList()
-        val delegate = SetupPlatformsDelegate(romM, platformRepository, coreDownloads).also { it.bind(backgroundScope) }
+        val delegate = SetupPlatformsDelegate(romM, platformRepository).also { it.bind(backgroundScope) }
 
         assertFalse(delegate.load(platformCount = 3))
+        coVerify(exactly = 1) { romM.fetchAndStorePlatforms(true) }
     }
 
     @Test
     fun `a large library starts with every platform off and offers the page`() = runTest {
         val platforms = (1L..11L).map { platform(it, "p$it", false) }
         coEvery { romM.fetchAndStorePlatforms(false) } returns RomMResult.Success(platforms)
-        every { coreDownloads.missingCoreIds(emptySet()) } returns emptyList()
-        val delegate = SetupPlatformsDelegate(romM, platformRepository, coreDownloads).also { it.bind(backgroundScope) }
+        val delegate = SetupPlatformsDelegate(romM, platformRepository).also { it.bind(backgroundScope) }
 
         assertTrue(delegate.load(platformCount = 11))
         coVerify(exactly = 1) { romM.fetchAndStorePlatforms(false) }
-    }
-
-    @Test
-    fun `turning the emulator download off starts nothing`() = runTest {
-        coEvery { romM.fetchAndStorePlatforms(true) } returns RomMResult.Success(listOf(platform(1, "snes", true)))
-        every { coreDownloads.missingCoreIds(setOf("snes")) } returns listOf("snes9x")
-        val delegate = SetupPlatformsDelegate(romM, platformRepository, coreDownloads).also { it.bind(backgroundScope) }
-        delegate.load(platformCount = 3)
-
-        delegate.toggleDownloadCores()
-        delegate.startCoreDownloads()
-
-        verify(exactly = 0) { coreDownloads.start(any()) }
     }
 
     @Test

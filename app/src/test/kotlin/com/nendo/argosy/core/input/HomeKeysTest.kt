@@ -43,6 +43,6 @@ class HomeKeysTest {
         assertTrue(HomeKeys.SYSTEM.containsAll(setOf(KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_MOVE_HOME)))
         assertTrue(KeyEvent.KEYCODE_BUTTON_MODE in HomeKeys.RESERVED)
         assertFalse(com.nendo.argosy.hardware.SystemHotkeyCombos.isRecordable(KeyEvent.KEYCODE_MOVE_HOME))
-        assertFalse(com.nendo.argosy.libretro.HotkeyManager.isHotkeyKey(KeyEvent.KEYCODE_MOVE_HOME))
+        assertFalse(com.nendo.argosy.data.libretro.HotkeyManager.isHotkeyKey(KeyEvent.KEYCODE_MOVE_HOME))
     }
 }

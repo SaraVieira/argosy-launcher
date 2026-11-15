@@ -4,7 +4,6 @@ import android.content.Context
 import com.nendo.argosy.core.locale.LocaleHelper
 import com.nendo.argosy.data.preferences.AppPreferencesRepository
 import com.nendo.argosy.data.preferences.SessionStateStore
-import com.nendo.argosy.libretro.slot.ResumedGameRouter
 import com.nendo.argosy.util.SafeCoroutineScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -118,18 +117,12 @@ class NotificationManager @Inject constructor(
     }
 
     private fun post(notification: Notification) {
-        val stage = NoticeStage(
-            argosyVisible = startedSurfaces.value > 0,
-            builtInGameInFront = ResumedGameRouter.hasGameInFront
-        )
+        val stage = NoticeStage(argosyVisible = startedSurfaces.value > 0)
         when (routeNotice(notification.type, notification.category, preferences.value, stage)) {
             NoticeRoute.DROP -> Unit
             NoticeRoute.IN_APP, NoticeRoute.HOLD -> _notifications.update { current -> current + notification }
-            NoticeRoute.BUILT_IN_GAME -> scope.launch {
-                val resolved = resolve(notification)
-                if (!ResumedGameRouter.deliverNotice(resolved)) _overAppNotices.tryEmit(resolved)
-            }
-            NoticeRoute.OVER_APP -> scope.launch { _overAppNotices.tryEmit(resolve(notification)) }
+            NoticeRoute.OVER_APP ->
+                scope.launch { _overAppNotices.tryEmit(resolve(notification)) }
         }
     }
 

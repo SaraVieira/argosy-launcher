@@ -12,7 +12,6 @@ import com.nendo.argosy.data.launcher.GameNativeStoreSync
 import com.nendo.argosy.data.launcher.GameNativeSyncFolder
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.launcher.StoreScanResult
-import com.nendo.argosy.data.repository.SteamIgdbResolver
 import com.nendo.argosy.data.remote.github.EmulatorUpdateRepository
 import com.nendo.argosy.data.remote.github.FetchReleaseResult
 import com.nendo.argosy.data.repository.SteamRepository
@@ -63,7 +62,6 @@ class SteamSettingsDelegate @Inject constructor(
     private val notificationManager: NotificationManager,
     private val emulatorDownloadManager: EmulatorDownloadManager,
     private val emulatorUpdateRepository: EmulatorUpdateRepository,
-    private val steamIgdbResolver: SteamIgdbResolver,
     private val steamPathResolver: SteamPathResolver,
     private val storagePrefs: com.nendo.argosy.data.preferences.StoragePreferencesRepository,
     private val gameNativeStoreSync: GameNativeStoreSync

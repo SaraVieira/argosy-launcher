@@ -4,7 +4,6 @@ import androidx.annotation.StringRes
 import com.nendo.argosy.R
 import com.nendo.argosy.data.model.PrivilegedReach
 import com.nendo.argosy.data.model.PrivilegedRoute
-import com.nendo.argosy.ui.common.BuiltinCoreSummary
 import com.nendo.argosy.ui.common.DisplayText
 import com.nendo.argosy.ui.components.TextEntryFocus
 import com.nendo.argosy.ui.components.TextEntryRow
@@ -13,7 +12,6 @@ import com.nendo.argosy.data.cache.GradientExtractionConfig
 import com.nendo.argosy.ui.common.GradientExtractionResult
 import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.emulator.EmulatorDef
-import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.emulator.ExtensionOption
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
@@ -21,7 +19,6 @@ import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.data.local.entity.GameListItem
 import com.nendo.argosy.data.local.entity.PlatformEntity
-import com.nendo.argosy.data.local.entity.PlatformLibretroSettingsEntity
 import com.nendo.argosy.data.preferences.AppLanguage
 import com.nendo.argosy.data.preferences.RecentNewGamesLimit
 import com.nendo.argosy.data.preferences.ControlsPreferences
@@ -68,17 +65,7 @@ import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.util.LogLevel
 import com.nendo.argosy.util.PlatformFilterLogic
 import com.nendo.argosy.BuildConfig
-import com.nendo.argosy.data.social.discord.DiscordPresenceState
 import com.nendo.argosy.ui.screens.common.ClientCertState
-
-enum class BuiltinPathType { SAVE, STATE }
-
-data class BuiltinPathMigration(
-    val pathType: BuiltinPathType,
-    val oldPath: String,
-    val newPath: String,
-    val existingFileCount: Int
-)
 
 data class MusicRelocationPrompt(
     val oldPath: String,
@@ -130,18 +117,8 @@ enum class SettingsSection {
     AMBIENT_LED,
     NAVIGATION,
     PLATFORMS,
-    BUILTIN_EMULATOR,
-    BUILTIN_VIDEO,
-    BUILTIN_CONTROLS,
-    BUILTIN_SAVES,
-    SHADER_STACK,
-    FRAME_PICKER,
-    CORE_MANAGEMENT,
-    CORE_OPTIONS,
     PLATFORM_DETAIL,
-    SOCIAL,
     PERMISSIONS,
-    DRIVERS,
     MANAGED_INSTALLERS,
     ABOUT
 }
@@ -199,7 +176,7 @@ data class PlatformEmulatorConfig(
     val hasInstalledEmulators: Boolean get() = availableEmulators.isNotEmpty()
     val isRetroArchSelected: Boolean get() = selectedEmulatorPackage?.startsWith("com.retroarch") == true
     val showCoreSelection: Boolean get() = com.nendo.argosy.data.emulator.EmulatorSettingScope
-        .showsCoreSelection(effectiveEmulatorIsRetroArch || effectiveEmulatorId == EmulatorRegistry.BUILTIN_ID, availableCores.size)
+        .showsCoreSelection(effectiveEmulatorIsRetroArch, availableCores.size)
     val showExtensionSelection: Boolean get() = com.nendo.argosy.data.emulator.EmulatorSettingScope
         .showsExtensionSelection(extensionOptions.size)
     val showLegacyModeOption: Boolean get() = effectiveEmulatorId == "drastic"
@@ -230,8 +207,7 @@ data class EmulatorPickerInfo(
     val selectedEmulatorName: String?,
     val updates: Map<String, EmulatorUpdateInfo> = emptyMap(),
     val downloadState: EmulatorDownloadState = EmulatorDownloadState.Idle,
-    val downloadingEmulatorId: String? = null,
-    val builtinCore: BuiltinCoreSummary? = null
+    val downloadingEmulatorId: String? = null
 )
 
 data class VariantOption(
@@ -356,8 +332,6 @@ data class DisplayState(
     val lidSleepSupported: Boolean = false,
     val lidSleepEnabled: Boolean = true,
     val dualScreenEnabled: Boolean = false,
-    val dualScreenMatchSize: Boolean = false,
-    val dualScreenMatchSizeAvailable: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
     val gamesLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
     val appsLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
@@ -603,21 +577,8 @@ data class EmulatorState(
     val savePathModalInfo: SavePathModalInfo? = null,
     val savePathModalFocusIndex: Int = 0,
     val savePathModalButtonIndex: Int = 0,
-    val installedCoreCount: Int = 0,
-    val totalCoreCount: Int = 0,
-    val coreUpdatesAvailable: Int = 0,
-    val builtinLibretroEnabled: Boolean = true,
     val closeEmulatorOnSessionEnd: Boolean = false,
     val externalGamesStayOpen: Boolean = false,
-    val architectureDisplay: String = "",
-    val ingameMenuTwoColumn: Boolean = false,
-    val hudEnabled: Boolean = false,
-    val hudCorner: String = "TOP_LEFT",
-    val hudShowBattery: Boolean = true,
-    val hudShowClock: Boolean = true,
-    val hudShowPlaytime: Boolean = false,
-    val hudShowFps: Boolean = false,
-    val hudShowLastSave: Boolean = false,
     val emulatorUpdateVersions: Map<String, String> = emptyMap(),
     val showVariantPicker: Boolean = false,
     val variantPickerInfo: VariantPickerInfo? = null,
@@ -712,12 +673,6 @@ sealed class UpdateModalState {
     data class Failed(val message: String) : UpdateModalState()
 }
 
-data class PlatformContext(
-    val platformId: Long,
-    val platformName: String,
-    val platformSlug: String
-)
-
 data class PlatformDetailState(
     val platformIndex: Int = 0,
     val showRemoveConfirm: Boolean = false,
@@ -752,220 +707,6 @@ data class PlatformDetailState(
         val minutes = totalMinutes % 60
         return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
-}
-
-data class BuiltinVideoState(
-    val shader: String = "None",
-    val shaderChainJson: String = "",
-    val filter: String = "Auto",
-    val aspectRatio: String = "Core Provided",
-    val portraitPosition: String = "Auto",
-    val skipDuplicateFrames: Boolean = false,
-    val blackFrameInsertion: Boolean = false,
-    val displayRefreshRate: Float = 60f,
-    val fastForwardEnabled: Boolean = true,
-    val fastForwardSpeed: String = "4x",
-    val rotation: String = "Auto",
-    val overscanCrop: String = "Off",
-    val framesEnabled: Boolean = false,
-    val lowLatencyAudio: Boolean = true,
-    val audioVolume: String = "100%",
-    val vsync: Boolean = true,
-    val rewindEnabled: Boolean = true,
-    val rewindSpeed: String = "1x",
-    val rewindBufferDuration: String = "15s",
-    val autoSaveState: Boolean = true,
-    val autoRestoreState: Boolean = true,
-    val preferNewerServerSave: Boolean = true,
-    val hwCoreSaveStatesEnabled: Boolean = false,
-    val savePath: String = "",
-    val statePath: String = "",
-    val isCustomSavePath: Boolean = false,
-    val isCustomStatePath: Boolean = false,
-    val platformContextIndex: Int = 0,
-    val availablePlatforms: List<PlatformContext> = emptyList(),
-    val gpuDriver: String = com.nendo.argosy.data.emulator.GpuDriverToken.SYSTEM,
-    val graphics: BuiltinGraphicsState = BuiltinGraphicsState()
-) {
-    val canEnableBlackFrameInsertion: Boolean get() = displayRefreshRate >= 120f
-    val isGlobalContext: Boolean get() = platformContextIndex == 0
-    val currentPlatformContext: PlatformContext? get() =
-        if (platformContextIndex > 0 && platformContextIndex <= availablePlatforms.size)
-            availablePlatforms[platformContextIndex - 1]
-        else null
-    val shaderDisplayValue: String get() = shader
-}
-
-data class ShaderStackState(
-    val entries: List<ShaderStackEntry> = emptyList(),
-    val selectedIndex: Int = 0,
-    val paramFocusIndex: Int = 0,
-    val selectedShaderParams: List<ShaderParamDef> = emptyList(),
-    val showShaderPicker: Boolean = false,
-    val shaderPickerFocusIndex: Int = 0,
-    val shaderPickerCategory: String? = null,
-    val downloadingShaderId: String? = null,
-    val preInstallsSynced: Boolean = false,
-    val reorder: com.nendo.argosy.ui.components.ListReorder<ShaderStackEntry>? = null
-) {
-    val isEmpty: Boolean get() = entries.isEmpty()
-    val isReordering: Boolean get() = reorder != null
-    val selectedEntry: ShaderStackEntry? get() = entries.getOrNull(selectedIndex)
-    val maxParamFocusIndex: Int get() = (selectedShaderParams.size - 1).coerceAtLeast(0)
-}
-
-data class ShaderParamDef(
-    val name: String,
-    val description: String,
-    val initial: Float,
-    val min: Float,
-    val max: Float,
-    val step: Float
-)
-
-data class ShaderStackEntry(
-    val shaderId: String,
-    val displayName: String,
-    val params: Map<String, String> = emptyMap()
-)
-
-data class ControllerPortChoiceUi(
-    val port: Int,
-    val deviceIds: List<Int>,
-    val deviceNames: List<String>,
-    val selectedIndex: Int,
-    val autoIndex: Int
-)
-
-data class BuiltinControlsState(
-    val controllerPorts: List<ControllerPortChoiceUi> = emptyList(),
-    val rumbleEnabled: Boolean = true,
-    val motionEnabled: Boolean = true,
-    val gyroAimInvertX: Boolean = false,
-    val gyroAimInvertY: Boolean = false,
-    val gyroAimSensitivity: Int = com.nendo.argosy.data.preferences.GyroAimSensitivity.DEFAULT,
-    val limitHotkeysToPlayer1: Boolean = true,
-    val confirmReturnHome: Boolean = true,
-    val speedrunStartOnReset: Boolean = true,
-    val speedrunPanelSide: String = "Right",
-    val speedrunPanelWidthPercent: Int = 30,
-    val fastForwardMode: com.nendo.argosy.data.local.entity.FastForwardMode = com.nendo.argosy.data.local.entity.FastForwardMode.HOLD,
-    val selectAsBack: com.nendo.argosy.data.local.entity.SelectAsBackMode = com.nendo.argosy.data.local.entity.SelectAsBackMode.AUTO,
-    val fastForwardPreservePitch: Boolean = false,
-    val analogAsDpad: Boolean = false,
-    val dpadAsAnalog: Boolean = false,
-    val showControllerOrderModal: Boolean = false,
-    val showInputMappingModal: Boolean = false,
-    val showHotkeysModal: Boolean = false,
-    val controllerOrderCount: Int = 0,
-    val showStickMappings: Boolean = false,
-    val showDpadAsAnalog: Boolean = false,
-    val showRumble: Boolean = true,
-    val showMotion: Boolean = true,
-    val showResetAll: Boolean = false,
-    val touchEnabled: Boolean = true,
-    val touchOpacityLandscape: Float = 0.45f,
-    val touchOpacityPortrait: Float = 1.0f,
-    val touchSizeScale: Float = 1.0f,
-    val touchHaptic: Boolean = true,
-    val touchFadeOnIdle: Boolean = false,
-    val touchSwapHanded: Boolean = false,
-    val touchLockOrientation: Boolean = false,
-    val touchMirror180: Boolean = false,
-    val touchColouredFaceButtons: Boolean = false,
-    val touchGenesis6Button: Boolean = false,
-    val showTouchLayoutEditorModal: Boolean = false
-)
-
-enum class CoreChipStatus {
-    OFFLINE_NOT_DOWNLOADED,
-    ONLINE_NOT_DOWNLOADED,
-    DOWNLOADED,
-    ACTIVE
-}
-
-data class CoreUpdateBuilds(
-    val installedVersion: String,
-    val latestVersion: String
-)
-
-data class CoreChipState(
-    val coreId: String,
-    val displayName: String,
-    val isInstalled: Boolean,
-    val isActive: Boolean,
-    val netplaySupported: Boolean = false,
-    val pendingUpdate: CoreUpdateBuilds? = null
-) {
-    val updateAvailable: Boolean get() = pendingUpdate != null
-}
-
-data class CoreBulkUpdateProgress(
-    val coreName: String? = null,
-    val position: Int = 0,
-    val total: Int = 0
-)
-
-data class PlatformCoreRow(
-    val platformId: Long,
-    val platformSlug: String,
-    val platformName: String,
-    val cores: List<CoreChipState>
-) {
-    val activeCoreIndex: Int get() = cores.indexOfFirst { it.isActive }.coerceAtLeast(0)
-}
-
-data class CoreManagementState(
-    val platforms: List<PlatformCoreRow> = emptyList(),
-    val focusedRowIndex: Int = 0,
-    val focusedCoreIndex: Int = 0,
-    val isOnline: Boolean = false,
-    val isDownloading: Boolean = false,
-    val downloadingCoreId: String? = null,
-    val pendingUpdateCount: Int = 0,
-    val bulkUpdate: CoreBulkUpdateProgress? = null,
-    val bulkUpdateFailedCount: Int = 0
-) {
-    val showUpdateAll: Boolean get() = pendingUpdateCount > 0 || bulkUpdate != null
-}
-
-data class CoreOptionsCoreContext(
-    val coreId: String,
-    val displayName: String,
-    val isInstalled: Boolean
-)
-
-data class CoreOptionViewItem(
-    val key: String,
-    val displayName: String,
-    val description: String?,
-    val values: List<String>,
-    val currentValue: String,
-    val isOverridden: Boolean,
-    val valueLabels: Map<String, String> = emptyMap(),
-    val isHeldByDualScreen: Boolean = false
-) {
-    val displayValue: String get() = valueLabels[currentValue] ?: currentValue
-    fun displayValueFor(value: String): String = valueLabels[value] ?: value
-}
-
-data class CoreOptionsState(
-    val platformContextIndex: Int = 0,
-    val availablePlatforms: List<PlatformContext> = emptyList(),
-    val coresForCurrentPlatform: List<CoreOptionsCoreContext> = emptyList(),
-    val selectedCoreIndex: Int = 0,
-    val options: List<CoreOptionViewItem> = emptyList(),
-    val overrides: Map<String, String> = emptyMap(),
-    val isDownloading: Boolean = false,
-    val downloadingCoreId: String? = null,
-    val pendingDeleteCoreId: String? = null
-) {
-    val currentPlatformContext: PlatformContext? get() =
-        if (platformContextIndex in availablePlatforms.indices)
-            availablePlatforms[platformContextIndex]
-        else null
-    val selectedCore: CoreOptionsCoreContext? get() =
-        coresForCurrentPlatform.getOrNull(selectedCoreIndex)
 }
 
 /**
@@ -1167,9 +908,7 @@ enum class CachesClearTarget {
     ROM_STAGING,
     SFX_CACHE,
     EMULATOR_APKS,
-    MISC_DOWNLOADS,
-    SHADERS_CATALOG,
-    FRAMES
+    MISC_DOWNLOADS
 }
 
 data class StorageCachesState(
@@ -1280,10 +1019,6 @@ data class PlatformMigrationInfo(
     val oldPath: String,
     val newPath: String,
     val isResetToGlobal: Boolean
-)
-
-data class PlatformLibretroState(
-    val platformSettings: Map<Long, PlatformLibretroSettingsEntity> = emptyMap()
 )
 
 /**
@@ -1858,86 +1593,6 @@ data class BiosState(
     }
 }
 
-data class DriverGroupUi(
-    val name: String,
-    val repoPath: String,
-    val sort: Int,
-    val useTagName: Boolean,
-    val releases: List<DriverReleaseUi>,
-    val error: String? = null,
-    val expanded: Boolean = false
-)
-
-data class DriverReleaseUi(
-    val title: String,
-    val tagName: String,
-    val body: String,
-    val prerelease: Boolean,
-    val isLatestStable: Boolean,
-    val artifacts: List<DriverArtifactUi>
-)
-
-data class DriverArtifactUi(
-    val name: String,
-    val downloadUrl: String,
-    val size: Long
-)
-
-data class DriversState(
-    val groups: List<DriverGroupUi> = emptyList(),
-    val isLoading: Boolean = false,
-    val gpuModel: String? = null,
-    val recommendedDriver: String = "Unsupported",
-    val activeDownload: DriverDownloadState? = null,
-    val downloadedFiles: List<String> = emptyList(),
-    val pickerGroupIndex: Int? = null,
-    val pickerReleaseFocusIndex: Int = 0
-) {
-    val summary: DisplayText get() = when {
-        isLoading && groups.isEmpty() -> DisplayText.Res(R.string.settings_drivers_summary_checking)
-        gpuModel.isNullOrBlank() -> DisplayText.Res(R.string.settings_drivers_summary_gpu_not_detected)
-        else -> DisplayText.Res(R.string.settings_drivers_summary_available, listOf(gpuModel.orEmpty()))
-    }
-}
-
-data class DriverDownloadState(
-    val artifactName: String,
-    val downloaded: Long,
-    val total: Long,
-    val isComplete: Boolean = false,
-    val error: String? = null
-)
-
-enum class SocialAuthStatus {
-    NOT_LINKED,
-    AWAITING_AUTH,
-    CONNECTED,
-    CONNECTING,
-    ERROR
-}
-
-data class SocialState(
-    val authStatus: SocialAuthStatus = SocialAuthStatus.NOT_LINKED,
-    val qrUrl: String? = null,
-    val loginCode: String? = null,
-    val username: String? = null,
-    val displayName: String? = null,
-    val avatarColor: String? = null,
-    val avatarDoodle: String? = null,
-    val avatarUseDoodle: Boolean = false,
-    val errorMessage: String? = null,
-    val onlineStatusEnabled: Boolean = true,
-    val showNowPlaying: Boolean = true,
-    val notifyFriendOnline: Boolean = true,
-    val notifyFriendPlaying: Boolean = true,
-    val suppressNotificationsInGame: Boolean = false,
-    val discordLinked: Boolean = false,
-    val discordUsername: String? = null,
-    val discordRichPresenceEnabled: Boolean = true,
-    val discordPresenceState: DiscordPresenceState = DiscordPresenceState.Disconnected,
-    val quayPassEnabled: Boolean = false
-)
-
 /**
  * One ancestor of the section currently on screen, holding the focus the user left it on.
  * `focusedIndex` is captured at push time rather than recomputed on pop, so Back returns to
@@ -2001,17 +1656,12 @@ data class SettingsUiState(
     val ambientAudio: AmbientAudioState = AmbientAudioState(),
     val emulators: EmulatorState = EmulatorState(),
     val platformDetail: PlatformDetailState = PlatformDetailState(),
-    val builtinVideo: BuiltinVideoState = BuiltinVideoState(),
-    val builtinControls: BuiltinControlsState = BuiltinControlsState(),
-    val coreManagement: CoreManagementState = CoreManagementState(),
-    val coreOptions: CoreOptionsState = CoreOptionsState(),
     val server: ServerState = ServerState(),
     val storage: StorageState = StorageState(),
     val attribution: StorageAttributionState = StorageAttributionState(),
     val storagePlatformGames: StoragePlatformGamesState = StoragePlatformGamesState(),
     val storageCaches: StorageCachesState = StorageCachesState(),
     val playTime: PlayTimeState = PlayTimeState(),
-    val platformLibretro: PlatformLibretroState = PlatformLibretroState(),
     val syncSettings: SyncSettingsState = SyncSettingsState(),
     val steam: SteamSettingsState = SteamSettingsState(),
     val jellyfin: JellyfinState = JellyfinState(),
@@ -2019,16 +1669,12 @@ data class SettingsUiState(
     val clientCert: ClientCertState = ClientCertState(),
     val accounts: AccountsState = AccountsState(),
     val bios: BiosState = BiosState(),
-    val drivers: DriversState = DriversState(),
-    val social: SocialState = SocialState(),
     val permissions: PermissionsState = PermissionsState(),
     val launchFolderPicker: Boolean = false,
     val showImportSettingsConfirm: Boolean = false,
     val showMigrationDialog: Boolean = false,
     val pendingStoragePath: String? = null,
     val isMigrating: Boolean = false,
-    val showBuiltinPathMigrationDialog: Boolean = false,
-    val pendingBuiltinPathMigration: BuiltinPathMigration? = null,
     val appVersion: String = BuildConfig.VERSION_NAME,
     val updateCheck: UpdateCheckState = UpdateCheckState(),
     val changelog: ChangelogState = ChangelogState(),
@@ -2045,9 +1691,8 @@ data class SettingsUiState(
     val previewGameIndex: Int = 0,
     val gradientConfig: GradientExtractionConfig = GradientExtractionConfig(),
     val gradientExtractionResult: GradientExtractionResult? = null,
-    val frameDownloadingId: String? = null,
-    val frameInstalledRefresh: Int = 0,
-    val pendingCustomFrameRemovalId: String? = null
+    val showControllerOrderModal: Boolean = false,
+    val controllerOrderCount: Int = 0
 )
 
 data class SettingsPreviewGame(

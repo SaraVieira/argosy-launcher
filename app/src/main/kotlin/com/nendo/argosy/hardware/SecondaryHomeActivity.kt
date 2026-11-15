@@ -530,7 +530,7 @@ class SecondaryHomeActivity :
      */
     private fun sessionKeepsItsScreen(): Boolean {
         if (!dsm.hasLiveSession()) return false
-        if (isShowcaseRole || dsm.isMovingGame) return true
+        if (isShowcaseRole) return true
         return dsm.emulatorDisplayId?.let { it != Display.DEFAULT_DISPLAY } ?: false
     }
 
@@ -746,7 +746,7 @@ class SecondaryHomeActivity :
     }
 
     override fun refocusSelf() {
-        if (dsm.isKeyguardShowing || dsm.isMovingGame) return
+        if (dsm.isKeyguardShowing) return
         startActivity(
             Intent(this, SecondaryHomeActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)

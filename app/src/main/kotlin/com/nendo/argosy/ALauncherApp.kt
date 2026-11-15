@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.nendo.argosy.data.local.dao.GameDao
@@ -12,23 +13,17 @@ import com.nendo.argosy.data.launcher.GameNativeStoreSync
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.repository.AppsRepository
 import com.nendo.argosy.data.platform.PlatformDefinitions
-import com.nendo.argosy.data.cheats.CheatsDownloadObserver
 import com.nendo.argosy.data.emulator.TitleIdDownloadObserver
 import com.nendo.argosy.data.sync.SaveSyncDownloadObserver
 import com.nendo.argosy.data.update.ApkInstallManager
 import android.os.SystemClock
 import com.nendo.argosy.data.download.DownloadServiceController
 import com.nendo.argosy.data.sync.SaveSyncWorker
-import com.nendo.argosy.data.sync.SocialSyncWorker
 import com.nendo.argosy.data.sync.SyncServiceController
 import com.nendo.argosy.data.update.UpdateCheckWorker
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.preferences.BuiltinEmulatorPreferencesRepository
-import com.nendo.argosy.libretro.CoreCrashController
-import com.nendo.argosy.libretro.CoreUpdateCheckWorker
-import com.nendo.argosy.libretro.CompatCoreCache
-import com.nendo.argosy.libretro.LibretroBuildbot
-import com.nendo.argosy.libretro.LibretroCoreManager
+import com.nendo.argosy.data.libretro.LibretroBuildbot
 import com.nendo.argosy.data.remote.ssl.UserCertTrustManager.withUserCertTrust
 import com.nendo.argosy.ui.coil.AppIconFetcher
 import dagger.hilt.android.HiltAndroidApp
@@ -47,6 +42,12 @@ import javax.inject.Inject
 
 private const val NEVER_REFRESHED = -1L
 private const val FOREGROUND_STEAM_REFRESH_INTERVAL_MS = 60 * 60 * 1000L
+private val RETIRED_UNIQUE_WORK = listOf(
+    "social_sync_periodic",
+    "core_update_check",
+    "cheats_sync",
+    "quaypass_credential_refresh",
+)
 
 @HiltAndroidApp
 class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
@@ -78,13 +79,7 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     lateinit var rommConnectionManager: com.nendo.argosy.data.remote.romm.RomMConnectionManager
 
     @Inject
-    lateinit var socialSyncCoordinator: com.nendo.argosy.data.sync.SocialSyncCoordinator
-
-    @Inject
     lateinit var saveSyncDownloadObserver: SaveSyncDownloadObserver
-
-    @Inject
-    lateinit var cheatsDownloadObserver: CheatsDownloadObserver
 
     @Inject
     lateinit var titleIdDownloadObserver: TitleIdDownloadObserver
@@ -121,48 +116,13 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     lateinit var syncServiceController: SyncServiceController
 
     @Inject
-    lateinit var coreManager: LibretroCoreManager
-
-    @Inject
-    lateinit var compatCoreCache: CompatCoreCache
-
-    @Inject
     lateinit var playSessionTracker: PlaySessionTracker
 
     @Inject
     lateinit var imageCacheManager: com.nendo.argosy.data.cache.ImageCacheManager
 
     @Inject
-    lateinit var coreCrashController: CoreCrashController
-
-    @Inject
     lateinit var builtinPrefs: BuiltinEmulatorPreferencesRepository
-
-    @Inject
-    lateinit var quayPassService: com.nendo.argosy.data.quaypass.QuayPassService
-
-    @Inject
-    lateinit var quayPassCredentialManager: com.nendo.argosy.data.quaypass.QuayPassCredentialManager
-
-    @Suppress("unused")
-    @Inject
-    lateinit var quayPassAvatarSyncCoordinator: com.nendo.argosy.data.quaypass.QuayPassAvatarSyncCoordinator
-
-    @Suppress("unused")
-    @Inject
-    lateinit var quayPassMessageSyncCoordinator: com.nendo.argosy.data.quaypass.QuayPassMessageSyncCoordinator
-
-    @Suppress("unused")
-    @Inject
-    lateinit var quayPassFriendRequestQueueCoordinator: com.nendo.argosy.data.quaypass.QuayPassFriendRequestQueueCoordinator
-
-    @Suppress("unused")
-    @Inject
-    lateinit var quayPassEncounterReporter: com.nendo.argosy.data.quaypass.QuayPassEncounterReporter
-
-    @Suppress("unused")
-    @Inject
-    lateinit var quayPassWalletCoordinator: com.nendo.argosy.data.quaypass.QuayPassWalletCoordinator
 
     @Inject
     lateinit var accountSwitchCoordinator: com.nendo.argosy.data.sync.AccountSwitchCoordinator
@@ -228,7 +188,6 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
 
     private val foregroundObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
         override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
-            appScope.launch { quayPassCredentialManager.refreshIfNeeded() }
             appScope.launch { refreshSteamInstallationsIfStale(SystemClock.elapsedRealtime()) }
         }
     }
@@ -238,12 +197,7 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         appScope.launch { userCertStore.initialize() }
         appScope.launch { clientCertStore.initialize() }
         appScope.launch { com.nendo.argosy.hardware.pad.MutedPadDevices.watch(filesDir) }
-        if (com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) {
-            appScope.launch { applyStoredAbiOverride() }
-            return
-        }
         appScope.launch { com.nendo.argosy.util.RootShell.isAvailable }
-        appScope.launch { socialSyncCoordinator.discardQueueWithoutSocialAccount() }
         appScope.launch { variantFileCleanup.runOnce() }
         appScope.launch { homeAppAvailability.applyAtStartup() }
         appScope.launch {
@@ -260,15 +214,12 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         UpdateCheckWorker.schedule(this)
         appUpdateManager.startupPass()
         SaveSyncWorker.schedule(this)
-        SocialSyncWorker.schedule(this)
-        CoreUpdateCheckWorker.schedule(this)
-        com.nendo.argosy.data.quaypass.QuayPassCredentialRefreshWorker.schedule(this)
+        cancelRetiredWork()
         ProcessLifecycleOwner.get().lifecycle.addObserver(foregroundObserver)
         setupStateRepository.start()
         permissionWatch.start()
         appScope.launch { observeSteamPackageChanges() }
         saveSyncDownloadObserver.start()
-        cheatsDownloadObserver.start()
         titleIdDownloadObserver.start()
         downloadServiceController.start()
         syncServiceController.start()
@@ -290,15 +241,8 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
             }
         }
         lockScreenArtManager.start()
-        appScope.launch {
-            applyStoredAbiOverride()
-            coreManager.migrateAbiIfNeeded()
-            compatCoreCache.evictStale()
-        }
-        appScope.launch {
-            coreCrashController.runBootDetection()
-            playSessionTracker.checkOrphanedSession()
-        }
+        appScope.launch { applyStoredAbiOverride() }
+        appScope.launch { playSessionTracker.checkOrphanedSession() }
         appScope.launch {
             playSessionTracker.activeSession
                 .map { it != null }
@@ -311,6 +255,11 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         appScope.launch { deleteRetiredSteamDownloadDirs() }
         appScope.launch { biosRepository.purgeRetiredFirmware() }
         syncPlatformSortOrders()
+    }
+
+    private fun cancelRetiredWork() {
+        val workManager = WorkManager.getInstance(this)
+        RETIRED_UNIQUE_WORK.forEach(workManager::cancelUniqueWork)
     }
 
     private suspend fun applyStoredAbiOverride() {

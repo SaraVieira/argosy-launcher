@@ -85,11 +85,6 @@ internal sealed class DisplaysItem(
         section = "displays",
         visibleWhen = { it.dualScreenEnabled && !it.display.secondaryDisplayUnsupported }
     )
-    data object DualScreenMatchSize : DisplaysItem(
-        key = "dualScreenMatchSize",
-        section = "displays",
-        visibleWhen = { it.dualScreenEnabled && it.display.dualScreenMatchSizeAvailable }
-    )
     data object ScreenLayout : DisplaysItem(
         key = "screenLayout",
         section = "displays",
@@ -140,7 +135,7 @@ internal sealed class DisplaysItem(
                 ScreenSafetyHeader,
                 ScreenDimmer, DimAfter, DimLevel, LidSleep,
                 DisplaysSpacer, DisplaysHeader,
-                DualScreenEnabled, DisplayRoles, DualScreenMatchSize, ScreenLayout,
+                DualScreenEnabled, DisplayRoles, ScreenLayout,
                 AmbientLedSettings,
                 DisplayTargetsSpacer, DisplayTargetsHeader,
                 GamesTarget, AppsTarget, ByPlatformAndApp
@@ -357,14 +352,6 @@ fun DisplaysSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 },
                 onSelect = { viewModel.setDisplayRoleOverride(DisplayRoleOverride.entries[it]) },
                 pickerRequestToken = pickerToken(item)
-            )
-
-            DisplaysItem.DualScreenMatchSize -> SwitchPreference(
-                title = stringResource(R.string.settings_displays_match_screen_size_title),
-                subtitle = stringResource(R.string.settings_displays_match_screen_size_subtitle),
-                isEnabled = display.dualScreenMatchSize,
-                isFocused = isFocused(item),
-                onToggle = { viewModel.setDualScreenMatchSize(it) }
             )
 
             DisplaysItem.ScreenLayout -> NavigationPreference(

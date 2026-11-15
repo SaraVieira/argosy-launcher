@@ -49,8 +49,7 @@ internal val PRESENTATION_MENU_STATS: List<PresentationStat> = listOf(
     PresentationStat.DIFFICULTY,
     PresentationStat.PLAY_TIME,
     PresentationStat.TIME_TO_BEAT,
-    PresentationStat.ACHIEVEMENTS,
-    PresentationStat.FRIENDS
+    PresentationStat.ACHIEVEMENTS
 )
 
 internal sealed class PresentationItem(
@@ -177,7 +176,6 @@ internal fun presentationStatLabelRes(stat: PresentationStat): Int = when (stat)
     PresentationStat.PLAY_TIME -> R.string.settings_presentation_stat_play_time
     PresentationStat.TIME_TO_BEAT -> R.string.settings_presentation_stat_time_to_beat
     PresentationStat.ACHIEVEMENTS -> R.string.settings_presentation_stat_achievements
-    PresentationStat.FRIENDS -> R.string.settings_presentation_stat_friends
 }
 
 @Composable

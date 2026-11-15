@@ -21,21 +21,15 @@ import com.nendo.argosy.ui.screens.collections.VirtualCategoryScreen
 import com.nendo.argosy.ui.screens.downloads.DownloadsScreen
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailScreen
 import com.nendo.argosy.ui.screens.home.HomeScreen
-import com.nendo.argosy.ui.screens.quaypass.QuayPassCheckInScreen
 import com.nendo.argosy.ui.screens.running.RunningAppsScreen
 import com.nendo.argosy.ui.screens.library.LibraryScreen
 import com.nendo.argosy.ui.screens.media.MediaDetailScreen
 import com.nendo.argosy.ui.screens.media.MediaLibraryScreen
-import com.nendo.argosy.ui.screens.doodle.DoodleScreen
 import com.nendo.argosy.ui.screens.savetimeline.SaveTimelineScreen
 import com.nendo.argosy.ui.screens.search.SearchScreen
 import com.nendo.argosy.ui.screens.settings.ManagePinsScreen
 import com.nendo.argosy.ui.screens.settings.SettingsScreen
 import com.nendo.argosy.ui.screens.setup.SetupScreen
-import com.nendo.argosy.ui.screens.social.FeedEventDetailScreen
-import com.nendo.argosy.ui.screens.social.PostEditorScreen
-import com.nendo.argosy.ui.screens.social.SocialScreen
-import com.nendo.argosy.ui.screens.social.UserProfileScreen
 
 @Composable
 fun NavGraph(
@@ -274,9 +268,6 @@ fun NavGraph(
                 initialSection = section,
                 initialAction = action,
                 initialPlatformId = platformId,
-                onNavigateToAvatarEditor = {
-                    navController.navigate(Screen.AvatarDoodle.route)
-                },
                 onNavigate = { route -> navController.navigate(route) }
             )
         }
@@ -362,129 +353,6 @@ fun NavGraph(
             ManagePinsScreen(
                 onBack = { navController.popBackStack() }
             )
-        }
-
-        composable(Screen.Social.route) {
-            SocialScreen(
-                onBack = navigateToDefault,
-                onDrawerToggle = onDrawerToggle,
-                onOpenEventDetail = { eventId ->
-                    navController.navigate(Screen.SocialEventDetail.createRoute(eventId))
-                },
-                onCreatePost = {
-                    navController.navigate(Screen.PostEditor.route)
-                },
-                onViewProfile = { userId ->
-                    navController.navigate(Screen.UserProfile.createRoute(userId))
-                },
-                onNavigateToGameDetail = { gameId ->
-                    navController.navigate(Screen.GameDetail.createRoute(gameId.toLong()))
-                },
-                onNavigateToSocialSettings = {
-                    navController.navigate(Screen.Settings.createRoute(section = "social"))
-                },
-                onNavigateToAvatarEditor = {
-                    navController.navigate(Screen.AvatarDoodle.route)
-                }
-            )
-        }
-
-        composable(
-            route = Screen.UserProfile.route,
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
-            UserProfileScreen(
-                userId = userId,
-                onBack = { navController.popBackStack() },
-                onNavigateToGameDetail = { gameId ->
-                    navController.navigate(Screen.GameDetail.createRoute(gameId.toLong()))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.SocialEventDetail.route,
-            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val eventId = backStackEntry.arguments?.getString("eventId") ?: return@composable
-            FeedEventDetailScreen(
-                eventId = eventId,
-                onBack = { navController.popBackStack() },
-                onNavigateToGame = { gameId ->
-                    navController.navigate(Screen.GameDetail.createRoute(gameId))
-                },
-                onViewProfile = { userId ->
-                    navController.navigate(Screen.UserProfile.createRoute(userId))
-                }
-            )
-        }
-
-        composable(Screen.Doodle.route) {
-            val prevHandle = navController.previousBackStackEntry?.savedStateHandle
-            val initialGameId = prevHandle?.get<Int>("doodle_initial_game_id")
-            val initialGameTitle = prevHandle?.get<String>("doodle_initial_game_title")
-            val initialGameCoverPath = prevHandle?.get<String>("doodle_initial_game_cover_path")
-            DoodleScreen(
-                onBack = { navController.popBackStack() },
-                onDone = { data, size, gameId, gameTitle, gameCoverPath ->
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("doodle_data", data)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("doodle_size", size)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("doodle_game_id", gameId)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("doodle_game_title", gameTitle)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("doodle_game_cover_path", gameCoverPath)
-                    navController.popBackStack()
-                },
-                initialGameId = initialGameId,
-                initialGameTitle = initialGameTitle,
-                initialGameCoverPath = initialGameCoverPath
-            )
-        }
-
-        composable(Screen.AvatarDoodle.route) {
-            DoodleScreen(
-                onBack = { navController.popBackStack() },
-                onDone = { _, _, _, _, _ -> navController.popBackStack() },
-                avatarMode = true,
-                inputRoute = Screen.AvatarDoodle.route
-            )
-        }
-
-        composable(Screen.PostEditor.route) { backStackEntry ->
-            val doodleData = backStackEntry.savedStateHandle.get<String>("doodle_data")
-            val doodleSize = backStackEntry.savedStateHandle.get<Int>("doodle_size")
-            val doodleGameId = backStackEntry.savedStateHandle.get<Int>("doodle_game_id")
-            val doodleGameTitle = backStackEntry.savedStateHandle.get<String>("doodle_game_title")
-            val doodleGameCoverPath = backStackEntry.savedStateHandle.get<String>("doodle_game_cover_path")
-            PostEditorScreen(
-                onBack = { navController.popBackStack() },
-                onPosted = { navController.popBackStack() },
-                onNavigateToDoodle = { gameId, gameTitle, gameCoverPath ->
-                    backStackEntry.savedStateHandle["doodle_initial_game_id"] = gameId
-                    backStackEntry.savedStateHandle["doodle_initial_game_title"] = gameTitle
-                    backStackEntry.savedStateHandle["doodle_initial_game_cover_path"] = gameCoverPath
-                    navController.navigate(Screen.Doodle.route)
-                },
-                initialDoodleData = doodleData,
-                initialDoodleSize = doodleSize,
-                initialDoodleGameId = doodleGameId,
-                initialDoodleGameTitle = doodleGameTitle,
-                initialDoodleGameCoverPath = doodleGameCoverPath
-            )
-        }
-
-        composable(Screen.QuayPass.route) {
-            QuayPassCheckInScreen(onBack = navigateToDefault)
         }
     }
 }

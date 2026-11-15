@@ -192,7 +192,6 @@ class SteamMetadataLauncherRecoveryTest {
         cachedLicenseDao = mockk(relaxed = true),
         imageCacheManager = mockk(relaxed = true),
         steamRepository = mockk(relaxed = true),
-        steamIgdbResolver = mockk(relaxed = true),
         preferencesRepository = mockk(relaxed = true),
         syncPreferencesRepository = mockk(relaxed = true),
         steamLibraryRepair = mockk(relaxed = true),

@@ -1,7 +1,6 @@
 package com.nendo.argosy.data.sync
 
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
-import com.nendo.argosy.data.local.dao.PendingSocialSyncDao
 import com.nendo.argosy.data.local.dao.PendingSyncQueueDao
 import com.nendo.argosy.data.local.dao.SaveCacheDao
 import com.nendo.argosy.data.local.dao.SaveOwnershipDao
@@ -16,7 +15,6 @@ import com.nendo.argosy.data.remote.romm.RomMConnectionManager
 import com.nendo.argosy.data.repository.RetroAchievementsRepository
 import com.nendo.argosy.data.repository.GameUserOverlayWriter
 import com.nendo.argosy.data.repository.RomMAccountRepository
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.util.Logger
 import dagger.Lazy
 import kotlinx.coroutines.Dispatchers
@@ -57,13 +55,11 @@ class AccountSwitchCoordinator @Inject constructor(
     private val stateOwnershipDao: StateOwnershipDao,
     private val saveCacheDao: SaveCacheDao,
     private val pendingSyncQueueDao: PendingSyncQueueDao,
-    private val pendingSocialSyncDao: PendingSocialSyncDao,
     private val downloadQueueDao: DownloadQueueDao,
     private val connectionManager: Lazy<RomMConnectionManager>,
     private val rommApiProvider: RomMApiProvider,
     private val rommAchievementService: Lazy<RomMAchievementService>,
-    private val retroAchievementsRepository: Lazy<RetroAchievementsRepository>,
-    private val socialRepository: Lazy<SocialRepository>
+    private val retroAchievementsRepository: Lazy<RetroAchievementsRepository>
 ) {
     private val switchMutex = Mutex()
 
@@ -161,7 +157,6 @@ class AccountSwitchCoordinator @Inject constructor(
 
         try {
             _progress.value = AccountSwitchProgress.Preparing
-            socialRepository.get().suspendForAccountSwitch()
             bindQueuedWorkToOutgoing(fromUserId)
 
             val outgoing = collectOutgoing(fromUserId)
@@ -220,7 +215,6 @@ class AccountSwitchCoordinator @Inject constructor(
             }
 
             _progress.value = AccountSwitchProgress.Finishing
-            socialRepository.get().resumeAfterAccountSwitch()
             markerStore.clear()
 
             val outcome = AccountSwitchOutcome(
@@ -277,15 +271,13 @@ class AccountSwitchCoordinator @Inject constructor(
         if (adopted > 0) pendingSyncQueueDao.adoptUnowned(fromUserId)
         val reopened = pendingSyncQueueDao.resetInProgressForOwner(fromUserId)
 
-        val socialUnowned = pendingSocialSyncDao.countUnowned()
-        if (socialUnowned > 0) pendingSocialSyncDao.adoptUnowned(fromUserId)
         val downloadsUnowned = downloadQueueDao.countUnowned()
         if (downloadsUnowned > 0) downloadQueueDao.adoptUnowned(fromUserId)
 
         Logger.info(
             TAG,
             "Queued work bound to user $fromUserId | syncAdopted=$adopted, syncReopened=$reopened, " +
-                "socialAdopted=$socialUnowned, downloadsAdopted=$downloadsUnowned"
+                "downloadsAdopted=$downloadsUnowned"
         )
     }
 

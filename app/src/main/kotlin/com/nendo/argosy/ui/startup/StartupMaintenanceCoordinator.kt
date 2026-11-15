@@ -2,16 +2,10 @@ package com.nendo.argosy.ui.startup
 
 import androidx.annotation.StringRes
 import com.nendo.argosy.R
-import com.nendo.argosy.core.notification.NotificationDuration
-import com.nendo.argosy.core.notification.NotificationManager
-import com.nendo.argosy.core.notification.NotificationText
-import com.nendo.argosy.core.notification.NotificationType
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.data.repository.LibraryPointerRepair
-import com.nendo.argosy.domain.usecase.libretro.LibretroMigrationUseCase
-import com.nendo.argosy.domain.usecase.libretro.MigrationResult
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.util.SafeCoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -41,8 +35,6 @@ class StartupMaintenanceCoordinator @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
     private val gameRepository: GameRepository,
     private val romMRepository: RomMRepository,
-    private val libretroMigrationUseCase: LibretroMigrationUseCase,
-    private val notificationManager: NotificationManager,
     private val libraryPointerRepair: LibraryPointerRepair
 ) {
     private class Step(
@@ -58,7 +50,6 @@ class StartupMaintenanceCoordinator @Inject constructor(
     val status: StateFlow<Int?> = _status.asStateFlow()
 
     private val pass: Deferred<Unit> = scope.async(start = CoroutineStart.LAZY) {
-        blockingSteps().forEach { runStep(it) }
         _status.value = null
         scope.launch {
             backgroundSteps().forEach { runStep(it, showStatus = false) }
@@ -81,18 +72,6 @@ class StartupMaintenanceCoordinator @Inject constructor(
             Logger.error(TAG, "Startup step ${step.key} failed, continuing", e)
         }
     }
-
-    private fun blockingSteps(): List<Step> = listOf(
-        Step(
-            key = "emulators",
-            label = R.string.ui_startup_status_checking_emulators
-        ) {
-            libretroMigrationUseCase.pinExistingPs2Emulator()
-            libretroMigrationUseCase.pinExistingBuiltinPriorityEmulators()
-            runBuiltinEmulatorMigration()
-            libretroMigrationUseCase.cleanupRemovedCores()
-        }
-    )
 
     private fun backgroundSteps(): List<Step> = listOf(
         Step(
@@ -127,20 +106,5 @@ class StartupMaintenanceCoordinator @Inject constructor(
         if (!prefs.weeklyIntegrityCheckEnabled) return false
         val lastCheck = prefs.lastIntegrityCheckTime ?: return true
         return System.currentTimeMillis() - lastCheck >= WEEKLY_INTEGRITY_INTERVAL_MS
-    }
-
-    private suspend fun runBuiltinEmulatorMigration() {
-        val result = libretroMigrationUseCase.runMigrationIfNeeded()
-        if (result !is MigrationResult.Success || result.coresDownloaded.isEmpty()) return
-        notificationManager.show(
-            title = NotificationText.Res(R.string.ui_builtin_cores_ready_title),
-            subtitle = NotificationText.Plural(
-                R.plurals.ui_builtin_cores_ready_subtitle,
-                result.coresDownloaded.size,
-                listOf(result.coresDownloaded.size)
-            ),
-            type = NotificationType.INFO,
-            duration = NotificationDuration.MEDIUM
-        )
     }
 }

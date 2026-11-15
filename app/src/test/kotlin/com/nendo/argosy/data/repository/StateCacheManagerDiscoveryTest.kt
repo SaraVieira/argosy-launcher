@@ -18,7 +18,7 @@ import com.nendo.argosy.data.preferences.SyncPreferencesRepository
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.sync.StateOwnershipTracker
 import com.nendo.argosy.data.sync.SyncPayloadCodec
-import com.nendo.argosy.libretro.LibretroStateSlots
+import com.nendo.argosy.data.libretro.LibretroStateSlots
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk

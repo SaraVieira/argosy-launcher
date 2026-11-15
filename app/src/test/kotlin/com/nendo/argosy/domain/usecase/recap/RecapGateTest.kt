@@ -5,7 +5,7 @@ import com.nendo.argosy.data.local.dao.PlaySessionDao
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.uploader.PlaySessionPullScheduler
+import com.nendo.argosy.data.playsession.PlaySessionPullScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder

@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -94,7 +93,6 @@ class DashboardActions(
     val onQuickSave: () -> Unit,
     val onLoadState: (DashboardQuickState) -> Unit,
     val onScreenshot: () -> Unit,
-    val onOpenCheats: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onQuit: () -> Unit,
     val onOpenDocument: (GameDocument) -> Unit,
@@ -204,7 +202,6 @@ fun InGameDashboard(
                 quitArmed = android.os.SystemClock.elapsedRealtime() < quitArmedUntil,
                 showsQuit = state.quickActionsAvailable || state.externalEmulator,
                 onSelect = selectSection,
-                onCheats = actions.onOpenCheats,
                 onSettings = actions.onOpenSettings,
                 onNextDisc = actions.onNextDisc,
                 onQuit = {
@@ -289,7 +286,6 @@ private fun DashboardRail(
     quitArmed: Boolean,
     showsQuit: Boolean,
     onSelect: (DashboardSection) -> Unit,
-    onCheats: () -> Unit,
     onSettings: () -> Unit,
     onNextDisc: () -> Unit,
     onQuit: () -> Unit
@@ -327,16 +323,6 @@ private fun DashboardRail(
                     wide = wide,
                     onTap = { content.actions.onOpenApp(app.packageName) }
                 )
-            }
-            if (controls.cheatsAvailable) {
-                item(key = "cheats") {
-                    RailItem(
-                        icon = Icons.Filled.AutoFixHigh,
-                        label = stringResource(R.string.dual_dashboard_rail_cheats),
-                        wide = wide,
-                        onTap = onCheats
-                    )
-                }
             }
             if (controls.discSwapAvailable) {
                 item(key = "next_disc") {

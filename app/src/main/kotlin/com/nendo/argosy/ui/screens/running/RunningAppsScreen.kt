@@ -41,7 +41,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -79,16 +78,12 @@ import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.LocalMotionTier
 import com.nendo.argosy.ui.theme.MotionTier
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
-import com.nendo.argosy.data.platform.PlatformDefinitions
-import com.nendo.argosy.libretro.slot.GameSlots
-import com.nendo.argosy.ui.components.PlatformIconAssets
 import com.nendo.argosy.ui.components.RunPlayTimeChip
 import com.nendo.argosy.ui.components.showsRunPlayTime
 import com.nendo.argosy.ui.coil.AppIconData
 import com.nendo.argosy.ui.common.GameArtBackdrop
 import com.nendo.argosy.ui.common.rememberFileImageModel
 import com.nendo.argosy.ui.common.rememberTaskSnapshotRequest
-import com.nendo.argosy.ui.components.friends.SocialAvatar
 import com.nendo.argosy.ui.primitives.ArgosyProgressBar
 import com.nendo.argosy.ui.theme.generated.ColorTokens
 import com.nendo.argosy.util.formatRelativeTime
@@ -206,21 +201,8 @@ fun RunningAppsContent(
                 )
             }
 
-            val friends = uiState.focusedApp?.details?.friendsPlaying.orEmpty()
-            if (friends.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = Dimens.spacingMd),
-                    contentAlignment = Alignment.Center
-                ) {
-                    FriendsPlayingRow(friends = friends, modifier = Modifier.fillMaxWidth(CARD_WIDTH_FRACTION))
-                }
-            }
-
             if (uiState.apps.isNotEmpty() && uiState.resumingTaskId == null) {
                 FooterHints(
-                    leadingContent = { SlotCartridges(uiState.apps, uiState.focusedApp?.taskId) },
                     hints = listOf(
                         InputButton.X to stringResource(R.string.running_hint_close),
                         InputButton.Y to stringResource(R.string.running_hint_close_all)
@@ -308,68 +290,6 @@ private fun FocusedGameBackdrop(gameId: Long?) {
             )
         }
     }
-}
-
-@Composable
-private fun SlotCartridges(apps: List<RunningAppUi>, focusedTaskId: Int?) {
-    val loaded = apps.filter { (it.slotIndex ?: 0) > 0 }
-    val usedUnits = loaded.sumOf { GameSlots.weightOf(it.platformSlug) }
-    val openUnits = (GameSlots.CAPACITY_UNITS - usedUnits).coerceAtLeast(0)
-    Row(
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
-    ) {
-        loaded.forEach { app -> Cartridge(app, focused = app.taskId == focusedTaskId) }
-        repeat(openUnits) { OpenSlot() }
-    }
-}
-
-@Composable
-private fun Cartridge(app: RunningAppUi, focused: Boolean) {
-    val theme = LocalArgosyTheme.current
-    val context = LocalContext.current
-    val weight = GameSlots.weightOf(app.platformSlug)
-    val slug = app.platformSlug.orEmpty()
-    val iconUri = remember(slug) { PlatformIconAssets.resolveAssetUri(context, slug) }
-    val shape = RoundedCornerShape(Dimens.radiusSm)
-    val fill = theme.focusAccent.copy(
-        alpha = if (focused) CARTRIDGE_FOCUSED_FILL_ALPHA else CARTRIDGE_FILL_ALPHA
-    )
-    Box(
-        modifier = Modifier
-            .width(Dimens.runningCartridgeWidth * weight + Dimens.spacingXs * (weight - 1))
-            .height(Dimens.runningCartridgeHeight)
-            .clip(shape)
-            .background(fill),
-        contentAlignment = Alignment.Center
-    ) {
-        if (iconUri != null) {
-            AsyncImage(
-                model = iconUri,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(CARTRIDGE_ICON_FRACTION)
-            )
-        } else {
-            Text(
-                text = PlatformDefinitions.getBySlug(slug)?.shortName ?: slug,
-                style = MaterialTheme.typography.labelSmall,
-                color = theme.textPrimary,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun OpenSlot() {
-    val shape = RoundedCornerShape(Dimens.radiusSm)
-    Box(
-        modifier = Modifier
-            .width(Dimens.runningCartridgeWidth)
-            .height(Dimens.runningCartridgeHeight)
-            .clip(shape)
-            .background(LocalArgosyTheme.current.surfaceElevated)
-    )
 }
 
 @Composable
@@ -760,61 +680,6 @@ private fun RaProgress(details: RunningGameDetails) {
 }
 
 @Composable
-private fun FriendsPlayingRow(friends: List<RunningFriendUi>, modifier: Modifier = Modifier) {
-    val shown = friends.take(SHOWN_FRIENDS)
-    val names = shown.map { it.displayName }
-    val line = when (names.size) {
-        1 -> stringResource(R.string.running_friends_one, names[0])
-        2 -> stringResource(R.string.running_friends_two, names[0], names[1])
-        else -> if (friends.size == SHOWN_FRIENDS) {
-            stringResource(R.string.running_friends_three, names[0], names[1], names[2])
-        } else {
-            stringResource(R.string.running_friends_many, names[0], names[1], names[2])
-        }
-    }
-    val overlap = Dimens.runningFriendAvatar / FRIEND_OVERLAP_DIVISOR
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(-overlap)) {
-            shown.forEach { friend ->
-                SocialAvatar(
-                    displayName = friend.displayName,
-                    avatarColor = friend.avatarColor,
-                    size = Dimens.runningFriendAvatar,
-                    avatarPngBase64 = friend.avatarPngBase64,
-                    userId = friend.userId
-                )
-            }
-            if (friends.size > SHOWN_FRIENDS) {
-                Box(
-                    modifier = Modifier
-                        .size(Dimens.runningFriendAvatar)
-                        .clip(CircleShape)
-                        .background(LocalArgosyTheme.current.surfaceRaised),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.running_friends_more, friends.size - SHOWN_FRIENDS),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalArgosyTheme.current.textPrimary
-                    )
-                }
-            }
-        }
-        Text(
-            text = line,
-            style = MaterialTheme.typography.bodyMedium,
-            color = LocalArgosyTheme.current.textDim,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
 private fun RunningAppRow(
     app: RunningAppUi,
     isFocused: Boolean,
@@ -846,9 +711,4 @@ private val CARD_FOCUS = FocusIndicators(halo = true, ring = true)
 private const val CARD_WIDTH_FRACTION = 0.5f
 private const val CARD_ASPECT = 16f / 9f
 private const val COVER_ASPECT = 3f / 4f
-private const val CARTRIDGE_ICON_FRACTION = 0.7f
-private const val CARTRIDGE_FILL_ALPHA = 0.24f
-private const val CARTRIDGE_FOCUSED_FILL_ALPHA = 0.5f
 private const val COVER_FALLBACK_ICON_FRACTION = 0.7f
-private const val SHOWN_FRIENDS = 3
-private const val FRIEND_OVERLAP_DIVISOR = 3

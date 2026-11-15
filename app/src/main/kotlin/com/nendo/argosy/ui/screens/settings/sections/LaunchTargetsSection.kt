@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,12 +30,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.nendo.argosy.DualScreenManagerHolder
@@ -336,6 +341,28 @@ private fun EntryIcon(entry: LaunchTargetEntry) {
             model = AppIconData(entry.packageName),
             contentDescription = null,
             modifier = iconModifier
+        )
+    }
+}
+
+@Composable
+private fun CoreTag(
+    text: String,
+    color: Color
+) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = color.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(Dimens.radiusSm)
+            )
+            .padding(horizontal = Dimens.spacingXs, vertical = 1.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontSize = 9.sp
         )
     }
 }

@@ -3,23 +3,6 @@ package com.nendo.argosy.ui.screens.gamedetail.delegates
 import android.content.Context
 import com.nendo.argosy.R
 import com.nendo.argosy.core.input.SoundType
-import com.nendo.argosy.data.emulator.BuiltinCoreResolver
-import com.nendo.argosy.data.emulator.BuiltinGraphicsResolver
-import com.nendo.argosy.data.emulator.GpuDriverToken
-import com.nendo.argosy.libretro.GraphicsBackendRegistry
-import com.nendo.argosy.libretro.LibretroCoreRegistry
-import com.nendo.argosy.core.notification.NotificationManager
-import com.nendo.argosy.core.notification.NotificationText
-import com.nendo.argosy.core.notification.NotificationType
-import com.nendo.argosy.data.emulator.VulkanDriverRepository
-import com.nendo.argosy.ui.common.GpuDriverBlock
-import com.nendo.argosy.ui.common.GpuDriverPickerEntry
-import com.nendo.argosy.ui.common.GraphicsBackendOptionUi
-import com.nendo.argosy.ui.common.VulkanDriverOption
-import com.nendo.argosy.ui.common.gpuDriverBlock
-import com.nendo.argosy.ui.common.gpuDriverPickerEntries
-import com.nendo.argosy.ui.common.optionsUi
-import com.nendo.argosy.ui.common.toOption
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.EmulatorResolver
@@ -54,7 +37,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
-enum class PerGameSettingsRow { EMULATOR, CORE, SAVE_PATH, SAVE_BASE_PATH, MEMCARD, DISPLAY_TARGET, EXTENSION, BACKEND, GPU_DRIVER, PLATFORM_SETTINGS }
+enum class PerGameSettingsRow { EMULATOR, CORE, SAVE_PATH, SAVE_BASE_PATH, MEMCARD, DISPLAY_TARGET, EXTENSION, PLATFORM_SETTINGS }
 
 data class PerGameSettingsState(
     val visible: Boolean = false,
@@ -83,19 +66,7 @@ data class PerGameSettingsState(
     val selectedMemcardPath: String? = null,
     val inheritedMemcardName: String? = null,
     val showMemcardPicker: Boolean = false,
-    val memcardPickerFocusIndex: Int = 0,
-    val showGpuDriverRow: Boolean = false,
-    val gpuDriver: String? = null,
-    val inheritedGpuDriver: String = GpuDriverToken.SYSTEM,
-    val gpuDrivers: List<VulkanDriverOption> = emptyList(),
-    val gpuDriverBlock: GpuDriverBlock? = null,
-    val graphicsCoreName: String? = null,
-    val gpuDriverInstallable: List<String> = emptyList(),
-    val installingGpuDriver: String? = null,
-    val showGpuDriverPicker: Boolean = false,
-    val backendOptions: List<GraphicsBackendOptionUi> = emptyList(),
-    val gameBackend: String? = null,
-    val inheritedBackend: String? = null
+    val memcardPickerFocusIndex: Int = 0
 ) {
     val rows: List<PerGameSettingsRow>
         get() = buildList {
@@ -106,19 +77,8 @@ data class PerGameSettingsState(
             if (showMemcardRow) add(PerGameSettingsRow.MEMCARD)
             if (showDisplayTargetRow) add(PerGameSettingsRow.DISPLAY_TARGET)
             if (extensionOptions.isNotEmpty()) add(PerGameSettingsRow.EXTENSION)
-            if (backendOptions.isNotEmpty()) add(PerGameSettingsRow.BACKEND)
-            if (showGpuDriverRow) add(PerGameSettingsRow.GPU_DRIVER)
             add(PerGameSettingsRow.PLATFORM_SETTINGS)
         }
-
-    val gpuDriverCycle: List<String?>
-        get() = listOf(null, GpuDriverToken.SYSTEM) + gpuDrivers.map { GpuDriverToken.custom(it.id) }
-
-    val gpuDriverPicker: List<GpuDriverPickerEntry>
-        get() = gpuDriverPickerEntries(gpuDriverCycle, gpuDriverInstallable)
-
-    val backendCycle: List<String?>
-        get() = listOf<String?>(null) + backendOptions.map { it.token }
 
     val focusedRow: PerGameSettingsRow? get() = rows.getOrNull(focusIndex)
 
@@ -139,13 +99,8 @@ class PerGameSettingsDelegate @Inject constructor(
     private val emulatorConfigDao: EmulatorConfigDao,
     private val emulatorDetector: EmulatorDetector,
     private val emulatorResolver: EmulatorResolver,
-    private val builtinCoreResolver: BuiltinCoreResolver,
-    private val builtinGraphicsResolver: BuiltinGraphicsResolver,
-    private val vulkanDriverRepository: VulkanDriverRepository,
-    private val notificationManager: NotificationManager,
     private val retroArchPathResolver: RetroArchPathResolver,
     private val emulatorSaveConfigRepository: EmulatorSaveConfigRepository,
-    private val builtinSaveBase: com.nendo.argosy.data.emulator.BuiltinSaveBase,
     private val configureEmulatorUseCase: ConfigureEmulatorUseCase,
     private val preferencesRepository: UserPreferencesRepository,
     private val gameRepository: GameRepository,
@@ -283,99 +238,26 @@ class PerGameSettingsDelegate @Inject constructor(
         _state.update { it.copy(preferredExtension = next) }
     }
 
-    suspend fun cycleGpuDriver(gameId: Long, direction: Int) {
-        val state = _state.value
-        if (!state.showGpuDriverRow || state.gpuDriverBlock != null) return
-        val cycle = state.gpuDriverCycle
-        val currentIndex = cycle.indexOf(state.gpuDriver).coerceAtLeast(0)
-        val next = cycle[(currentIndex + direction).mod(cycle.size)]
-        configureEmulatorUseCase.setGpuDriverForGame(gameId, next)
-        _state.update { it.copy(gpuDriver = next) }
-    }
-
-    fun openGpuDriverPicker() {
-        val state = _state.value
-        if (!state.showGpuDriverRow || state.gpuDriverBlock != null) return
-        _state.update { it.copy(showGpuDriverPicker = true) }
-    }
-
-    fun dismissGpuDriverPicker() {
-        _state.update { it.copy(showGpuDriverPicker = false) }
-    }
-
-    suspend fun applyGpuDriverEntry(gameId: Long, entry: GpuDriverPickerEntry) {
-        _state.update { it.copy(showGpuDriverPicker = false) }
-        when (entry) {
-            is GpuDriverPickerEntry.Value -> {
-                configureEmulatorUseCase.setGpuDriverForGame(gameId, entry.token)
-                _state.update { it.copy(gpuDriver = entry.token) }
-            }
-            is GpuDriverPickerEntry.Install -> installGpuDriver(gameId, entry.fileName)
-        }
-    }
-
-    private suspend fun installGpuDriver(gameId: Long, fileName: String) {
-        if (_state.value.installingGpuDriver != null) return
-        _state.update { it.copy(installingGpuDriver = fileName) }
-        vulkanDriverRepository.installFromDownloads(fileName)
-            .onSuccess { driver ->
-                configureEmulatorUseCase.setGpuDriverForGame(gameId, GpuDriverToken.custom(driver.id))
-                notificationManager.show(
-                    title = NotificationText.Res(R.string.gamedetail_per_game_gpu_driver_installed, listOf(driver.name)),
-                    type = NotificationType.SUCCESS
-                )
-            }
-            .onFailure {
-                notificationManager.show(
-                    title = NotificationText.Res(R.string.gamedetail_per_game_gpu_driver_install_failed, listOf(fileName)),
-                    type = NotificationType.ERROR
-                )
-            }
-        _state.update { it.copy(installingGpuDriver = null) }
-        refresh(gameId)
-    }
-
-    suspend fun cycleBackend(gameId: Long, direction: Int) {
-        val state = _state.value
-        if (state.backendOptions.isEmpty()) return
-        val cycle = state.backendCycle
-        val currentIndex = cycle.indexOf(state.gameBackend).coerceAtLeast(0)
-        val next = cycle[(currentIndex + direction).mod(cycle.size)]
-        configureEmulatorUseCase.setGraphicsBackendForGame(gameId, next)
-        refresh(gameId)
-    }
-
     private suspend fun buildState(gameId: Long): PerGameSettingsState? {
         val game = gameRepository.getById(gameId) ?: return null
         if (emulatorDetector.installedEmulators.value.isEmpty()) {
             emulatorDetector.detectEmulators()
         }
-        val prefs = preferencesRepository.userPreferences.first()
-
         val gameConfig = emulatorConfigDao.getByGameId(gameId)
         val platformConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
 
         val emulatorName = liveEmulatorName(gameConfig) ?: liveEmulatorName(platformConfig)
-            ?: emulatorDetector.getPreferredEmulator(game.platformSlug, prefs.builtinLibretroEnabled)?.def?.displayName
+            ?: emulatorDetector.getPreferredEmulator(game.platformSlug)?.def?.displayName
 
         val configuredPackage = gameConfig?.packageName ?: platformConfig?.packageName
         val emulatorDef = configuredPackage?.let { emulatorDetector.getByPackage(it) }
-            ?: emulatorDetector.getPreferredEmulator(game.platformSlug, prefs.builtinLibretroEnabled)?.def
-        val isBuiltIn = emulatorDef?.launchConfig is LaunchConfig.BuiltIn
+            ?: emulatorDetector.getPreferredEmulator(game.platformSlug)?.def
         val isCoreSelectable = emulatorDef?.launchConfig?.isCoreSelectable == true
-        val cores = EmulatorRegistry.getSelectableCores(game.platformSlug, isBuiltIn)
+        val cores = EmulatorRegistry.getSelectableCores(game.platformSlug, false)
         val showCoreRow = EmulatorSettingScope.showsCoreSelection(isCoreSelectable, cores.size)
-        val selectedCoreId = if (isBuiltIn) {
-            builtinCoreResolver.resolveCoreId(
-                gameId = gameId,
-                platformId = game.platformId,
-                platformSlug = game.platformSlug
-            )
-        } else {
-            gameConfig?.coreName
-                ?: platformConfig?.coreName
-                ?: EmulatorRegistry.getDefaultSelectableCore(game.platformSlug, isBuiltIn)?.id
-        }
+        val selectedCoreId = gameConfig?.coreName
+            ?: platformConfig?.coreName
+            ?: EmulatorRegistry.getDefaultSelectableCore(game.platformSlug, false)?.id
         val coreName = if (isCoreSelectable) cores.find { it.id == selectedCoreId }?.displayName else null
 
         val emulatorContext = resolveGameEmulatorContext(gameId, game.platformId, game.platformSlug)
@@ -391,7 +273,6 @@ class PerGameSettingsDelegate @Inject constructor(
             ?.let { emulatorSaveConfigRepository.besideRomDir(it, game.platformSlug, game.localPath) }
         val savePath = when {
             !showSavePathRow || saveConfig == null -> null
-            isBuiltIn -> builtinSaveBase.forGame(game)
             perGamePath != null -> perGamePath
             besideRomDir != null -> besideRomDir
             isRetroArch -> {
@@ -443,42 +324,7 @@ class PerGameSettingsDelegate @Inject constructor(
             ?.let { p -> memcardCards.find { it.path == p }?.name ?: File(p).name }
             ?: memcardCards.firstOrNull()?.name
 
-        val graphics = if (isBuiltIn) {
-            builtinGraphicsResolver.resolveForGame(
-                game = game,
-                coreId = selectedCoreId,
-                globalDriver = preferencesRepository.getBuiltinEmulatorSettings().first().gpuDriver
-            )
-        } else {
-            null
-        }
-
         return PerGameSettingsState(
-            showGpuDriverRow = graphics != null,
-            gpuDriver = graphics?.gameDriver,
-            inheritedGpuDriver = graphics?.inheritedDriver ?: GpuDriverToken.SYSTEM,
-            gpuDrivers = graphics
-                ?.takeIf { it.customDriversSupported }
-                ?.installedDrivers
-                ?.map { it.toOption() }
-                .orEmpty(),
-            gpuDriverBlock = graphics?.let {
-                gpuDriverBlock(
-                    backendSupportsVulkan = GraphicsBackendRegistry.supportsVulkan(it.backend),
-                    backendIsVulkan = it.preferVulkan,
-                    customDriversSupported = it.customDriversSupported,
-                    coreAcceptsCustomDriver = it.coreAcceptsCustomDriver
-                )
-            },
-            graphicsCoreName = graphics?.coreId?.let { LibretroCoreRegistry.displayNameFor(it) },
-            gpuDriverInstallable = if (graphics?.customDriversSupported == true) {
-                vulkanDriverRepository.listInstallablePackages().map { it.name }
-            } else {
-                emptyList()
-            },
-            backendOptions = graphics?.backend?.optionsUi().orEmpty(),
-            gameBackend = graphics?.gameBackend,
-            inheritedBackend = graphics?.inheritedBackend,
             emulatorName = emulatorName,
             isEmulatorOverride = gameConfig?.packageName != null,
             showCoreRow = showCoreRow,

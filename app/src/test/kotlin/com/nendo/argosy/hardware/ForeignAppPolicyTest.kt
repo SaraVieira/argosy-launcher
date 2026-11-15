@@ -17,7 +17,6 @@ class ForeignAppPolicyTest {
         displayPresent: Boolean = true,
         displayOn: Boolean = true,
         deviceInteractive: Boolean = true,
-        gameMoving: Boolean = false,
         sessionActive: Boolean = false,
         gameBoundForThisDisplay: Boolean = false
     ) = ForeignAppPolicy.stopCause(
@@ -27,7 +26,6 @@ class ForeignAppPolicyTest {
         displayPresent = displayPresent,
         displayOn = displayOn,
         deviceInteractive = deviceInteractive,
-        gameMoving = gameMoving,
         sessionActive = sessionActive,
         gameBoundForThisDisplay = gameBoundForThisDisplay
     )
@@ -69,11 +67,6 @@ class ForeignAppPolicyTest {
     }
 
     @Test
-    fun `a live game move is never a foreign app`() {
-        assertEquals(CompanionStopCause.GAME_MOVE, cause(gameMoving = true))
-    }
-
-    @Test
     fun `a running or starting game is never a foreign app`() {
         assertEquals(CompanionStopCause.GAME_SESSION, cause(sessionActive = true))
         assertEquals(CompanionStopCause.GAME_SESSION, cause(gameBoundForThisDisplay = true))
@@ -89,7 +82,6 @@ class ForeignAppPolicyTest {
                 displayPresent = false,
                 displayOn = false,
                 deviceInteractive = false,
-                gameMoving = true,
                 sessionActive = true
             )
         )

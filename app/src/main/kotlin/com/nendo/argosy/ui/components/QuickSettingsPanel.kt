@@ -91,7 +91,6 @@ fun QuickSettingsPanel(
     onOpenDeviceAccess: (() -> Unit)?,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    friendsPage: @Composable () -> Unit = {},
     connectionsPage: @Composable () -> Unit = {},
     musicPage: @Composable () -> Unit = {},
     footerHints: List<Pair<InputButton, String>> = emptyList(),
@@ -158,7 +157,6 @@ fun QuickSettingsPanel(
                     QuickPanelHeader(title = stringResource(activePage.titleRes))
                     Box(modifier = Modifier.weight(1f)) {
                         when (activePage) {
-                            QuickSettingsPage.FRIENDS -> friendsPage()
                             QuickSettingsPage.CONNECTIONS -> connectionsPage()
                             QuickSettingsPage.MUSIC -> musicPage()
                             else -> QuickSettingsList(
@@ -188,7 +186,7 @@ private fun quickPanelWidthFor(page: QuickSettingsPage): Dp {
     val cap = LocalConfiguration.current.screenWidthDp.dp * WIDE_PAGE_MAX_SCREEN_FRACTION
     val width = when (page) {
         QuickSettingsPage.MUSIC -> Dimens.quickPanelWidthMedia
-        QuickSettingsPage.FRIENDS, QuickSettingsPage.QUICK, QuickSettingsPage.PERFORMANCE,
+        QuickSettingsPage.QUICK, QuickSettingsPage.PERFORMANCE,
         QuickSettingsPage.CONNECTIONS -> Dimens.quickPanelWidthWide
     }
     return min(width, cap)
@@ -568,7 +566,7 @@ private fun QuickSettingsItemRow(
             description = stringResource(R.string.ui_quick_settings_hud_description)
         )
 
-        QuickSettingsItem.FriendsPage, QuickSettingsItem.ConnectionsPage, QuickSettingsItem.MusicPlayer -> Unit
+        QuickSettingsItem.ConnectionsPage, QuickSettingsItem.MusicPlayer -> Unit
     }
 }
 

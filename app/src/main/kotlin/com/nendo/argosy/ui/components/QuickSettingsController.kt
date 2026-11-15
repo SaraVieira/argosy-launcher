@@ -7,8 +7,6 @@ import com.nendo.argosy.data.preferences.MenuWrapMode
 import com.nendo.argosy.data.preferences.ScreenOrientationMode
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.SocialConnectionState
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.hardware.BrightnessController
 import com.nendo.argosy.hardware.DevicePerformance
 import com.nendo.argosy.hardware.DevicePerformanceResolver
@@ -18,7 +16,6 @@ import com.nendo.argosy.hardware.HardwareStatsReader
 import com.nendo.argosy.hardware.PerformanceMode
 import com.nendo.argosy.hardware.PerformanceModeStore
 import com.nendo.argosy.hardware.VolumeController
-import com.nendo.argosy.ui.components.friends.QuickFriendsController
 import com.nendo.argosy.ui.input.HapticFeedbackManager
 import com.nendo.argosy.ui.theme.AccentHue
 import com.nendo.argosy.ui.input.HapticPattern
@@ -40,7 +37,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -100,10 +96,8 @@ class QuickSettingsController(
     private val performanceStore: PerformanceModeStore,
     private val refreshController: DisplayRefreshController,
     private val hardwareStatsReader: HardwareStatsReader,
-    socialRepository: SocialRepository,
     private val hapticManager: HapticFeedbackManager,
     private val soundManager: SoundFeedbackManager,
-    private val quickFriends: QuickFriendsController,
     private val wrapMode: () -> MenuWrapMode,
     private val scope: CoroutineScope,
     private val deviceDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(1)
@@ -161,9 +155,8 @@ class QuickSettingsController(
     val state: StateFlow<QuickSettingsState> = combine(
         preferencesRepository.userPreferences,
         hudEnabled,
-        socialRepository.connectionState,
         combine(device, levels, dualScreen, hardware, ::DeviceReadings)
-    ) { prefs, hud, social, (deviceSettings, displayLevels, screens, hardwareStats) ->
+    ) { prefs, hud, (deviceSettings, displayLevels, screens, hardwareStats) ->
         QuickSettingsState(
             themeMode = prefs.themeMode,
             screenOrientation = prefs.screenOrientation,
@@ -190,9 +183,6 @@ class QuickSettingsController(
             isDualScreenActive = screens.active,
             isRolesSwapped = screens.rolesSwapped,
             hudEnabled = hud,
-            isSocialLinked = prefs.isSocialLinked,
-            isSocialConnected = social is SocialConnectionState.Connected,
-            quayPassEnabled = prefs.quayPassEnabled,
             hardwareStats = hardwareStats
         )
     }.stateIn(
@@ -205,11 +195,8 @@ class QuickSettingsController(
         _isOpen.update { open }
         if (open) {
             _focusIndex.update { 0 }
-            quickFriends.resetFocus()
             loadDeviceSettings()
             refreshDisplayLevels()
-        } else {
-            quickFriends.dismissModal()
         }
     }
 
@@ -256,7 +243,6 @@ class QuickSettingsController(
         if (page == activePage()) return
         _page.update { page }
         _focusIndex.update { 0 }
-        quickFriends.resetFocus()
     }
 
     fun cyclePage(delta: Int): InputResult {
@@ -311,13 +297,6 @@ class QuickSettingsController(
 
     fun swapDisplays() {
         DualScreenManagerHolder.instance?.swapRoles()
-    }
-
-    fun toggleQuayPass() {
-        scope.launch {
-            val prefs = preferencesRepository.userPreferences.first()
-            preferencesRepository.setQuayPassEnabled(!prefs.quayPassEnabled)
-        }
     }
 
     fun setSystemVolume(volume: Float) {

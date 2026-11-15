@@ -77,15 +77,13 @@ class LaunchWithSyncResolverAgreementTest {
         coEvery { emulatorConfigDao.getDefaultForPlatform(PLATFORM_ID) } returns null
         val installed = listOf(InstalledEmulator(def = retroarch, versionName = "1.0", versionCode = 1L))
         every { emulatorDetector.installedEmulators } returns MutableStateFlow(installed)
-        every { emulatorDetector.getPreferredEmulator("psx", any()) } returns installed.first()
+        every { emulatorDetector.getPreferredEmulator("psx") } returns installed.first()
         coEvery { saveSyncRepository.preLaunchSyncForGame(any(), any(), any(), any(), any()) } returns
             PreLaunchSyncResult.NoServerSave
 
         resolver = EmulatorResolver(
             emulatorDetector = emulatorDetector,
             emulatorConfigDao = emulatorConfigDao,
-            userPreferencesRepository = preferencesRepository,
-            libretroCoreMgr = mockk(relaxed = true),
             installedAppResolver = mockk(relaxed = true) { every { isAppInstalled(any()) } returns false }
         )
         useCase = LaunchWithSyncUseCase(

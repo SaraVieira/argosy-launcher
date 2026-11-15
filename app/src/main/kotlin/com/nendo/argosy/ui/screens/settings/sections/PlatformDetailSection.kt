@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -54,11 +53,8 @@ import com.nendo.argosy.ui.screens.settings.components.SavePathModal
 import com.nendo.argosy.ui.screens.settings.components.SectionPaneLayout
 import com.nendo.argosy.ui.screens.settings.components.VariantPickerModal
 import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
-import com.nendo.argosy.libretro.LibretroCoreRegistry
-import com.nendo.argosy.libretro.NetplaySupportLevel
 import com.nendo.argosy.ui.primitives.ActionButton
 import com.nendo.argosy.ui.theme.Dimens
-import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 import com.nendo.argosy.ui.theme.generated.ColorTokens
 
@@ -80,10 +76,6 @@ internal sealed class PlatformDetailItem(
     data object DisplayTarget : PlatformDetailItem("display_target", "emulator", { it.showDisplayTarget && !it.isAndroid })
     data object LegacyMode : PlatformDetailItem("legacy_mode", "emulator", { it.showLegacyMode && !it.isAndroid })
     data object LaunchArgs : PlatformDetailItem("launch_args", "emulator", { !it.isBuiltin && !it.isAndroid })
-    data object BuiltinVideo : PlatformDetailItem("builtin_video", "emulator", { it.isBuiltin && !it.isAndroid })
-    data object BuiltinControls : PlatformDetailItem("builtin_controls", "emulator", { it.isBuiltin && !it.isAndroid })
-    data object BuiltinSaves : PlatformDetailItem("builtin_saves", "emulator", { it.isBuiltin && !it.isAndroid })
-    data object BuiltinCoreOptions : PlatformDetailItem("builtin_core_options", "emulator", { it.isBuiltin && !it.isAndroid })
 
     data object ClearArtCache : PlatformDetailItem("clear_art_cache", "platform")
     data object ScanFiles : PlatformDetailItem("scan_files", "platform", { !it.isAndroid })
@@ -111,7 +103,7 @@ internal sealed class PlatformDetailItem(
         val ALL: List<PlatformDetailItem>
             get() = listOf(
                 Header("header_emulator", "emulator", R.string.settings_platform_section_emulator, { !it.isAndroid }),
-                Emulator, Core, Extension, DisplayTarget, LegacyMode, LaunchArgs, BuiltinVideo, BuiltinControls, BuiltinSaves, BuiltinCoreOptions,
+                Emulator, Core, Extension, DisplayTarget, LegacyMode, LaunchArgs,
                 Header("header_platform", "platform", R.string.settings_platform_section_platform),
                 InfoItem("info_platform_stats", "platform"),
                 ScanFiles, ScanApps, ClearArtCache,
@@ -334,15 +326,6 @@ fun PlatformDetailSection(
                     )
                 }
                 PlatformDetailItem.Core -> {
-                    val platformHasNetplay = config.effectiveEmulatorId == EmulatorRegistry.BUILTIN_ID &&
-                        LibretroCoreRegistry.getCoresForPlatform(config.platform.slug)
-                            .any { it.netplaySupport == NetplaySupportLevel.SUPPORTED }
-                    val activeCoreId = config.selectedCore
-                        ?: LibretroCoreRegistry.getDefaultCoreForPlatform(config.platform.slug)?.coreId
-                    val activeNetplay = platformHasNetplay &&
-                        activeCoreId != null &&
-                        LibretroCoreRegistry.getCoreById(activeCoreId)?.netplaySupport == NetplaySupportLevel.SUPPORTED
-
                     val currentCoreIndex = config.availableCores
                         .indexOfFirst { it.id == config.selectedCore }
                         .takeIf { it >= 0 } ?: 0
@@ -356,19 +339,7 @@ fun PlatformDetailSection(
                         onPrev = { viewModel.cycleCoreForPlatform(config, -1) },
                         options = remember(config.availableCores) { config.availableCores.map { it.displayName } },
                         onSelect = { viewModel.cycleCoreForPlatform(config, it - currentCoreIndex) },
-                        pickerRequestToken = pickerToken(item),
-                        valueFooter = if (platformHasNetplay) {
-                            {
-                                CoreTag(
-                                    text = stringResource(R.string.settings_platform_core_netplay_tag),
-                                    color = if (activeNetplay) {
-                                        LocalLauncherTheme.current.semanticColors.success
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                    }
-                                )
-                            }
-                        } else null
+                        pickerRequestToken = pickerToken(item)
                     )
                 }
                 PlatformDetailItem.Extension -> CyclePreference(
@@ -409,34 +380,6 @@ fun PlatformDetailSection(
                     subtitle = stringResource(R.string.settings_platform_launch_args_subtitle),
                     isFocused = isFocused(item),
                     onClick = { viewModel.openLaunchArgsModal(config.platform.id) }
-                )
-                PlatformDetailItem.BuiltinVideo -> NavigationPreference(
-                    icon = Icons.Default.Gamepad,
-                    title = stringResource(R.string.settings_platform_builtin_video_title),
-                    subtitle = stringResource(R.string.settings_platform_builtin_video_subtitle),
-                    isFocused = isFocused(item),
-                    onClick = { openFrom(item) { viewModel.navigateToBuiltinVideoForPlatform(detail.platformIndex) } }
-                )
-                PlatformDetailItem.BuiltinControls -> NavigationPreference(
-                    icon = Icons.Default.Gamepad,
-                    title = stringResource(R.string.settings_platform_builtin_controls_title),
-                    subtitle = stringResource(R.string.settings_platform_builtin_controls_subtitle),
-                    isFocused = isFocused(item),
-                    onClick = { openFrom(item) { viewModel.navigateToBuiltinControlsForPlatform(detail.platformIndex) } }
-                )
-                PlatformDetailItem.BuiltinSaves -> NavigationPreference(
-                    icon = Icons.Default.Gamepad,
-                    title = stringResource(R.string.settings_platform_builtin_saves_title),
-                    subtitle = stringResource(R.string.settings_platform_builtin_saves_subtitle),
-                    isFocused = isFocused(item),
-                    onClick = { openFrom(item) { viewModel.navigateToBuiltinSavesForPlatform(detail.platformIndex) } }
-                )
-                PlatformDetailItem.BuiltinCoreOptions -> NavigationPreference(
-                    icon = Icons.Default.Gamepad,
-                    title = stringResource(R.string.settings_platform_core_options_title),
-                    subtitle = stringResource(R.string.settings_platform_core_options_subtitle),
-                    isFocused = isFocused(item),
-                    onClick = { openFrom(item) { viewModel.navigateToCoreOptionsForPlatform() } }
                 )
 
                 is PlatformDetailItem.InfoItem -> {

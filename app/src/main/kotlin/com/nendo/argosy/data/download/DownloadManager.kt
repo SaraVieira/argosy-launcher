@@ -265,7 +265,7 @@ class DownloadManager internal constructor(
     private val stagingLock = Any()
 
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) startMainProcessWork()
+        startMainProcessWork()
     }
 
     private fun startMainProcessWork() {
@@ -1464,7 +1464,6 @@ class DownloadManager internal constructor(
         when {
             progress.isGameFileDownload && progress.gameFileId != null -> {
                 gameFileDao.updateLocalPath(progress.gameFileId, finalPath, Instant.now())
-                maybeComputeRomHashPrefix(progress.gameFileId, progress.gameId, finalPath)
                 val isDisc = gameFileDao.getById(progress.gameFileId)
                     ?.let { m3uManager.recordDiscFile(progress.gameId, it.fileName, finalPath) } == true
                 if (!isDisc) claimLaunchTargetIfBase(progress, finalPath)
@@ -1707,25 +1706,6 @@ class DownloadManager internal constructor(
         if (freed > 0) attributionRepository.markDirty(StorageCategory.ROM_STAGING)
         Logger.info(TAG, "Cleaned abandoned download staging | bytes=$freed")
         return freed
-    }
-
-    private suspend fun maybeComputeRomHashPrefix(
-        gameFileId: Long,
-        gameId: Long,
-        finalPath: String
-    ) {
-        try {
-            val game = gameDao.getById(gameId) ?: return
-            if (!com.nendo.argosy.data.netplay.RomHashComputer.isNetplayEligible(game.platformSlug)) {
-                return
-            }
-            val hash = withContext(Dispatchers.IO) {
-                com.nendo.argosy.data.netplay.RomHashComputer.computeRomHashPrefix(finalPath)
-            } ?: return
-            gameFileDao.updateRomHashPrefix(gameFileId, hash)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to compute ROM hash prefix: ${e.message}")
-        }
     }
 
     private suspend fun processDownloadedFile(

@@ -847,55 +847,6 @@ class DualScreenManagerRoleSwapTest {
     }
 
     @Test
-    fun `a live swap commits the roles once the game reaches the other display`() {
-        val host = liveSwapReady(FakeGameWindowMover(arrives = true))
-
-        manager.swapRoles()
-        testScope.testScheduler.advanceUntilIdle()
-
-        assertTrue(manager.isRolesSwapped.value)
-        assertEquals(PRESENTATION_DISPLAY, manager.emulatorDisplayId)
-        verify(exactly = 0) { host.displayMoveAbandoned() }
-    }
-
-    @Test
-    fun `a live swap the game never completes keeps the roles and the game display`() {
-        val host = liveSwapReady(FakeGameWindowMover(arrives = false))
-
-        manager.swapRoles()
-        testScope.testScheduler.advanceUntilIdle()
-
-        assertEquals(false, manager.isRolesSwapped.value)
-        assertEquals(PRIMARY_DISPLAY, manager.emulatorDisplayId)
-        verify(exactly = 1) { host.displayMoveAbandoned() }
-    }
-
-    @Test
-    fun `a game arriving after the move was abandoned still commits the roles`() {
-        liveSwapReady(FakeGameWindowMover(arrives = false))
-        manager.swapRoles()
-        testScope.testScheduler.advanceUntilIdle()
-
-        manager.onGameMovedToDisplay(PRESENTATION_DISPLAY)
-
-        assertTrue(manager.isRolesSwapped.value)
-        assertEquals(PRESENTATION_DISPLAY, manager.emulatorDisplayId)
-    }
-
-    @Test
-    fun `a late arrival after the session ended changes nothing`() {
-        liveSwapReady(FakeGameWindowMover(arrives = false))
-        manager.swapRoles()
-        testScope.testScheduler.advanceUntilIdle()
-        manager.emulatorDisplayId = null
-
-        manager.onGameMovedToDisplay(PRESENTATION_DISPLAY)
-
-        assertEquals(false, manager.isRolesSwapped.value)
-        assertEquals(null, manager.emulatorDisplayId)
-    }
-
-    @Test
     fun `locking during delayed emulator recovery prevents focus until a new unlocked recovery`() = testScope.runTest {
         io.mockk.mockkObject(com.nendo.argosy.hardware.FocusDirectorActivity.Companion)
         every {
@@ -1016,44 +967,10 @@ class DualScreenManagerRoleSwapTest {
         testScope.testScheduler.runCurrent()
     }
 
-    private fun liveSwapReady(mover: FakeGameWindowMover): DualScreenManager.LiveMoveHost {
-        io.mockk.mockkObject(com.nendo.argosy.hardware.FocusDirectorActivity.Companion)
-        every {
-            com.nendo.argosy.hardware.FocusDirectorActivity.launchOnDisplay(any(), any())
-        } returns Unit
-        every { sessionStateStore.hasActiveSession() } returns true
-        every { sessionStateStore.getDisplayRoleOverride() } returns "AUTO"
-        manager = newManager(
-            displayAffinityHelper = mockk(relaxed = true) {
-                every { isDockedDark } returns false
-                every { getRoleDisplayIds(false) } returns (PRIMARY_DISPLAY to PRESENTATION_DISPLAY)
-                every { getRoleDisplayIds(true) } returns (PRESENTATION_DISPLAY to PRIMARY_DISPLAY)
-                every { appScreenDisplayId(any()) } returns null
-                every { usableDisplayId(any()) } answers { firstArg() }
-            },
-            gameWindowMover = mover
-        )
-        mover.onMoved = manager::onGameMovedToDisplay
-        manager.setRolesSwapped(false)
-        manager.emulatorDisplayId = PRIMARY_DISPLAY
-        val host = mockk<DualScreenManager.LiveMoveHost>(relaxed = true)
-        manager.registerLiveMoveHost(host)
-        manager.registerReceivers()
-        testScope.testScheduler.advanceUntilIdle()
-        return host
-    }
-
     private class FakeGameWindowMover(
         private val arrives: Boolean
     ) : com.nendo.argosy.hardware.GameWindowMover {
-        var onMoved: (Int) -> Unit = {}
-
         override suspend fun isAvailable(): Boolean = true
-
-        override suspend fun moveGame(displayId: Int): Boolean {
-            if (arrives) onMoved(displayId)
-            return true
-        }
 
         override suspend fun moveTask(taskId: Int, displayId: Int): Boolean = arrives
     }
@@ -1127,7 +1044,6 @@ class DualScreenManagerRoleSwapTest {
         prefetchGameSaveDataUseCase = mockk(relaxed = true),
         platformRepository = mockk(relaxed = true),
         collectionRepository = mockk(relaxed = true),
-        socialRepository = mockk(relaxed = true),
         downloadQueueDao = mockk(relaxed = true),
         downloadQueueRepository = mockk(relaxed = true),
         gameFileDao = mockk(relaxed = true),
@@ -1161,7 +1077,6 @@ class DualScreenManagerRoleSwapTest {
         ambientAudioManager = mockk(relaxed = true),
         emulatorConfigDao = mockk(relaxed = true),
         configureEmulatorUseCase = mockk(relaxed = true),
-        builtinCoreResolver = mockk(relaxed = true),
         saveHandlerRegistry = mockk(relaxed = true),
         steamRepository = mockk(relaxed = true),
         playSessionTracker = playSessionTracker,

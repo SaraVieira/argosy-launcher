@@ -48,7 +48,6 @@ data class StreamPlayerUiState(
                 ?.takeIf { session.supportsStates }
                 ?.let { listOf(DashboardQuickState(session.stateSlot, it, null)) }
                 .orEmpty(),
-            cheatsAvailable = false,
             settingsAvailable = true,
             screenshotAvailable = false,
             discSwapAvailable = session.canSwapDisc,

@@ -139,8 +139,6 @@ class StreamPlayerActivity : ComponentActivity() {
 
         override fun screenshot() = Unit
 
-        override fun openCheats() = Unit
-
         override fun openGameSettings() {
             openControls()
         }

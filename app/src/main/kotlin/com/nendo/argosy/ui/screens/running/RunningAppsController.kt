@@ -18,7 +18,6 @@ import com.nendo.argosy.data.repository.AppsRepository
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.data.repository.PlatformRepository
 import com.nendo.argosy.data.repository.SaveCacheManager
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.data.streaming.StreamSessionManager
 import com.nendo.argosy.domain.model.MakeRoomStage
 import com.nendo.argosy.ui.input.InputHandler
@@ -78,15 +77,7 @@ data class RunningGameDetails(
     val raEarned: Int,
     val raTotal: Int,
     val hardcore: Boolean,
-    val lastSavedAtMillis: Long?,
-    val friendsPlaying: List<RunningFriendUi>
-)
-
-data class RunningFriendUi(
-    val userId: String,
-    val displayName: String,
-    val avatarColor: String,
-    val avatarPngBase64: String?
+    val lastSavedAtMillis: Long?
 )
 
 data class RunningScreenUi(val displayId: Int, val number: Int)
@@ -242,7 +233,7 @@ class RunningAppsController private constructor(
         return RunningAppUi(
             taskId = taskId,
             packageName = packageName,
-            iconPackageName = if (packageName == EmulatorRegistry.BUILTIN_PACKAGE || isStream) {
+            iconPackageName = if (isStream) {
                 com.nendo.argosy.BuildConfig.APPLICATION_ID
             } else {
                 packageName
@@ -279,28 +270,13 @@ class RunningAppsController private constructor(
             raEarned = game.earnedAchievementCount,
             raTotal = game.achievementCount,
             hardcore = app.hardcore,
-            lastSavedAtMillis = deps.saveCacheManager.getMostRecentSave(game.id)?.cachedAt?.toEpochMilli(),
-            friendsPlaying = friendsPlaying(game.igdbId)
+            lastSavedAtMillis = deps.saveCacheManager.getMostRecentSave(game.id)?.cachedAt?.toEpochMilli()
         )
     }
 
     private suspend fun platformName(platformId: Long): String? =
         platformNames[platformId]
             ?: deps.platformRepository.getById(platformId)?.name?.also { platformNames[platformId] = it }
-
-    private fun friendsPlaying(igdbId: Long?): List<RunningFriendUi> {
-        if (igdbId == null) return emptyList()
-        return deps.socialRepository.friends.value
-            .filter { it.currentGame?.igdbId?.toLong() == igdbId }
-            .map { friend ->
-                RunningFriendUi(
-                    userId = friend.id,
-                    displayName = friend.displayName,
-                    avatarColor = friend.avatarColor,
-                    avatarPngBase64 = friend.quayPassAvatar
-                )
-            }
-    }
 
     fun moveFocus(delta: Int) {
         _uiState.update { state ->
@@ -597,7 +573,6 @@ class RunningAppsController private constructor(
         internal val gameRepository: GameRepository,
         internal val platformRepository: PlatformRepository,
         internal val saveCacheManager: SaveCacheManager,
-        internal val socialRepository: SocialRepository,
         internal val screenCatalog: ScreenCatalog,
         internal val playSessionTracker: PlaySessionTracker,
         internal val notificationManager: NotificationManager,

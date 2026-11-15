@@ -31,7 +31,6 @@ class SteamAddGameLauncherTest {
         notificationManager = mockk(relaxed = true),
         emulatorDownloadManager = mockk(relaxed = true),
         emulatorUpdateRepository = mockk(relaxed = true),
-        steamIgdbResolver = mockk(relaxed = true),
         steamPathResolver = mockk(relaxed = true),
         storagePrefs = mockk(relaxed = true),
         gameNativeStoreSync = mockk(relaxed = true)

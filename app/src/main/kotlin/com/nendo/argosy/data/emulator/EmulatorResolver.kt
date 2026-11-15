@@ -3,9 +3,6 @@ package com.nendo.argosy.data.emulator
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
 import com.nendo.argosy.data.platform.InstalledAppResolver
-import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.LibretroCoreManager
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,8 +12,6 @@ data class SessionEmulator(val packageName: String, val emulatorId: String)
 class EmulatorResolver @Inject constructor(
     private val emulatorDetector: EmulatorDetector,
     private val emulatorConfigDao: EmulatorConfigDao,
-    private val userPreferencesRepository: UserPreferencesRepository,
-    private val libretroCoreMgr: LibretroCoreManager,
     private val installedAppResolver: InstalledAppResolver
 ) {
     fun resolveEmulatorId(packageName: String): String? {
@@ -50,8 +45,6 @@ class EmulatorResolver @Inject constructor(
             emulatorDetector.detectEmulators()
         }
 
-        val builtinEnabled = userPreferencesRepository.userPreferences.first().builtinLibretroEnabled
-
         var installedPackages = emulatorDetector.installedEmulators.value
             .map { it.def.packageName }
             .toSet()
@@ -67,9 +60,9 @@ class EmulatorResolver @Inject constructor(
                 .toSet()
         }
 
-        gameOverride.acceptableLaunchPackage(platformSlug, installedPackages, builtinEnabled)
+        gameOverride.acceptableLaunchPackage(installedPackages)
             ?.let { return emulatorDetector.getByPackage(it) }
-        platformDefault.acceptableLaunchPackage(platformSlug, installedPackages, builtinEnabled)
+        platformDefault.acceptableLaunchPackage(installedPackages)
             ?.let { return emulatorDetector.getByPackage(it) }
 
         val adHocConfig = gameOverride?.takeIf { it.adHocPackageOrNull() != null }
@@ -83,7 +76,7 @@ class EmulatorResolver @Inject constructor(
             )
         }
 
-        return emulatorDetector.getPreferredEmulator(platformSlug, builtinEnabled)?.def
+        return emulatorDetector.getPreferredEmulator(platformSlug)?.def
     }
 
     suspend fun getEmulatorIdForGame(gameId: Long, platformId: Long, platformSlug: String): String? {
@@ -118,26 +111,17 @@ class EmulatorResolver @Inject constructor(
     }
 
     /**
-     * Preferred emulator for a platform honouring the built-in toggle, as the id save and
+     * Preferred emulator for a platform, as the id save and
      * state paths key on. Used where a configured package resolves to no known emulator.
      */
     suspend fun getPreferredEmulatorId(platformSlug: String): String? {
-        val builtinEnabled = userPreferencesRepository.userPreferences.first().builtinLibretroEnabled
-        val def = emulatorDetector.getPreferredEmulator(platformSlug, builtinEnabled)?.def ?: return null
+        val def = emulatorDetector.getPreferredEmulator(platformSlug)?.def ?: return null
         return canonicalEmulatorId(def)
     }
 
-    private fun EmulatorConfigEntity?.acceptableLaunchPackage(
-        platformSlug: String,
-        installedPackages: Set<String>,
-        builtinEnabled: Boolean
-    ): String? {
+    private fun EmulatorConfigEntity?.acceptableLaunchPackage(installedPackages: Set<String>): String? {
         val pkg = this?.packageName ?: return null
         if (pkg !in installedPackages) return null
-        if (pkg == EmulatorRegistry.BUILTIN_PACKAGE &&
-            (!builtinEnabled || !libretroCoreMgr.isPlatformSupported(platformSlug))) {
-            return null
-        }
         return pkg
     }
 

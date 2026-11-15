@@ -68,7 +68,7 @@ class GameSessionService : Service() {
     @Inject lateinit var saveScreenshotCapture: com.nendo.argosy.hardware.SaveScreenshotCapture
     @Inject lateinit var playSessionTracker: dagger.Lazy<PlaySessionTracker>
     @Inject lateinit var activityReporter:
-        com.nendo.argosy.data.social.uploader.RomMActivityReporter
+        com.nendo.argosy.data.playsession.RomMActivityReporter
     @Inject lateinit var permissionHelper: PermissionHelper
     @Inject lateinit var pspSavePrefixLearner: com.nendo.argosy.data.sync.PspSavePrefixLearner
     @Inject lateinit var androidDataAccessor: com.nendo.argosy.data.storage.AndroidDataAccessor

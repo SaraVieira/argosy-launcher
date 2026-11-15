@@ -4,24 +4,17 @@ import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.screens.settings.sections.input.BoxArtSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinControlsSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinSavesSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinVideoSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.EmulatorsSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.FrameSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.PlatformDetailSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.AmbientLedSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.CoreOptionsSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.DisplaysSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.ScreensSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.DriversSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.InterfaceSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.LaunchTargetsSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.LightSectionsInput
 import com.nendo.argosy.ui.screens.settings.sections.input.NetworkSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.PlayTimeListSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.PlayTimeSectionInput
-import com.nendo.argosy.ui.screens.settings.sections.input.ShaderStackSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.StorageCachesSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.StorageGamesSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.StorageMediaSectionInput
@@ -48,11 +41,8 @@ class SettingsInputHandler(
     private val lightHandler = LightSectionsInput(viewModel)
 
     private val handlers: Map<SettingsSection, InputHandler> = buildMap {
-        put(SettingsSection.BUILTIN_VIDEO, BuiltinVideoSectionInput(viewModel))
         put(SettingsSection.PLATFORMS, EmulatorsSectionInput(viewModel))
         put(SettingsSection.PLATFORM_DETAIL, PlatformDetailSectionInput(viewModel))
-        put(SettingsSection.BUILTIN_CONTROLS, BuiltinControlsSectionInput(viewModel))
-        put(SettingsSection.BUILTIN_SAVES, BuiltinSavesSectionInput(viewModel))
         put(SettingsSection.BOX_ART, BoxArtSectionInput(viewModel))
         put(SettingsSection.INTERFACE, InterfaceSectionInput(viewModel))
         put(SettingsSection.DISPLAYS, DisplaysSectionInput(viewModel))
@@ -64,8 +54,6 @@ class SettingsInputHandler(
         put(SettingsSection.AMBIENT_LED, AmbientLedSectionInput(viewModel))
         put(SettingsSection.SCREENS, ScreensSectionInput(viewModel))
         put(SettingsSection.LAUNCH_TARGETS, LaunchTargetsSectionInput(viewModel))
-        put(SettingsSection.SHADER_STACK, ShaderStackSectionInput(viewModel))
-        put(SettingsSection.CORE_OPTIONS, CoreOptionsSectionInput(viewModel))
         put(SettingsSection.STORAGE, StorageSectionInput(viewModel))
         put(SettingsSection.STORAGE_GAMES, StorageGamesSectionInput(viewModel))
         put(SettingsSection.STORAGE_MEDIA, StorageMediaSectionInput(viewModel))
@@ -76,12 +64,10 @@ class SettingsInputHandler(
         put(SettingsSection.PLAY_TIME_PLATFORMS, playTimeListInput)
         put(SettingsSection.PLAY_TIME_DEVICES, playTimeListInput)
         put(SettingsSection.PLAY_TIME_GAMES, playTimeListInput)
-        put(SettingsSection.DRIVERS, DriversSectionInput(viewModel))
         put(
             SettingsSection.NETWORK_BLUETOOTH,
             NetworkSectionInput(viewModel.networkConnectionsInput, viewModel.networkConnections)
         )
-        put(SettingsSection.FRAME_PICKER, FrameSectionInput(viewModel))
         for (s in listOf(
             SettingsSection.MAIN,
             SettingsSection.ACCOUNTS,
@@ -89,9 +75,7 @@ class SettingsInputHandler(
             SettingsSection.CONTROLLER_GRIP,
             SettingsSection.HOME_SCREEN, SettingsSection.PRESENTATION, SettingsSection.LIBRARY_VIEW,
             SettingsSection.NAVIGATION, SettingsSection.AUDIO, SettingsSection.SYNC_SETTINGS,
-            SettingsSection.ABOUT, SettingsSection.STEAM_SETTINGS, SettingsSection.JELLYFIN,
-            SettingsSection.CORE_MANAGEMENT,
-            SettingsSection.SOCIAL, SettingsSection.BUILTIN_EMULATOR
+            SettingsSection.ABOUT, SettingsSection.STEAM_SETTINGS, SettingsSection.JELLYFIN
         )) {
             put(s, lightHandler)
         }

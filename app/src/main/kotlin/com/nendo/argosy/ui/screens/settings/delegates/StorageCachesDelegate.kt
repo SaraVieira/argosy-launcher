@@ -1,6 +1,5 @@
 package com.nendo.argosy.ui.screens.settings.delegates
 
-import android.content.Context
 import com.nendo.argosy.R
 import com.nendo.argosy.core.notification.NotificationManager
 import com.nendo.argosy.core.notification.NotificationText
@@ -8,15 +7,10 @@ import com.nendo.argosy.core.notification.showError
 import com.nendo.argosy.data.emulator.DriverFetcherRepository
 import com.nendo.argosy.data.emulator.EmulatorDownloadManager
 import com.nendo.argosy.data.repository.DatabaseAdminRepository
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.data.storage.StorageAttributionRepository
-import com.nendo.argosy.data.storage.StorageCategory
-import com.nendo.argosy.libretro.frame.FrameRegistry
-import com.nendo.argosy.libretro.shader.ShaderRegistry
 import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.ui.screens.settings.CachesClearTarget
 import com.nendo.argosy.ui.screens.settings.StorageCachesState
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,28 +22,23 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class StorageCachesDelegate @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val databaseAdminRepository: DatabaseAdminRepository,
     private val downloadManager: com.nendo.argosy.data.download.DownloadManager,
     private val emulatorDownloadManager: EmulatorDownloadManager,
     private val driverFetcherRepository: DriverFetcherRepository,
-    private val socialRepository: SocialRepository,
     private val soundFeedbackManager: SoundFeedbackManager,
-    private val frameRegistry: FrameRegistry,
     private val attributionRepository: StorageAttributionRepository,
     private val notificationManager: NotificationManager
 ) {
     private val _state = MutableStateFlow(StorageCachesState())
     val state: StateFlow<StorageCachesState> = _state.asStateFlow()
 
-    fun requestClear(target: CachesClearTarget, driverDownloadActive: Boolean = false) {
+    fun requestClear(target: CachesClearTarget) {
         if (target in _state.value.busyClears) return
         val blockedReason: NotificationText? = when (target) {
             CachesClearTarget.EMULATOR_APKS ->
                 NotificationText.Res(R.string.notif_storage_caches_emulator_busy_precheck)
                     .takeIf { emulatorDownloadManager.hasActiveDownload() }
-            CachesClearTarget.MISC_DOWNLOADS ->
-                NotificationText.Res(R.string.notif_storage_caches_driver_busy).takeIf { driverDownloadActive }
             else -> null
         }
         if (blockedReason != null) {
@@ -105,18 +94,7 @@ class StorageCachesDelegate @Inject constructor(
             performed
         }
         CachesClearTarget.MISC_DOWNLOADS -> {
-            socialRepository.clearPresenceCovers()
             driverFetcherRepository.clearDownloadedDrivers()
-            true
-        }
-        CachesClearTarget.SHADERS_CATALOG -> {
-            ShaderRegistry(context).clearCatalog()
-            attributionRepository.markDirty(StorageCategory.SHADERS_CATALOG)
-            true
-        }
-        CachesClearTarget.FRAMES -> {
-            frameRegistry.clearDownloadedFrames()
-            attributionRepository.markDirty(StorageCategory.FRAMES)
             true
         }
     }

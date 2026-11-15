@@ -2,7 +2,7 @@ package com.nendo.argosy.data.emulator
 
 import android.os.Environment
 import com.nendo.argosy.data.platform.PlatformDefinitions
-import com.nendo.argosy.libretro.LibretroStateSlots
+import com.nendo.argosy.data.libretro.LibretroStateSlots
 import com.nendo.argosy.util.AppPaths
 import java.io.File
 

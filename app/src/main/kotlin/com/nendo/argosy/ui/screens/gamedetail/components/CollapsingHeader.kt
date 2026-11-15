@@ -114,11 +114,10 @@ fun StickyCollapsedHeader(
 @Composable
 fun ExpandedHeader(
     game: GameDetailUi,
-    modifier: Modifier = Modifier,
-    friends: List<com.nendo.argosy.data.social.FriendActivity> = emptyList()
+    modifier: Modifier = Modifier
 ) {
     val art = rememberResolvedArt(game.id)
-    val detail = remember(game, friends, art) { game.toCompanionDetail(friends).withLiveArt(art) }
+    val detail = remember(game, art) { game.toCompanionDetail().withLiveArt(art) }
     Column(modifier = modifier.fillMaxWidth()) {
         GameHero(
             detail = detail,

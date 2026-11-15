@@ -5,7 +5,7 @@ import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.ui.theme.ALauncherColors
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
-import com.nendo.argosy.data.social.uploader.PlaySessionPullScheduler
+import com.nendo.argosy.data.playsession.PlaySessionPullScheduler
 import com.nendo.argosy.data.steam.SteamAuthManager
 import com.nendo.argosy.domain.model.Changelog
 import com.nendo.argosy.domain.model.ChangelogEntry

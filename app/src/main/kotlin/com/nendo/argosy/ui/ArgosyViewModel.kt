@@ -8,27 +8,12 @@ import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
 import androidx.annotation.StringRes
-import com.nendo.argosy.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.net.URLEncoder
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadQueueState
 import com.nendo.argosy.data.emulator.LaunchOrigin
-import com.nendo.argosy.data.emulator.LaunchResult
-import com.nendo.argosy.data.netplay.NetplayPreflightChecker
-import com.nendo.argosy.data.netplay.NetplayPreflightResult
-import com.nendo.argosy.data.social.Friend
-import com.nendo.argosy.data.social.NetplayInvitePayload
-import com.nendo.argosy.data.social.NetplaySession
-import com.nendo.argosy.data.social.SocialConnectionState
-import com.nendo.argosy.data.social.SocialRepository
-import com.nendo.argosy.data.social.SocialUser
-import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
-import com.nendo.argosy.libretro.LibretroActivity
-import com.nendo.argosy.core.notification.NotificationDuration
-import com.nendo.argosy.core.notification.NotificationText
-import com.nendo.argosy.core.notification.NotificationType
 import com.nendo.argosy.data.emulator.EmulatorUpdateManager
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.preferences.MenuWrapMode
@@ -41,10 +26,8 @@ import com.nendo.argosy.hardware.DisplayRefreshController
 import com.nendo.argosy.hardware.DevicePerformanceResolver
 import com.nendo.argosy.hardware.VolumeController
 import com.nendo.argosy.ui.components.QuickSettingsController
-import com.nendo.argosy.ui.components.friends.QuickFriendsController
 import com.nendo.argosy.ui.components.connections.QuickConnectionsController
 import com.nendo.argosy.ui.components.InputButton
-import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.ui.input.InputDispatcher.Companion.computeWrappedIndex
 import com.nendo.argosy.ui.input.GamepadInputHandler
 import com.nendo.argosy.ui.input.HapticFeedbackManager
@@ -70,7 +53,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -103,8 +85,6 @@ internal const val ACCOUNTS_SECTION_NAME = "ACCOUNTS"
 data class DrawerState(
     val rommConnected: Boolean = false,
     val rommConnecting: Boolean = false,
-    val localUser: SocialUser? = null,
-    val localAvatarDoodle: String? = null,
     val rommUsername: String? = null,
     val rommAvatarUrl: String? = null,
     val downloadCount: Int = 0,
@@ -150,11 +130,9 @@ data class NavRingState(
 
 private fun isNavRouteAvailable(
     route: String,
-    socialConnected: Boolean,
     mediaSignedIn: Boolean
 ): Boolean =
     when (route) {
-        Screen.Social.route -> socialConnected
         Screen.MediaLibrary.route -> mediaSignedIn
         else -> true
     }
@@ -171,7 +149,6 @@ class ArgosyViewModel @Inject constructor(
     val notificationManager: NotificationManager,
     downloadNotificationObserver: DownloadNotificationObserver,
     syncNotificationObserver: SyncNotificationObserver,
-    private val gameRepository: GameRepository,
     private val romMRepository: RomMRepository,
     private val downloadManager: DownloadManager,
     private val modalResetSignal: ModalResetSignal,
@@ -179,10 +156,8 @@ class ArgosyViewModel @Inject constructor(
     private val launcherStartup: com.nendo.argosy.ui.startup.LauncherStartupCoordinator,
     sessionEndCoordinator: com.nendo.argosy.ui.screens.common.SessionEndCoordinator,
     private val emulatorUpdateManager: EmulatorUpdateManager,
-    private val coreVersionRepository: com.nendo.argosy.data.repository.CoreVersionRepository,
     private val syncCoordinator: com.nendo.argosy.data.sync.SyncCoordinator,
     private val syncConflictNotifier: com.nendo.argosy.data.sync.SyncConflictNotifier,
-    private val socialSyncCoordinator: com.nendo.argosy.data.sync.SocialSyncCoordinator,
     private val brightnessController: BrightnessController,
     private val volumeController: VolumeController,
     private val performanceResolver: DevicePerformanceResolver,
@@ -191,17 +166,11 @@ class ArgosyViewModel @Inject constructor(
     private val hardwareStatsReader: com.nendo.argosy.hardware.HardwareStatsReader,
     private val radioController: com.nendo.argosy.hardware.RadioController,
     private val platformSyncQueue: com.nendo.argosy.data.sync.PlatformSyncQueue,
-    private val socialRepository: SocialRepository,
     private val mediaDownloadManager: com.nendo.argosy.data.download.MediaDownloadManager,
     val steamLauncherLinkController: com.nendo.argosy.data.steam.SteamLauncherLinkController,
-    val coreCrashController: com.nendo.argosy.libretro.CoreCrashController,
-    private val netplayPreflightChecker: NetplayPreflightChecker,
-    private val netplayJoinService: com.nendo.argosy.data.netplay.NetplayJoinService,
-    private val launchGameUseCase: LaunchGameUseCase,
     private val pendingConflictDao: com.nendo.argosy.data.local.dao.PendingConflictDao,
     val saveConflicts: com.nendo.argosy.ui.conflict.SaveConflictPrompts,
     private val deepLinkLaunchCoordinator: com.nendo.argosy.ui.deeplink.DeepLinkLaunchCoordinator,
-    private val gameStartRouter: com.nendo.argosy.ui.screens.common.GameStartRouter,
     private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker,
     val apkInstallManager: com.nendo.argosy.data.update.ApkInstallManager,
     val privilegedAccess: com.nendo.argosy.data.access.PrivilegedAccess,
@@ -232,11 +201,6 @@ class ArgosyViewModel @Inject constructor(
 
     suspend fun awaitDeepLinkSyncReady() = deepLinkLaunchCoordinator.awaitConnectionIfSyncing()
 
-    val netplayJoinState: StateFlow<com.nendo.argosy.data.netplay.NetplayJoinState> get() = netplayJoinService.state
-
-    fun cancelNetplayJoin() = netplayJoinService.cancel()
-    fun netplayJoinService(): com.nendo.argosy.data.netplay.NetplayJoinService = netplayJoinService
-
     private val contentResolver get() = application.contentResolver
 
     val sessionEndOverlay: StateFlow<com.nendo.argosy.ui.screens.common.SyncOverlayState?> =
@@ -257,9 +221,6 @@ class ArgosyViewModel @Inject constructor(
         downloadManager.clearCompleted()
         saveConflicts.start(viewModelScope)
         observeConnectionForSync()
-        observeSocialConnectionForSync()
-        observeNetplayInvites()
-        observeNetplayJoinLaunch()
         registerSettingsObserver()
     }
 
@@ -286,19 +247,6 @@ class ArgosyViewModel @Inject constructor(
                 .debounce(RECONNECT_SETTLE_MS)
                 .filter { it }
                 .collect { syncCoordinator.reconcileAfterReconnect() }
-        }
-    }
-
-    private fun observeSocialConnectionForSync() {
-        viewModelScope.launch {
-            var wasConnected = false
-            socialRepository.connectionState.collect { state ->
-                val isConnected = state is SocialConnectionState.Connected
-                if (isConnected && !wasConnected) {
-                    socialSyncCoordinator.processQueue()
-                }
-                wasConnected = isConnected
-            }
         }
     }
 
@@ -364,8 +312,6 @@ class ArgosyViewModel @Inject constructor(
 
     private val _navFocusIndex = MutableStateFlow(0)
 
-    val quickFriends = QuickFriendsController(socialRepository, preferencesRepository, viewModelScope)
-
     val quickConnections = QuickConnectionsController(radioController, viewModelScope)
 
     val quickSettings = QuickSettingsController(
@@ -376,10 +322,8 @@ class ArgosyViewModel @Inject constructor(
         performanceStore = performanceModeStore,
         refreshController = displayRefreshController,
         hardwareStatsReader = hardwareStatsReader,
-        socialRepository = socialRepository,
         hapticManager = hapticManager,
         soundManager = soundManager,
-        quickFriends = quickFriends,
         wrapMode = { uiState.value.menuWrapMode },
         scope = viewModelScope
     )
@@ -388,12 +332,8 @@ class ArgosyViewModel @Inject constructor(
         listOf(
             romMRepository.connectionState,
             downloadManager.state,
-            combine(
-                emulatorUpdateManager.assignedUpdateCount,
-                coreVersionRepository.observeUpdateCount()
-            ) { emulators, cores -> emulators + cores },
+            emulatorUpdateManager.assignedUpdateCount,
             _navFocusIndex,
-            socialRepository.connectionState,
             ownedConflictCount(),
             preferencesRepository.userPreferences,
             mediaDownloadManager.activeDownload,
@@ -405,26 +345,23 @@ class ArgosyViewModel @Inject constructor(
         val downloads = values[1] as DownloadQueueState
         val pendingUpdateCount = values[2] as Int
         val navIndex = values[3] as Int
-        val socialConnection = values[4] as SocialConnectionState
-        val saveSyncAttentionCount = values[5] as Int
-        val userPrefs = values[6] as com.nendo.argosy.data.preferences.UserPreferences
-        val mediaActiveDownload = values[7] as com.nendo.argosy.data.download.MediaDownloadProgress?
+        val saveSyncAttentionCount = values[4] as Int
+        val userPrefs = values[5] as com.nendo.argosy.data.preferences.UserPreferences
+        val mediaActiveDownload = values[6] as com.nendo.argosy.data.download.MediaDownloadProgress?
         @Suppress("UNCHECKED_CAST")
-        val mediaQueue = values[8] as List<com.nendo.argosy.data.download.QueuedMediaDownload>
+        val mediaQueue = values[7] as List<com.nendo.argosy.data.download.QueuedMediaDownload>
 
         val downloadCount = downloads.activeDownloads.size + downloads.queue.size +
             (if (mediaActiveDownload != null) 1 else 0) + mediaQueue.size
         DrawerState(
             rommConnected = connection is ConnectionState.Connected,
             rommConnecting = connection is ConnectionState.Connecting,
-            localUser = (socialConnection as? SocialConnectionState.Connected)?.user,
-            localAvatarDoodle = userPrefs.socialAvatarDoodle.takeIf { userPrefs.socialAvatarUseDoodle },
             rommUsername = userPrefs.rommUsername?.takeIf { it.isNotBlank() },
             rommAvatarUrl = rommAvatarUrl(userPrefs),
             downloadCount = downloadCount,
             saveSyncAttentionCount = saveSyncAttentionCount,
             pendingUpdateCount = pendingUpdateCount,
-            runningCount = values[9] as Int,
+            runningCount = values[8] as Int,
             navFocusIndex = navIndex
         )
     }.stateIn(
@@ -438,25 +375,16 @@ class ArgosyViewModel @Inject constructor(
     private var _isMediaSignedIn = false
 
     val drawerItems: List<DrawerItem>
-        get() {
-            val socialConnected = socialRepository.connectionState.value is SocialConnectionState.Connected
-            return allDrawerItems.filter {
-                isNavRouteAvailable(it.route, socialConnected, _isMediaSignedIn)
-            }
-        }
+        get() = allDrawerItems.filter { isNavRouteAvailable(it.route, _isMediaSignedIn) }
 
     private val navBarVisibility = NavBarVisibility(viewModelScope)
 
     val navRingState: StateFlow<NavRingState> = combine(
-        socialRepository.connectionState,
         preferencesRepository.userPreferences,
         quickNavigationSource.enabled,
         navBarVisibility.raised
-    ) { social, prefs, quickNavigation, raised ->
-        val socialConnected = social is SocialConnectionState.Connected
-        val pages = allDrawerItems.filter {
-            isNavRouteAvailable(it.route, socialConnected, prefs.isJellyfinSignedIn)
-        }
+    ) { prefs, quickNavigation, raised ->
+        val pages = allDrawerItems.filter { isNavRouteAvailable(it.route, prefs.isJellyfinSignedIn) }
         val ring = if (quickNavigation) {
             NavRing.resolve(prefs.navRingRoutes).mapNotNull { token ->
                 pages.firstOrNull { NavRing.token(it.route) == token }
@@ -603,238 +531,6 @@ class ArgosyViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = false
         )
-
-    private val _netplayInvitePrompt = MutableStateFlow<NetplayInvitePayload?>(null)
-    val netplayInvitePrompt: StateFlow<NetplayInvitePayload?> = _netplayInvitePrompt.asStateFlow()
-
-    private val _netplayInviteFocusIndex = MutableStateFlow(0)
-    val netplayInviteFocusIndex: StateFlow<Int> = _netplayInviteFocusIndex.asStateFlow()
-
-    private val _coreCrashLaunch =
-        kotlinx.coroutines.flow.MutableSharedFlow<Long>(extraBufferCapacity = 1)
-    val coreCrashLaunch: kotlinx.coroutines.flow.SharedFlow<Long> = _coreCrashLaunch
-
-    fun launchFromCoreCrash() {
-        val gameId = coreCrashController.prompt.value?.gameId ?: return
-        coreCrashController.dismiss()
-        _coreCrashLaunch.tryEmit(gameId)
-    }
-
-    private fun observeNetplayJoinLaunch() {
-        viewModelScope.launch {
-            netplayJoinService.state
-                .filterIsInstance<com.nendo.argosy.data.netplay.NetplayJoinState.LaunchReady>()
-                .collect { ready ->
-                    gameStartRouter.start(ready.gameId, ready.intent)
-                    netplayJoinService.reset()
-                }
-        }
-    }
-
-    private fun observeNetplayInvites() {
-        viewModelScope.launch {
-            socialRepository.netplayInvites.collect { payload ->
-                _netplayInvitePrompt.value = payload
-                _netplayInviteFocusIndex.value = 0
-            }
-        }
-    }
-
-    fun moveNetplayInviteFocus(direction: Int) {
-        val newIndex = (_netplayInviteFocusIndex.value + direction).coerceIn(0, 1)
-        _netplayInviteFocusIndex.value = newIndex
-    }
-
-    fun dismissNetplayInvite() {
-        _netplayInvitePrompt.value = null
-        _netplayInviteFocusIndex.value = 0
-    }
-
-    @Suppress("unused")
-    private fun legacyJoinFriendNetplaySession(friend: Friend) {
-        val session = friend.currentGame?.netplaySession ?: return
-        if (!session.joinable) return
-        viewModelScope.launch {
-            notificationManager.show(
-                title = NotificationText.Raw("Joining ${session.gameTitle}"),
-                subtitle = NotificationText.Raw("Checking compatibility..."),
-                duration = NotificationDuration.LONG
-            )
-            val preflight = netplayPreflightChecker.check(session)
-            if (preflight !is NetplayPreflightResult.Joinable) {
-                val reason = when (preflight) {
-                    NetplayPreflightResult.RomNotFound -> "ROM not found"
-                    NetplayPreflightResult.RomVersionMismatch -> "Different ROM version"
-                    NetplayPreflightResult.CoreVersionMismatch -> "Different core version"
-                    NetplayPreflightResult.CoreNotSupported -> "Core unsupported"
-                    is NetplayPreflightResult.Joinable -> return@launch
-                }
-                notificationManager.show(
-                    title = NotificationText.Raw("Can't join ${session.gameTitle}"),
-                    subtitle = NotificationText.Raw(reason),
-                    type = NotificationType.ERROR,
-                    duration = NotificationDuration.MEDIUM
-                )
-                return@launch
-            }
-            val gameId = preflight.gameId ?: run {
-                val igdbId = session.gameIgdbId?.toLong() ?: run {
-                    notificationManager.show(
-                        title = NotificationText.Raw("Can't join ${session.gameTitle}"),
-                        subtitle = NotificationText.Raw("Missing game id for session"),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                    return@launch
-                }
-                gameRepository.getByIgdbId(igdbId)?.id ?: run {
-                    notificationManager.show(
-                        title = NotificationText.Raw("Can't join ${session.gameTitle}"),
-                        subtitle = NotificationText.Raw("Local game not found"),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                    return@launch
-                }
-            }
-            when (val result = launchGameUseCase(gameId = gameId, allowVariantPrompt = false)) {
-                is LaunchResult.Success -> {
-                    val decorated = android.content.Intent(result.intent).apply {
-                        putExtra(LibretroActivity.EXTRA_NETPLAY_JOIN_SESSION_ID, session.sessionId)
-                        putExtra(LibretroActivity.EXTRA_NETPLAY_JOIN_HOST_USER_ID, friend.id)
-                        if (preflight.resolvedCorePath != null) {
-                            putExtra(LibretroActivity.EXTRA_CORE_PATH, preflight.resolvedCorePath)
-                        }
-                    }
-                    gameStartRouter.start(gameId, decorated)
-                }
-                is LaunchResult.Error -> {
-                    notificationManager.show(
-                        title = NotificationText.Raw("Can't join ${session.gameTitle}"),
-                        subtitle = NotificationText.Raw(result.message),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                }
-                LaunchResult.Cancelled -> Unit
-                else -> {
-                    notificationManager.show(
-                        title = NotificationText.Raw("Can't join ${session.gameTitle}"),
-                        subtitle = NotificationText.Raw("Couldn't launch game"),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                }
-            }
-        }
-    }
-
-    fun acceptNetplayInvite() {
-        val invite = _netplayInvitePrompt.value ?: return
-        _netplayInvitePrompt.value = null
-        _netplayInviteFocusIndex.value = 0
-        viewModelScope.launch {
-            val session = NetplaySession(
-                sessionId = invite.sessionId,
-                gameIgdbId = invite.gameIgdbId,
-                gameTitle = invite.gameTitle,
-                coreId = invite.coreId,
-                romHashPrefix = invite.romHashPrefix,
-                coreHash = invite.coreHash,
-                joinable = true,
-                protocolVersion = invite.protocolVersion
-            )
-            val preflight = netplayPreflightChecker.check(session)
-            if (preflight !is NetplayPreflightResult.Joinable) {
-                val reason = when (preflight) {
-                    NetplayPreflightResult.RomNotFound ->
-                        application.getString(R.string.ui_netplay_invite_reason_rom_missing)
-                    NetplayPreflightResult.RomVersionMismatch ->
-                        application.getString(R.string.ui_netplay_invite_reason_rom_version)
-                    NetplayPreflightResult.CoreVersionMismatch ->
-                        application.getString(R.string.ui_netplay_invite_reason_core_version)
-                    NetplayPreflightResult.CoreNotSupported ->
-                        application.getString(R.string.ui_netplay_invite_reason_core_unsupported)
-                    is NetplayPreflightResult.Joinable -> return@launch
-                }
-                notificationManager.show(
-                    title = NotificationText.Res(
-                        R.string.ui_netplay_invite_failed_title,
-                        listOf(invite.gameTitle)
-                    ),
-                    subtitle = NotificationText.Raw(reason),
-                    type = NotificationType.ERROR,
-                    duration = NotificationDuration.MEDIUM
-                )
-                return@launch
-            }
-            val igdbId = invite.gameIgdbId?.toLong() ?: run {
-                notificationManager.show(
-                    title = NotificationText.Res(
-                        R.string.ui_netplay_invite_failed_title,
-                        listOf(invite.gameTitle)
-                    ),
-                    subtitle = NotificationText.Res(
-                        R.string.ui_netplay_invite_reason_missing_game_id
-                    ),
-                    type = NotificationType.ERROR,
-                    duration = NotificationDuration.MEDIUM
-                )
-                return@launch
-            }
-            val game = gameRepository.getByIgdbId(igdbId) ?: run {
-                notificationManager.show(
-                    title = NotificationText.Res(
-                        R.string.ui_netplay_invite_failed_title,
-                        listOf(invite.gameTitle)
-                    ),
-                    subtitle = NotificationText.Res(
-                        R.string.ui_netplay_invite_reason_game_not_local
-                    ),
-                    type = NotificationType.ERROR,
-                    duration = NotificationDuration.MEDIUM
-                )
-                return@launch
-            }
-            when (val result = launchGameUseCase(gameId = game.id, allowVariantPrompt = false)) {
-                is LaunchResult.Success -> {
-                    val decorated = android.content.Intent(result.intent).apply {
-                        putExtra(LibretroActivity.EXTRA_NETPLAY_JOIN_SESSION_ID, invite.sessionId)
-                        putExtra(LibretroActivity.EXTRA_NETPLAY_JOIN_HOST_USER_ID, invite.hostUserId)
-                        if (preflight.resolvedCorePath != null) {
-                            putExtra(LibretroActivity.EXTRA_CORE_PATH, preflight.resolvedCorePath)
-                        }
-                    }
-                    gameStartRouter.start(game.id, decorated)
-                }
-                is LaunchResult.Error -> {
-                    notificationManager.show(
-                        title = NotificationText.Res(
-                            R.string.ui_netplay_invite_failed_title,
-                            listOf(invite.gameTitle)
-                        ),
-                        subtitle = NotificationText.Raw(result.message),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                }
-                LaunchResult.Cancelled -> Unit
-                else -> {
-                    notificationManager.show(
-                        title = NotificationText.Res(
-                            R.string.ui_netplay_invite_failed_title,
-                            listOf(invite.gameTitle)
-                        ),
-                        subtitle = NotificationText.Res(
-                            R.string.ui_netplay_invite_reason_launch_failed
-                        ),
-                        type = NotificationType.ERROR,
-                        duration = NotificationDuration.MEDIUM
-                    )
-                }
-            }
-        }
-    }
 
     data class PendingLaunch(
         val gameId: Long,

@@ -284,7 +284,6 @@ private fun dashboardActions(
         onQuickSave = { manager.sessionQuickActions?.quickSave() },
         onLoadState = { manager.sessionQuickActions?.loadState(it.slotNumber, it.savedAtMillis) },
         onScreenshot = { manager.sessionQuickActions?.screenshot() },
-        onOpenCheats = { manager.sessionQuickActions?.openCheats() },
         onOpenSettings = { manager.sessionQuickActions?.openGameSettings() },
         onQuit = { manager.quitSession() },
         onOpenDocument = { manager.openDashboardDocument(it) },
@@ -308,7 +307,7 @@ private fun rememberInGameAppBarState(): InGameAppBarState? {
     val apps by manager.homeAppsFlow.collectAsState(initial = manager.homeAppsList)
     val pickerOpen by manager.focusPickerOpen.collectAsState()
     val pickerIndex by manager.focusPickerIndex.collectAsState()
-    val canSwapRoles by manager.liveSwapAvailable.collectAsState()
+    val canSwapRoles = false
     val displays = remember(pickerOpen) {
         manager.focusableDisplays().map { screen ->
             com.nendo.argosy.ui.components.DisplayFocusTarget(screen.displayId, screen.number)

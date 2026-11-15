@@ -2,7 +2,6 @@ package com.nendo.argosy.data.preferences
 
 import com.nendo.argosy.data.local.dao.PlatformLibretroSettingsDao
 import com.nendo.argosy.data.platform.PlatformWeightRegistry
-import com.nendo.argosy.libretro.frame.FrameRegistry
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,8 +9,7 @@ import javax.inject.Singleton
 @Singleton
 class EffectiveLibretroSettingsResolver @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
-    private val platformLibretroSettingsDao: PlatformLibretroSettingsDao,
-    private val frameRegistry: FrameRegistry
+    private val platformLibretroSettingsDao: PlatformLibretroSettingsDao
 ) {
     suspend fun getEffectiveSettings(
         platformId: Long,
@@ -38,7 +36,7 @@ class EffectiveLibretroSettingsResolver @Inject constructor(
             audioVolume = perPlatform?.audioVolume ?: global.audioVolume,
             blackFrameInsertion = perPlatform?.blackFrameInsertion ?: global.blackFrameInsertion,
             framesEnabled = global.framesEnabled,
-            frame = resolveEffectiveFrame(global.framesEnabled, platformSlug, perPlatform?.frame),
+            frame = null,
             fastForwardEnabled = perPlatform?.fastForwardEnabled ?: global.fastForwardEnabled,
             fastForwardSpeed = perPlatform?.fastForwardSpeed ?: global.fastForwardSpeed,
             fastForwardMode = global.fastForwardMode,
@@ -63,18 +61,5 @@ class EffectiveLibretroSettingsResolver @Inject constructor(
             preferNewerServerSave = perPlatform?.preferNewerServerSave ?: global.preferNewerServerSave,
             hwCoreSaveStatesEnabled = perPlatform?.hwCoreSaveStates ?: global.hwCoreSaveStatesEnabled
         )
-    }
-
-    private fun resolveEffectiveFrame(
-        framesEnabled: Boolean,
-        platformSlug: String,
-        platformOverride: String?
-    ): String? {
-        if (!framesEnabled) return null
-        return when (platformOverride) {
-            null -> frameRegistry.getFramesForPlatform(platformSlug).firstOrNull()?.id
-            FrameRegistry.NO_FRAME_ID -> null
-            else -> platformOverride
-        }
     }
 }

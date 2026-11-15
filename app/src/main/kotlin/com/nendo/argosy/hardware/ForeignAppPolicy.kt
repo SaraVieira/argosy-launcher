@@ -8,7 +8,6 @@ enum class CompanionStopCause {
     DISPLAY_GONE,
     DEVICE_ASLEEP,
     DISPLAY_OFF,
-    GAME_MOVE,
     GAME_SESSION,
     FOREIGN_APP
 }
@@ -22,7 +21,6 @@ object ForeignAppPolicy {
         displayPresent: Boolean,
         displayOn: Boolean,
         deviceInteractive: Boolean,
-        gameMoving: Boolean,
         sessionActive: Boolean,
         gameBoundForThisDisplay: Boolean
     ): CompanionStopCause = when {
@@ -31,7 +29,6 @@ object ForeignAppPolicy {
         displayId == Display.DEFAULT_DISPLAY || !displayPresent -> CompanionStopCause.DISPLAY_GONE
         !deviceInteractive -> CompanionStopCause.DEVICE_ASLEEP
         !displayOn -> CompanionStopCause.DISPLAY_OFF
-        gameMoving -> CompanionStopCause.GAME_MOVE
         sessionActive || gameBoundForThisDisplay -> CompanionStopCause.GAME_SESSION
         else -> CompanionStopCause.FOREIGN_APP
     }

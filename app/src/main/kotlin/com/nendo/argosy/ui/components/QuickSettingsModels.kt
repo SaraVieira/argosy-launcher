@@ -2,7 +2,6 @@ package com.nendo.argosy.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
@@ -80,16 +79,12 @@ data class QuickSettingsState(
     val isDualScreenActive: Boolean = false,
     val isRolesSwapped: Boolean = false,
     val hudEnabled: Boolean = false,
-    val isSocialLinked: Boolean = false,
-    val isSocialConnected: Boolean = false,
-    val quayPassEnabled: Boolean = false,
     val hardwareStats: HardwareStatsUi? = null
 ) {
     val deviceControlsLocked: Boolean get() = deviceSettingsSupported && !deviceSettingsEnabled
 }
 
 enum class QuickSettingsPage(val icon: ImageVector, @StringRes val titleRes: Int) {
-    FRIENDS(Icons.Default.Group, R.string.ui_quick_settings_page_friends),
     QUICK(Icons.Default.Tune, R.string.ui_quick_settings_title),
     PERFORMANCE(Icons.Default.Speed, R.string.ui_quick_settings_page_performance),
     CONNECTIONS(Icons.Default.Wifi, R.string.ui_quick_settings_page_connections),
@@ -185,11 +180,6 @@ sealed class QuickSettingsItem(
         visibleWhen = { it.deviceSettingsSupported }
     )
 
-    data object FriendsPage : QuickSettingsItem(
-        "friendsPage", QuickSettingsPage.FRIENDS,
-        visibleWhen = { it.isSocialLinked || it.isSocialConnected }
-    )
-
     data object ConnectionsPage : QuickSettingsItem("connectionsPage", QuickSettingsPage.CONNECTIONS)
 
     data object MusicPlayer : QuickSettingsItem("musicPlayer", QuickSettingsPage.MUSIC)
@@ -204,7 +194,6 @@ sealed class QuickSettingsItem(
 
         val ALL: List<QuickSettingsItem>
             get() = listOf(
-                FriendsPage,
                 DisplayHeader, Theme, Accent, ScreenBrightness, SecondScreenBrightness, SwapDisplays, ScreenOrientation,
                 SoundHeader, SystemVolume, UISounds,
                 ControlsHeader, Haptic, SwapAB, SwapXY, SwapStartSelect,

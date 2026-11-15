@@ -77,7 +77,7 @@ class JellyfinLibrarySyncService @Inject constructor(
      * write is still unreported.
      */
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) startMainProcessWork()
+        startMainProcessWork()
     }
 
     private fun startMainProcessWork() {

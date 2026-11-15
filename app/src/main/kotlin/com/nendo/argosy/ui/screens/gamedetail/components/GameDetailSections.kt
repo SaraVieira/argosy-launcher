@@ -79,7 +79,6 @@ import com.nendo.argosy.R
 import com.nendo.argosy.data.repository.SaveSyncApiClient
 import com.nendo.argosy.ui.common.ScreenshotImage
 import com.nendo.argosy.ui.common.rememberFileImageModel
-import com.nendo.argosy.ui.common.supersedesCommunityRating
 import com.nendo.argosy.ui.screens.gamedetail.DownloadWaitStatus
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUi
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUiState
@@ -190,13 +189,8 @@ fun GameHeader(
                 game.players?.let { players ->
                     MetadataChip(label = stringResource(R.string.gamedetail_chip_players_label), value = players)
                 }
-                val sentiment = uiState.reviewSummary?.sentiment?.allTime
-                if (sentiment.supersedesCommunityRating()) {
-                    ReviewSentimentChip(sentiment = sentiment!!)
-                } else {
-                    game.rating?.let { rating ->
-                        CommunityRatingChip(rating = rating)
-                    }
+                game.rating?.let { rating ->
+                    CommunityRatingChip(rating = rating)
                 }
                 val context = LocalContext.current
                 formatTimeToBeat(context, game.timeToBeatMainSec)?.let { time ->
@@ -228,12 +222,6 @@ fun GameHeader(
                     icon = Icons.Default.Whatshot,
                     iconColor = ALauncherColors.DifficultyRed
                 )
-                if (uiState.hasSocialAccount) {
-                    MyReviewChip(
-                        review = uiState.reviewSummary?.myReview,
-                        onClick = { viewModel.openReviewEditor() }
-                    )
-                }
                 if (game.playTimeMinutes > 0) {
                     PlayTimeChip(minutes = game.playTimeMinutes)
                 }

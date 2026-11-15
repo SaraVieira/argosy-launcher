@@ -15,7 +15,6 @@ import com.nendo.argosy.data.sync.PendingScreenshotStore
 import com.nendo.argosy.data.sync.ScreenshotPayload
 import com.nendo.argosy.data.sync.ScreenshotUploadLedger
 import com.nendo.argosy.data.sync.SyncPayloadCodec
-import com.nendo.argosy.libretro.LibretroActivity
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.util.PermissionHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,7 +30,7 @@ import javax.inject.Singleton
 /**
  * Queues the images written while a session's emulator was in the foreground for upload against
  * that session's game, and returns how many rows it queued. Without usage access the foreground is
- * unknown, so only Argosy's own screenshot folder is read, and only for a built-in session.
+ * unknown, so nothing is queued.
  */
 @Singleton
 class SessionScreenshotScanner @Inject constructor(
@@ -62,18 +61,11 @@ class SessionScreenshotScanner @Inject constructor(
             val rommId = gameDao.getById(gameId)?.rommId ?: return@withContext 0
             val ownerUserId = prefs.rommUserId
 
-            val builtIn = emulatorPackage == EmulatorRegistry.BUILTIN_PACKAGE
-            val statsPackage = if (builtIn) context.packageName else emulatorPackage
             val from = sessionStart.toEpochMilli()
             val to = sessionEnd.toEpochMilli()
-            val gameActivity = if (builtIn) LibretroActivity::class.java.name else null
-            val spans = permissionHelper.foregroundSpans(context, statsPackage, gameActivity, from, to)
-            val sources: List<Pair<String, List<LongRange>>> = when {
-                spans != null -> folderRegistry.folders().map { it to spans }
-                builtIn -> listOf(folderRegistry.builtinFolder() to listOf(from..to))
-                else -> emptyList()
-            }
-            val candidates = sources.flatMap { (folder, windows) -> imagesIn(folder, windows) }
+            val spans = permissionHelper.foregroundSpans(context, emulatorPackage, null, from, to)
+                ?: return@withContext 0
+            val candidates = folderRegistry.folders().flatMap { folder -> imagesIn(folder, spans) }
             if (candidates.isEmpty()) return@withContext 0
 
             val alreadyQueued = pendingSyncQueueDao.getByGameId(gameId)

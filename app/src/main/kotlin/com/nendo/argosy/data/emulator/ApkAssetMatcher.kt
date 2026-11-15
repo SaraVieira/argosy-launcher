@@ -1,7 +1,7 @@
 package com.nendo.argosy.data.emulator
 
 import com.nendo.argosy.data.remote.github.GitHubAsset
-import com.nendo.argosy.libretro.LibretroBuildbot
+import com.nendo.argosy.data.libretro.LibretroBuildbot
 
 sealed class ApkMatchResult {
     data class SingleMatch(val asset: GitHubAsset, val variant: String?) : ApkMatchResult()

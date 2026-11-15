@@ -45,7 +45,6 @@ import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.data.preferences.ControlsPreferencesRepository
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.data.social.SocialRepository
 import com.nendo.argosy.domain.usecase.music.GetMusicPlaylistsUseCase
 import com.nendo.argosy.domain.usecase.music.ResolveMusicQueueUseCase
 import com.nendo.argosy.domain.usecase.music.SearchSoundtrackGamesUseCase
@@ -70,10 +69,6 @@ import com.nendo.argosy.ui.components.connections.QuickConnectionsEffects
 import com.nendo.argosy.ui.components.connections.QuickConnectionsInputHandler
 import com.nendo.argosy.ui.components.connections.QuickConnectionsModals
 import com.nendo.argosy.ui.components.connections.QuickSettingsConnectionsPage
-import com.nendo.argosy.ui.components.friends.QuickFriendsController
-import com.nendo.argosy.ui.components.friends.QuickFriendsInputHandler
-import com.nendo.argosy.ui.components.friends.QuickFriendsModals
-import com.nendo.argosy.ui.components.friends.QuickSettingsFriendsPage
 import com.nendo.argosy.ui.components.musicplayer.MusicPlayerInputHandler
 import com.nendo.argosy.ui.components.musicplayer.MusicPlayerViewModel
 import com.nendo.argosy.ui.components.musicplayer.QuickSettingsMusicPage
@@ -136,7 +131,6 @@ class QuickPanelOverlay @Inject constructor(
     private val performanceStore: PerformanceModeStore,
     private val refreshController: DisplayRefreshController,
     private val hardwareStatsReader: HardwareStatsReader,
-    private val socialRepository: SocialRepository,
     private val radioController: RadioController,
     private val hapticManager: HapticFeedbackManager,
     private val soundManager: SoundFeedbackManager,
@@ -218,7 +212,6 @@ class QuickPanelOverlay @Inject constructor(
             preferencesRepository.userPreferences.stateIn(scope, SharingStarted.Eagerly, UserPreferences())
         private val dispatcher = InputDispatcher(hapticManager, soundManager)
         private val footerHost = FooterHostController()
-        private val friends = QuickFriendsController(socialRepository, preferencesRepository, scope)
         private val connections = QuickConnectionsController(radioController, scope)
         private val settings = QuickSettingsController(
             preferencesRepository = preferencesRepository,
@@ -228,25 +221,14 @@ class QuickPanelOverlay @Inject constructor(
             performanceStore = performanceStore,
             refreshController = refreshController,
             hardwareStatsReader = hardwareStatsReader,
-            socialRepository = socialRepository,
             hapticManager = hapticManager,
             soundManager = soundManager,
-            quickFriends = friends,
             wrapMode = { prefs.value.menuWrapMode },
             scope = scope
         )
         private val viewModels = ViewModelProvider(owner.viewModelStore, OverlayViewModelFactory())
         private val music = viewModels[MusicPlayerViewModel::class.java]
         private val theme = viewModels[ThemeViewModel::class.java]
-        private val friendsHandler = QuickFriendsInputHandler(
-            controller = friends,
-            showQuayPass = { settings.state.value.isSocialLinked },
-            quayPassEnabled = { settings.state.value.quayPassEnabled },
-            wrapMode = { prefs.value.menuWrapMode },
-            onToggleQuayPass = { settings.toggleQuayPass() },
-            onOpenProfile = null,
-            onEditAvatar = null
-        )
         private val connectionsHandler = QuickConnectionsInputHandler(
             controller = connections,
             wrapMode = { prefs.value.menuWrapMode }
@@ -254,7 +236,6 @@ class QuickPanelOverlay @Inject constructor(
         private val router = QuickSettingsInputRouter(
             panelHandler = settings.createInputHandler(onDismiss = ::hide, onOpenDeviceAccess = null),
             pageHandlers = mapOf(
-                QuickSettingsPage.FRIENDS to friendsHandler,
                 QuickSettingsPage.CONNECTIONS to connectionsHandler,
                 QuickSettingsPage.MUSIC to MusicPlayerInputHandler(music, onOpenRommSignIn = null)
             ),
@@ -325,7 +306,6 @@ class QuickPanelOverlay @Inject constructor(
             val state by settings.state.collectAsState()
             val page by settings.page.collectAsState()
             val focusIndex by settings.focusIndex.collectAsState()
-            val friendsState by friends.state.collectAsState()
             val connectionsState by connections.state.collectAsState()
             val isShown by shown.collectAsState()
             val musicVisible = page == QuickSettingsPage.MUSIC
@@ -365,16 +345,6 @@ class QuickPanelOverlay @Inject constructor(
                                 controller = settings,
                                 onOpenDeviceAccess = null,
                                 onDismiss = ::hide,
-                                friendsPage = {
-                                    QuickSettingsFriendsPage(
-                                        state = friendsState,
-                                        showQuayPass = state.isSocialLinked,
-                                        quayPassEnabled = state.quayPassEnabled,
-                                        onRowClick = { friendsHandler.tapRow(it) },
-                                        onRowLongClick = { friendsHandler.longPressRow(it) },
-                                        onActionClick = { index, action -> friendsHandler.tapAction(index, action) }
-                                    )
-                                },
                                 connectionsPage = {
                                     QuickSettingsConnectionsPage(
                                         state = connectionsState,
@@ -388,12 +358,6 @@ class QuickPanelOverlay @Inject constructor(
                                 musicPage = { QuickSettingsMusicPage(viewModel = music, onOpenRommSignIn = null) }
                             )
                         }
-                        QuickFriendsModals(
-                            state = friendsState,
-                            controller = friends,
-                            onOpenProfile = null,
-                            onEditAvatar = null
-                        )
                         QuickConnectionsModals(state = connectionsState, controller = connections)
                         if (isShown) {
                             FooterHost(controller = footerHost, modifier = Modifier.align(Alignment.BottomCenter))

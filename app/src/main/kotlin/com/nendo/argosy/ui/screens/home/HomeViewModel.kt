@@ -139,7 +139,6 @@ class HomeViewModel @Inject constructor(
         com.nendo.argosy.domain.usecase.collection.PrepareCollectionQueueUseCase,
     private val homeTilePromptQueue: com.nendo.argosy.data.repository.HomeTilePromptQueue,
     private val syncPreferencesRepository: com.nendo.argosy.data.preferences.SyncPreferencesRepository,
-    private val socialRepository: com.nendo.argosy.data.social.SocialRepository,
     private val romMRepository: com.nendo.argosy.data.remote.romm.RomMRepository,
     private val siblingChoice: com.nendo.argosy.ui.screens.common.SiblingChoiceDelegate,
     private val showcaseSource: com.nendo.argosy.ui.common.PresentationShowcaseSource,
@@ -544,22 +543,14 @@ class HomeViewModel @Inject constructor(
 
     private fun observeFocusedGame() {
         viewModelScope.launch {
-            socialRepository.friendsActivity.collect { activity ->
-                _uiState.update { it.copy(friendsActivity = activity) }
-            }
-        }
-        viewModelScope.launch {
             var previousGameId: Long? = null
             var previousGame: HomeGameUi? = null
-            var previousFriends: List<com.nendo.argosy.data.social.FriendActivity> = emptyList()
             _uiState.collect { state ->
                 val focusedGame = state.focusedGame
                 publishTileShowcase(state)
-                val friends = state.friendsFor(focusedGame)
                 val sameGame = focusedGame?.id == previousGameId
-                if (focusedGame == previousGame && friends == previousFriends) return@collect
+                if (focusedGame == previousGame) return@collect
                 previousGame = focusedGame
-                previousFriends = friends
                 publishCompanionDetail(focusedGame)
                 if (sameGame) return@collect
                 previousGameId = focusedGame?.id
@@ -721,7 +712,7 @@ class HomeViewModel @Inject constructor(
         if (!isDescribing) return
         DualScreenManagerHolder.instance?.setCompanionDetail(
             companionOwner,
-            game?.toCompanionDetail(_uiState.value.friendsFor(game))
+            game?.toCompanionDetail()
         )
     }
 

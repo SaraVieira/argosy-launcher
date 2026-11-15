@@ -4,7 +4,7 @@ import android.content.Context
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformLibretroSettingsDao
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
-import com.nendo.argosy.libretro.LibretroStateSlots
+import com.nendo.argosy.data.libretro.LibretroStateSlots
 import com.nendo.argosy.util.AppPaths
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first

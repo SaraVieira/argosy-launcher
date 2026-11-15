@@ -13,9 +13,7 @@ internal enum class InputMethod {
 internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
 
     fun intercept(state: SettingsUiState, method: InputMethod): InputResult? {
-        if (state.builtinControls.showControllerOrderModal ||
-            state.builtinControls.showInputMappingModal ||
-            state.builtinControls.showHotkeysModal ||
+        if (state.showControllerOrderModal ||
             state.display.showGripControllerModal ||
             state.controls.shortcutCaptureTarget != null ||
             state.controls.systemComboCaptureTarget != null
@@ -24,8 +22,6 @@ internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
         interceptButtonCheck(state, method)?.let { return it }
         interceptNavRingModal(state, method)?.let { return it }
         interceptGpuDriverPrompt(state, method)?.let { return it }
-        interceptDriverPicker(state, method)?.let { return it }
-        interceptDriverDownload(state, method)?.let { return it }
         interceptAppPickerModal(state, method)?.let { return it }
         interceptLaunchArgsModal(state, method)?.let { return it }
         interceptSavePathModal(state, method)?.let { return it }
@@ -49,9 +45,7 @@ internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
         interceptGameNativeFoldersModal(state, method)?.let { return it }
         interceptEmulatorPicker(state, method)?.let { return it }
         interceptDownloadDefaultsModal(state, method)?.let { return it }
-        interceptShaderReorder(method)?.let { return it }
         interceptPlatformReorder(state, method)?.let { return it }
-        interceptShaderPicker(method)?.let { return it }
         interceptScreenRoleModal(state, method)?.let { return it }
         interceptInstallerVariantPicker(state, method)?.let { return it }
         interceptInstallerAddModal(state, method)?.let { return it }
@@ -179,29 +173,6 @@ internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
                 InputResult.HANDLED
             } else InputResult.HANDLED
             InputMethod.BACK -> if (!isInstalling) { viewModel.dismissGpuDriverPrompt(); InputResult.HANDLED } else InputResult.HANDLED
-            else -> InputResult.HANDLED
-        }
-    }
-
-    private fun interceptDriverDownload(state: SettingsUiState, method: InputMethod): InputResult? {
-        val download = state.drivers.activeDownload ?: return null
-        val terminal = download.isComplete || download.error != null
-        return when (method) {
-            InputMethod.CONFIRM, InputMethod.BACK -> if (terminal) {
-                viewModel.dismissDriverDownload(); InputResult.HANDLED
-            } else InputResult.HANDLED
-            else -> InputResult.HANDLED
-        }
-    }
-
-    private fun interceptDriverPicker(state: SettingsUiState, method: InputMethod): InputResult? {
-        if (state.drivers.pickerGroupIndex == null) return null
-        if (state.drivers.activeDownload != null) return null
-        return when (method) {
-            InputMethod.UP -> { viewModel.moveDriverPickerFocus(-1); InputResult.HANDLED }
-            InputMethod.DOWN -> { viewModel.moveDriverPickerFocus(1); InputResult.HANDLED }
-            InputMethod.CONFIRM -> { viewModel.downloadSelectedDriverRelease(); InputResult.HANDLED }
-            InputMethod.BACK -> { viewModel.dismissDriverPicker(); InputResult.HANDLED }
             else -> InputResult.HANDLED
         }
     }
@@ -576,26 +547,6 @@ internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
         }
     }
 
-    private fun interceptShaderReorder(method: InputMethod): InputResult? {
-        if (!viewModel.shaderChainManager.shaderStack.isReordering) return null
-        return when (method) {
-            InputMethod.LEFT -> moveHeldShader(-1)
-            InputMethod.RIGHT -> moveHeldShader(1)
-            InputMethod.CONFIRM, InputMethod.SECONDARY_ACTION -> {
-                viewModel.dropShader()
-                InputResult.handled(SoundType.SELECT)
-            }
-            InputMethod.BACK -> {
-                viewModel.cancelShaderLift()
-                InputResult.handled(SoundType.BACK)
-            }
-            else -> InputResult.HANDLED
-        }
-    }
-
-    private fun moveHeldShader(delta: Int): InputResult =
-        if (viewModel.moveHeldShader(delta)) InputResult.HANDLED else InputResult.handled(SoundType.BOUNDARY)
-
     private fun interceptPlatformReorder(state: SettingsUiState, method: InputMethod): InputResult? {
         if (!state.emulators.isReorderingPlatforms) return null
         return when (method) {
@@ -615,17 +566,4 @@ internal class ModalInputRouter(private val viewModel: SettingsViewModel) {
 
     private fun moveHeldPlatform(delta: Int): InputResult =
         if (viewModel.moveHeldPlatform(delta)) InputResult.HANDLED else InputResult.handled(SoundType.BOUNDARY)
-
-    private fun interceptShaderPicker(method: InputMethod): InputResult? {
-        if (!viewModel.shaderChainManager.shaderStack.showShaderPicker) return null
-        return when (method) {
-            InputMethod.UP -> { viewModel.moveShaderPickerFocus(-1); InputResult.HANDLED }
-            InputMethod.DOWN -> { viewModel.moveShaderPickerFocus(1); InputResult.HANDLED }
-            InputMethod.LEFT, InputMethod.PREV_SECTION -> { viewModel.jumpShaderPickerSection(-1); InputResult.HANDLED }
-            InputMethod.RIGHT, InputMethod.NEXT_SECTION -> { viewModel.jumpShaderPickerSection(1); InputResult.HANDLED }
-            InputMethod.CONFIRM -> { viewModel.confirmShaderPickerSelection(); InputResult.HANDLED }
-            InputMethod.BACK -> { viewModel.dismissShaderPicker(); InputResult.HANDLED }
-            else -> InputResult.HANDLED
-        }
-    }
 }

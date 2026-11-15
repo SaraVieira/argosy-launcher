@@ -7,7 +7,7 @@ import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.storage.FileAccessLayer
 import com.nendo.argosy.data.sync.platform.PlatformSaveHandlerRegistry
 import com.nendo.argosy.data.sync.platform.SigilSaveHandler
-import com.nendo.argosy.libretro.coreoptions.CoreOptionResolver
+import com.nendo.argosy.data.libretro.coreoptions.CoreOptionResolver
 import com.nendo.argosy.util.Logger
 import com.nendo.sigil.Sigil
 import com.nendo.sigil.SigilResult

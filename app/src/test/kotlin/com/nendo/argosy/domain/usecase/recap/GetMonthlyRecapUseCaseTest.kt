@@ -12,7 +12,7 @@ import com.nendo.argosy.data.remote.romm.RomMEarnedAchievement
 import com.nendo.argosy.data.remote.romm.RomMRAGameProgression
 import com.nendo.argosy.data.repository.RaGameAward
 import com.nendo.argosy.data.repository.RaMetadataSource
-import com.nendo.argosy.data.social.uploader.PlaySessionPullScheduler
+import com.nendo.argosy.data.playsession.PlaySessionPullScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder

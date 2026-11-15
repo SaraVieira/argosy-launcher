@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Tag
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -86,11 +85,6 @@ private fun MoreOptionAction.toMenuEntry(
         label = context.getString(R.string.gamedetail_more_options_change_launcher),
         value = if (game.steamLauncherSetManually) game.steamLauncherName
             else context.getString(R.string.gamedetail_steam_launcher_auto),
-        action = this
-    )
-    MoreOptionAction.SpeedrunSplits -> MoreMenuEntry.Option(
-        Icons.Default.Timer,
-        context.getString(R.string.gamedetail_more_options_speedrun_splits),
         action = this
     )
     MoreOptionAction.RefreshTitleId -> MoreMenuEntry.Option(

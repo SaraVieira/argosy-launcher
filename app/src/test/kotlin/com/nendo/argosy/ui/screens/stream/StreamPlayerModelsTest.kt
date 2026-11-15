@@ -55,7 +55,6 @@ class StreamPlayerModelsTest {
         assertTrue(controls.quickStates.isEmpty())
         assertFalse(controls.discSwapAvailable)
         assertFalse(controls.achievementsAvailable)
-        assertFalse(controls.cheatsAvailable)
         assertFalse(controls.screenshotAvailable)
         assertTrue(controls.settingsAvailable)
     }

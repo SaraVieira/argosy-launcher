@@ -16,11 +16,9 @@ import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.remote.ssl.ClientCertStore
 import com.nendo.argosy.data.remote.ssl.UserCertStore
 import com.nendo.argosy.data.repository.PlatformRepository
-import com.nendo.argosy.data.setup.SetupCoreDownloads
 import com.nendo.argosy.data.setup.SetupFolderProbe
 import com.nendo.argosy.data.setup.SetupStateRepository
 import com.nendo.argosy.domain.model.ArgosyPermission
-import com.nendo.argosy.domain.model.CoreDownloadProgress
 import com.nendo.argosy.domain.model.PermissionAvailability
 import com.nendo.argosy.domain.model.PermissionSnapshot
 import com.nendo.argosy.domain.model.ScreenLayout
@@ -62,7 +60,6 @@ class SetupViewModelTest {
     private val romM = mockk<RomMRepository>(relaxed = true)
     private val certStore = mockk<UserCertStore>(relaxed = true)
     private val clientCertStore = mockk<ClientCertStore>(relaxed = true)
-    private val coreDownloads = mockk<SetupCoreDownloads>(relaxed = true)
     private val probe = mockk<SetupFolderProbe>(relaxed = true)
     private val platformRepository = mockk<PlatformRepository>(relaxed = true)
     private val controllerTracker = mockk<ConnectedControllerTracker>(relaxed = true)
@@ -85,8 +82,6 @@ class SetupViewModelTest {
         every { certStore.certs } returns MutableStateFlow(emptyList())
         every { clientCertStore.info } returns MutableStateFlow(null)
         every { preferences.userPreferences } returns flowOf(UserPreferences())
-        every { coreDownloads.progress } returns MutableStateFlow(CoreDownloadProgress())
-        every { coreDownloads.missingCoreIds(any()) } returns emptyList()
         every { registry.snapshot(any()) } returns PermissionSnapshot()
         every { registry.hasRootRoute() } returns false
         every { registry.restrictedSettingsApply() } returns false
@@ -112,11 +107,10 @@ class SetupViewModelTest {
             application = application,
             preferencesRepository = preferences,
             setupStateRepository = setupState,
-            coreDownloads = coreDownloads,
             signIn = RommSignInDelegate(application, romM, certStore, ClientCertDelegate(clientCertStore)),
             access = SetupAccessDelegate(application, registry, setupState).also { it.ioDispatcher = dispatcher },
             folders = SetupFoldersDelegate(probe, preferences, setupState).also { it.ioDispatcher = dispatcher },
-            platforms = SetupPlatformsDelegate(romM, platformRepository, coreDownloads).also { it.ioDispatcher = dispatcher },
+            platforms = SetupPlatformsDelegate(romM, platformRepository).also { it.ioDispatcher = dispatcher },
             personalize = SetupPersonalizeDelegate(preferences, controllerTracker),
             handoff = handoff
         )

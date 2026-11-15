@@ -103,7 +103,6 @@ class GameLaunchDelegateTest {
     }
 
     private fun delegate(tracker: LaunchProgressTracker, router: GameStartRouter) = GameLaunchDelegate(
-        slotRegistry = com.nendo.argosy.libretro.slot.SlotRegistry(),
         application = mockk(relaxed = true),
         gameRepository = gameRepository,
         emulatorResolver = emulatorResolver,
@@ -120,12 +119,9 @@ class GameLaunchDelegateTest {
         activeSaveRepository = mockk(relaxed = true),
         variantResolver = mockk(relaxed = true),
         emulatorSaveConfigRepository = mockk(relaxed = true),
-        retroAchievementsRepository = mockk(relaxed = true),
-        getUnifiedSavesUseCase = mockk(relaxed = true),
         launchProgressTracker = tracker,
         launchHandoff = LaunchHandoff(tracker, mockk(relaxed = true), router, playSessionTracker, holdMs),
         resolveSnapshotConflict = mockk(relaxed = true),
-        connectedControllerTracker = mockk(relaxed = true),
         preLaunchRecapStep = preLaunchRecapStep,
         backgroundGameLaunch = mockk {
             coEvery { findLive(any(), any(), any()) } returns null

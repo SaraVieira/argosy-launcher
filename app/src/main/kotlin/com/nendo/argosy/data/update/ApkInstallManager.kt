@@ -58,7 +58,7 @@ class ApkInstallManager @Inject constructor(
     val state: StateFlow<ApkInstallState> = _state.asStateFlow()
 
     init {
-        if (!com.nendo.argosy.libretro.slot.GameSlots.isSlotProcess) startMainProcessWork()
+        startMainProcessWork()
     }
 
     private fun startMainProcessWork() {
