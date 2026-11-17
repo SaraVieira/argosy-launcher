@@ -378,7 +378,7 @@ object EmulatorRegistry {
             packageName = "com.retroarch",
             displayName = "RetroArch",
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
+                "nes", "fds", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
                 "genesis", "sms", "sg1000", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast",
                 "tg16", "tgcd", "pcfx", "3do",
@@ -400,7 +400,7 @@ object EmulatorRegistry {
             packageName = "com.retroarch.aarch64",
             displayName = "RetroArch (64-bit)",
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
+                "nes", "fds", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
                 "genesis", "sms", "sg1000", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast",
                 "tg16", "tgcd", "pcfx", "3do",
@@ -422,7 +422,7 @@ object EmulatorRegistry {
             packageName = "com.retroarch.ra32",
             displayName = "RetroArch (32-bit)",
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
+                "nes", "fds", "snes", "n64", "gc", "wii", "gb", "gbc", "gba", "nds", "3ds",
                 "genesis", "sms", "sg1000", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast",
                 "tg16", "tgcd", "pcfx", "3do",
@@ -1300,6 +1300,7 @@ object EmulatorRegistry {
         "gb" to listOf("pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
         "gbc" to listOf("pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32", "pokedaisy"),
         "nes" to listOf("retroarch", "retroarch_64", "retroarch_32"),
+        "fds" to listOf("retroarch", "retroarch_64", "retroarch_32"),
         "snes" to listOf("retroarch", "retroarch_64", "retroarch_32"),
         "genesis" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
         "sms" to listOf("md_emu", "retroarch", "retroarch_64", "retroarch_32"),
@@ -1354,6 +1355,7 @@ object EmulatorRegistry {
 
     private val preferredCores = mapOf(
         "nes" to "fceumm",
+        "fds" to "fceumm",
         "snes" to "snes9x",
         "n64" to "mupen64plus_next_gles3",
         "gc" to "dolphin",
@@ -1410,6 +1412,7 @@ object EmulatorRegistry {
 
     private val retroArchCorePatterns: Map<String, List<String>> = mapOf(
         "nes" to listOf("fceumm", "nestopia", "quicknes", "mesen"),
+        "fds" to listOf("fceumm", "nestopia", "mesen"),
         "snes" to listOf("snes9x", "bsnes", "mesen"),
         "n64" to listOf("mupen64plus_next_gles3", "mupen64plus_next_gles2", "parallel_n64"),
         "gc" to listOf("dolphin"),
@@ -1485,6 +1488,11 @@ object EmulatorRegistry {
             RetroArchCore("nestopia", "Nestopia"),
             RetroArchCore("mesen", "Mesen"),
             RetroArchCore("quicknes", "QuickNES")
+        ),
+        "fds" to listOf(
+            RetroArchCore("fceumm", "FCEUmm"),
+            RetroArchCore("nestopia", "Nestopia"),
+            RetroArchCore("mesen", "Mesen")
         ),
         "snes" to listOf(
             RetroArchCore("snes9x", "Snes9x"),
@@ -2068,7 +2076,7 @@ object EmulatorRegistry {
             displayNamePrefix = "RetroArch",
             packagePatterns = listOf("com.retroarch*"),
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "gb", "gbc", "gba", "nds",
+                "nes", "fds", "snes", "n64", "gc", "gb", "gbc", "gba", "nds",
                 "genesis", "sms", "sg1000", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast",
                 "tg16", "tgcd", "pcfx", "3do",
