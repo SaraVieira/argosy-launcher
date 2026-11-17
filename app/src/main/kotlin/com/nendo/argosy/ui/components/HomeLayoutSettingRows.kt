@@ -37,6 +37,7 @@ enum class HomeLayoutSettingField {
     RESTING_SCALE,
     NEIGHBOUR_PUSH,
     PLATFORM_BADGE,
+    CAROUSEL_SHOW_ALL,
     SCROLL_AXIS,
     AUTO_GRID_LANES,
     SHOW_TITLES,
@@ -79,7 +80,8 @@ fun homeLayoutFieldsFor(kind: HomeLayoutKind): List<HomeLayoutSettingField> = wh
         HomeLayoutSettingField.RESTING_SCALE,
         HomeLayoutSettingField.NEIGHBOUR_PUSH,
         HomeLayoutSettingField.PLATFORM_BADGE,
-        HomeLayoutSettingField.INVERTED
+        HomeLayoutSettingField.INVERTED,
+        HomeLayoutSettingField.CAROUSEL_SHOW_ALL
     )
     HomeLayoutKind.AUTO_GRID -> listOf(
         HomeLayoutSettingField.SCROLL_AXIS,
@@ -138,6 +140,8 @@ fun adjustHomeLayoutField(
             settings.copy(carousel = settings.carousel.copy(neighbourPush = direction > 0))
         HomeLayoutSettingField.PLATFORM_BADGE ->
             settings.copy(carousel = settings.carousel.copy(showPlatformBadge = direction > 0))
+        HomeLayoutSettingField.CAROUSEL_SHOW_ALL ->
+            settings.copy(carousel = settings.carousel.copy(showAllGames = direction > 0))
         HomeLayoutSettingField.SCROLL_AXIS ->
             settings.copy(autoGrid = settings.autoGrid.copy(scrollAxis = step(settings.autoGrid.scrollAxis, direction)))
         HomeLayoutSettingField.SHOW_TITLES ->
@@ -206,6 +210,8 @@ fun toggleHomeLayoutField(settings: HomeLayoutSettings, field: HomeLayoutSetting
             settings.copy(carousel = settings.carousel.copy(neighbourPush = !settings.carousel.neighbourPush))
         HomeLayoutSettingField.PLATFORM_BADGE ->
             settings.copy(carousel = settings.carousel.copy(showPlatformBadge = !settings.carousel.showPlatformBadge))
+        HomeLayoutSettingField.CAROUSEL_SHOW_ALL ->
+            settings.copy(carousel = settings.carousel.copy(showAllGames = !settings.carousel.showAllGames))
         HomeLayoutSettingField.SHOW_TITLES ->
             settings.copy(autoGrid = settings.autoGrid.copy(showTitles = !settings.autoGrid.showTitles))
         HomeLayoutSettingField.AUTO_GRID_SHOW_ALL ->
@@ -311,6 +317,13 @@ fun HomeLayoutSettingRow(
         HomeLayoutSettingField.PLATFORM_BADGE -> SwitchPreference(
             title = stringResource(R.string.ui_home_layout_platform_badge),
             isEnabled = settings.carousel.showPlatformBadge,
+            isFocused = isFocused,
+            onToggle = { onToggle() }
+        )
+        HomeLayoutSettingField.CAROUSEL_SHOW_ALL -> SwitchPreference(
+            title = stringResource(R.string.fork_home_layout_carousel_show_all_games),
+            subtitle = stringResource(R.string.fork_home_layout_carousel_show_all_games_subtitle),
+            isEnabled = settings.carousel.showAllGames,
             isFocused = isFocused,
             onToggle = { onToggle() }
         )

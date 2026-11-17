@@ -33,7 +33,8 @@ data class CarouselConfig(
     val inverted: Boolean = false,
     val restingScale: Float = 0.5f,
     val neighbourPush: Boolean = true,
-    val showPlatformBadge: Boolean = true
+    val showPlatformBadge: Boolean = true,
+    val showAllGames: Boolean = false
 ) : HomeLayoutConfig {
     override val kind: HomeLayoutKind get() = HomeLayoutKind.CAROUSEL
 
@@ -285,7 +286,11 @@ data class HomeLayoutSettings(
         }
 
     val showsEveryGame: Boolean
-        get() = selected == HomeLayoutKind.AUTO_GRID && autoGrid.showAllGames
+        get() = when (selected) {
+            HomeLayoutKind.AUTO_GRID -> autoGrid.showAllGames
+            HomeLayoutKind.CAROUSEL -> carousel.showAllGames
+            HomeLayoutKind.CUSTOM_GRID -> false
+        }
 
     fun toJson(): String = JSONObject().apply {
         put(KEY_SELECTED, selected.name)
@@ -299,6 +304,7 @@ data class HomeLayoutSettings(
                 put(KEY_RESTING_SCALE, carousel.restingScale.toDouble())
                 put(KEY_NEIGHBOUR_PUSH, carousel.neighbourPush)
                 put(KEY_PLATFORM_BADGE, carousel.showPlatformBadge)
+                put(KEY_SHOW_ALL_GAMES, carousel.showAllGames)
             }
         )
         put(
@@ -407,7 +413,9 @@ data class HomeLayoutSettings(
                     neighbourPush = carousel?.optBoolean(KEY_NEIGHBOUR_PUSH, defaults.carousel.neighbourPush)
                         ?: defaults.carousel.neighbourPush,
                     showPlatformBadge = carousel?.optBoolean(KEY_PLATFORM_BADGE, defaults.carousel.showPlatformBadge)
-                        ?: defaults.carousel.showPlatformBadge
+                        ?: defaults.carousel.showPlatformBadge,
+                    showAllGames = carousel?.optBoolean(KEY_SHOW_ALL_GAMES, defaults.carousel.showAllGames)
+                        ?: defaults.carousel.showAllGames
                 ),
                 autoGrid = AutoGridConfig(
                     scrollAxis = enumOrDefault(
