@@ -527,7 +527,12 @@ internal fun BatteryIcon(
         if (isCharging) {
             val centerX = bodyWidth / 2
             val centerY = bodyHeight / 2
-            val boltSize = bodyHeight * 0.6f
+            val boltSize = bodyHeight * 0.85f
+            val boltColor = if (padding + fillWidth >= centerX) {
+                ColorTokens.Domain.Battery.chargingBolt
+            } else {
+                ColorTokens.Domain.Battery.charging
+            }
 
             val path = androidx.compose.ui.graphics.Path().apply {
                 moveTo(centerX + boltSize * 0.1f, centerY - boltSize * 0.4f)
@@ -538,7 +543,7 @@ internal fun BatteryIcon(
                 lineTo(centerX - boltSize * 0.05f, centerY)
                 close()
             }
-            drawPath(path, Color.White)
+            drawPath(path, boltColor)
         }
     }
 }
