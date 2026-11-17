@@ -57,6 +57,7 @@ object BiosPathRegistry {
     // MD5 hash -> RetroArch expected filename mapping
     // RetroArch cores are strict about filenames, so we rename during distribution
     private val retroArchBiosNames: Map<String, String> = mapOf(
+        "ca30b50f880eb660a320674ed365ef7a" to "disksys.rom",
         // 3DO - Opera core
         "f47264dd47fe30f73ab3c010015c155b" to "panafz1.bin",
         "51f2f43ae2f3508a14d9f56597e2d3ce" to "panafz10.bin",
@@ -225,6 +226,9 @@ object BiosPathRegistry {
         ),
         "gba" to listOf(
             BiosRequirement("gba", "gba_bios.bin", null, "GBA BIOS", isRequired = false)
+        ),
+        "fds" to listOf(
+            BiosRequirement("fds", "disksys.rom", "ca30b50f880eb660a320674ed365ef7a", "Famicom Disk System BIOS")
         ),
         "tgcd" to listOf(
             BiosRequirement("tgcd", "syscard3.pce", null, "TurboGrafx-CD System Card 3")
