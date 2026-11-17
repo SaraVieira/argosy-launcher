@@ -16,6 +16,8 @@ code reaches the fork package in these places:
   existing `virtualName` / `featureConfig` columns, no migration), the picker's New folder entry, the
   `EDIT_FOLDER` tile menu action, and the folder modals in `ui/components/appfolder/`, hosted by
   `HomeViewModel` / `HomeScreen`
+- the carousel's Show Every Game option: `CarouselConfig.showAllGames` (saved in the home layout JSON),
+  `HomeLayoutSettings.showsEveryGame`, and the `CAROUSEL_SHOW_ALL` settings field
 - the "Show while playing" menu item: `AppContextMenuItem.TOGGLE_IN_GAME`, the `fork_in_game_apps` key in
   `AppPreferencesRepository`, the Apps screen menu and the in-game dock's hold menu (`appMenuRowsFor`)
 

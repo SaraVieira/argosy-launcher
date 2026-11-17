@@ -3,6 +3,9 @@
     <string name="fork_apps_menu_show_while_playing" translatable="false">Show while playing</string>
     <string name="fork_apps_menu_hide_while_playing" translatable="false">Hide while playing</string>
 
+    <string name="fork_home_layout_carousel_show_all_games">Show Every Game</string>
+    <string name="fork_home_layout_carousel_show_all_games_subtitle">Scroll a platform\'s whole library in the carousel instead of stopping at View All</string>
+
     <string name="fork_home_folder_default_name">Folder</string>
     <string name="fork_home_folder_new">New folder</string>
     <string name="fork_home_folder_new_subtitle">Group any apps into one tile</string>
