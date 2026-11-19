@@ -16,6 +16,8 @@ import kotlin.math.roundToInt
 private data class Sticker(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
 private val stickers = mapOf(
+    "vita" to Sticker(.103f, .095f, .895f, .852f),
+    "coleco" to Sticker(.063f, .042f, .937f, .753f),
     "atari2600" to Sticker(.06f, .05f, .94f, .95f),
     "gba" to Sticker(.15f, .235f, .86f, .86f),
     "gb" to Sticker(.12f, .28f, .865f, .87f),

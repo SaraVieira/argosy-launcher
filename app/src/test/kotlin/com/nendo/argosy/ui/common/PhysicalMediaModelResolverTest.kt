@@ -7,6 +7,16 @@ import org.junit.Test
 class PhysicalMediaModelResolverTest {
 
     @Test
+    fun vitaUsesCardEvidenceAndRespectsDigitalEditions() {
+        assertEquals("vita", physicalMediaModelFor("psvita", title = "Killzone: Mercenary"))
+        assertEquals("vita", physicalMediaModelFor("vita", fileName = "Gravity Rush (USA).zip"))
+        assertEquals("vita", physicalMediaModelFor("vita", fileName = "New Game.psv"))
+        assertNull(physicalMediaModelFor("vita", fileName = "Gravity Rush [PSN].zip"))
+        assertNull(physicalMediaModelFor("vita", title = "Gravity Rush", fileName = "download.pkg"))
+        assertNull(physicalMediaModelFor("vita", title = "TxK"))
+    }
+
+    @Test
     fun cabinetServesArcadeAndCapcomPlaySystems() {
         listOf("arcade", "cps1", "cps2", "cps3", "cps-1", "CPS-2", "cps-3").forEach { platform ->
             assertEquals(platform, "arcade", physicalMediaModelFor(platform, fileName = "1941.zip"))

@@ -59,3 +59,13 @@ Each WebP shell has an opaque lossless RGB PNG with the same dimensions and fram
 | 3 | Left or right side panel | 0.526 |
 
 Each side is mapped upright and reads left to right when facing that side. The side silhouette, controls and bezel clip artwork according to the source geometry.
+
+## ColecoVision
+
+The original ColecoVision shell approximates an 87 × 81 × 19 mm cartridge from front and three-quarter photographic references. The GLB includes molded grip rails, a textured shell and a separate blank label. Rebuild its rotation atlas with `python3 scripts/cartridge/render_models.py scripts/cartridge coleco`.
+
+## PlayStation Vita
+
+The supplied [PS Vita Cart by Spookies](https://sketchfab.com/3d-models/ps-vita-cart-942427f924ed437eb8d667a504eb0fac) is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The baker fits the printed image to the dedicated label material and preserves its curved outline. Rebuild with `python3 scripts/cartridge/render_models.py scripts/cartridge vita`.
+
+Vita archives can contain digital releases. The resolver recognizes PSV card dumps and known cartridge titles from this library, including titles in the [North American physical release checklist](https://psoarchive.neocities.org/collect/the_vita_r1_checklist.pdf). Explicit digital editions retain cover art.

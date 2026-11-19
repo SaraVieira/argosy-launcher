@@ -92,3 +92,9 @@ https://sketchfab.com/3d-models/arcade-cabinet-122e641e25ee4fe9904fc79399d822b0
 Creative Commons Attribution-NonCommercial 4.0 International
 https://creativecommons.org/licenses/by-nc/4.0/
 Argosy renders rotation frames from the cabinet and replaces its marquee, screen and side artwork.
+
+PS Vita Cart — Spookies
+https://sketchfab.com/3d-models/ps-vita-cart-942427f924ed437eb8d667a504eb0fac
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Argosy rotates the supplied card upright and projects per-game artwork onto its label material.

@@ -20,7 +20,8 @@ internal fun physicalMediaModelFor(
     val platform = PlatformDefinitions.getCanonicalSlug(raw)
     if (sha1Hash != null) verifiedArchiveModel(platform, sha1Hash, fileName, localPath, title)?.let { return it }
     return when (platform) {
-        "atari2600", "gba", "gb", "gbc", "n64", "3ds", "switch", "sms", "gg", "tg16", "psp" -> platform
+        "coleco", "atari2600", "gba", "gb", "gbc", "n64", "3ds", "switch", "sms", "gg", "tg16", "psp" -> platform
+        "vita" -> vitaCardModel(title, fileName, localPath)
         "arcade", "cps1", "cps2", "cps3" -> "arcade"
         "atari7800" -> "atari2600"
         "nes" -> nesShell(raw, regions, fileName ?: localPath, title)

@@ -14,7 +14,7 @@ from zipfile import ZipFile
 METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
 ASSETS = Path(__file__).resolve().parents[2] / "app/src/main/assets/physical-media-index"
 CARTS = {
-    "Atari 2600": "atari2600", "Atari 7800": "atari7800",
+    "Sony Playstation Vita": "vita", "ColecoVision": "coleco", "Atari 2600": "atari2600", "Atari 7800": "atari7800",
     "Nintendo Game Boy": "gb", "Nintendo Game Boy Color": "gbc", "Nintendo Game Boy Advance": "gba",
     "Nintendo Entertainment System": "nes", "Super Nintendo Entertainment System": "snes",
     "Nintendo 64": "n64", "Nintendo DS": "nds", "Nintendo 3DS": "3ds", "Nintendo Switch": "switch",
