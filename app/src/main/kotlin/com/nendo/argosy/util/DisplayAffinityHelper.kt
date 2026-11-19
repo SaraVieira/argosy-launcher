@@ -26,8 +26,6 @@ class DisplayAffinityHelper @Inject constructor(
     val hasPhysicalSecondaryDisplay: Boolean
         get() = physicalDisplays.size > 1
 
-    var dualScreenEnabled: Boolean = false
-
     /**
      * False once the companion has been proven unable to initialize on the secondary display,
      * which happens on OS builds that do not let a home activity run there. Gates every
@@ -94,7 +92,7 @@ class DisplayAffinityHelper @Inject constructor(
         get() = when {
             isDesktopMode -> false
             isDockedDark -> secondaryDisplayUsable
-            else -> dualScreenEnabled && secondaryDisplayUsable && hasPhysicalSecondaryDisplay
+            else -> secondaryDisplayUsable && hasPhysicalSecondaryDisplay
         }
 
     private val singleSurfaceDisplayId: Int?
@@ -187,8 +185,15 @@ class DisplayAffinityHelper @Inject constructor(
             .toBundle()
     }
 
+    private fun defaultGameScreen(rolesSwapped: Boolean): Int? {
+        val roles = getRoleDisplayIds(rolesSwapped) ?: return null
+        return if (isRetroidPocketDuo() && !isDesktopMode && !isDockedDark &&
+            physicalDisplays.all { it.displayType() == DISPLAY_TYPE_BUILT_IN }
+        ) usableDisplayId(Display.DEFAULT_DISPLAY) ?: roles.second else roles.second
+    }
+
     fun getEmulatorDisplayId(rolesSwapped: Boolean): Int =
-        placeable(getRoleDisplayIds(rolesSwapped)?.second ?: Display.DEFAULT_DISPLAY, rolesSwapped)
+        placeable(defaultGameScreen(rolesSwapped) ?: Display.DEFAULT_DISPLAY, rolesSwapped)
             ?: Display.DEFAULT_DISPLAY
 
     /**
@@ -326,7 +331,7 @@ class DisplayAffinityHelper @Inject constructor(
         }
         val target = override
             ?: if (forEmulator) {
-                getRoleDisplayIds(rolesSwapped)?.second
+                defaultGameScreen(rolesSwapped)
             } else {
                 appLaunchDisplayId(rolesSwapped = rolesSwapped)
             }
@@ -345,6 +350,8 @@ class DisplayAffinityHelper @Inject constructor(
         private val KNOWN_DUAL_SCREEN_DEVICES = listOf("thor")
 
         private val INVERTED_INTERNAL_ORDER_DEVICES = emptyList<String>()
+
+        fun isRetroidPocketDuo(): Boolean = "Retroid Pocket Duo".equals(Build.MODEL, ignoreCase = true)
 
         fun isKnownDualScreenDevice(): Boolean =
             KNOWN_DUAL_SCREEN_DEVICES.any { Build.MODEL.contains(it, ignoreCase = true) }

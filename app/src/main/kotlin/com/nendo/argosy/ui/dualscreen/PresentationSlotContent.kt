@@ -121,6 +121,8 @@ private fun PresentationSlotBody(
     val hints = manager?.controlHints?.collectAsState()?.value.orEmpty()
     val gameDisplayId = manager?.emulatorDisplay?.collectAsState()?.value
     val displayId = ContextCompat.getDisplayOrDefault(LocalContext.current).displayId
+    val dock = manager?.presentationDock?.collectAsState()?.value
+    var dockHeight by remember { mutableStateOf(0.dp) }
     var measuredHintsHeight by remember { mutableStateOf(0.dp) }
     val drawsHints = showControlHints && hints.isNotEmpty()
     val hintsHeight = if (drawsHints) measuredHintsHeight else 0.dp
@@ -139,14 +141,27 @@ private fun PresentationSlotBody(
     Box(modifier = Modifier.fillMaxSize()) {
         PresentationSlotScene(
             slot = slot,
-            hintsHeight = hintsHeight,
+            hintsHeight = hintsHeight + if (dock != null) dockHeight else 0.dp,
             onVideoPlayingChange = { videoPlaying = it },
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (recapBlur > 0.dp) Modifier.blur(recapBlur) else Modifier)
         )
         if (slot !is PresentationSlot.InGame) {
-            com.nendo.argosy.ui.components.SystemStatusBar(
+            if (dock != null) {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.nendo.argosy.ui.input.LocalInputDispatcher provides dock.input
+                ) {
+                    com.nendo.argosy.ui.screens.home.HomeDock(
+                        viewModel = dock.home,
+                        maximumWidth = Dimens.breadcrumbMaxWidth,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                            .padding(bottom = hintsHeight)
+                            .onSizeChanged { dockHeight = with(density) { it.height.toDp() } }
+                            .padding(Dimens.spacingMd)
+                    )
+                }
+            } else com.nendo.argosy.ui.components.SystemStatusBar(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(Dimens.spacingLg)

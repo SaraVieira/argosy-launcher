@@ -192,27 +192,7 @@ class DualScreenManager(
     private val _hasPresentationScreen = MutableStateFlow(false)
     val hasPresentationScreen: StateFlow<Boolean> = _hasPresentationScreen
 
-    private val screenEventTick = MutableStateFlow(0)
-
-    /**
-     * True while a lit external display mirrors the built-in panel: one is attached, dual screen
-     * is off and DeX is not running. Launcher surfaces skip the panel's camera cutout inset then
-     * and draw to its edge, the frame the external display shows.
-     */
-    val panelMirroredToExternal: StateFlow<Boolean> =
-        kotlinx.coroutines.flow.combine(
-            preferencesRepository.userPreferences
-                .map { it.dualScreenEnabled }
-                .distinctUntilChanged(),
-            screenEventTick
-        ) { dualScreenEnabled, _ ->
-            !dualScreenEnabled &&
-                !displayAffinityHelper.isDesktopMode &&
-                displayAffinityHelper.hasLitExternalDisplay
-        }.stateIn(activityIndependentScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
-
-    private val _controlHints =
-        MutableStateFlow<List<com.nendo.argosy.ui.dualscreen.CompanionHint>>(emptyList())
+    private val _controlHints = MutableStateFlow<List<com.nendo.argosy.ui.dualscreen.CompanionHint>>(emptyList())
 
     /**
      * What the buttons do on the screen being driven, for the screen describing it. Published by
@@ -350,7 +330,8 @@ class DualScreenManager(
                     builtIn = it.builtIn
                 )
             },
-            invertInternalOrder = com.nendo.argosy.util.DisplayAffinityHelper.hasInvertedInternalOrder()
+            invertInternalOrder = com.nendo.argosy.util.DisplayAffinityHelper.isRetroidPocketDuo() ||
+                com.nendo.argosy.util.DisplayAffinityHelper.hasInvertedInternalOrder()
         )
         return ResolvedScreenLayout(attached, setKey, stored, known, layout)
     }
@@ -496,18 +477,6 @@ class DualScreenManager(
         _isDualScreenDevice.value = value
     }
 
-    fun applyDualScreenEnabled(enabled: Boolean, isToggle: Boolean) {
-        setSecondaryHomeComponentEnabled(enabled && displayAffinityHelper.secondaryDisplayUsable)
-        if (!isToggle) return
-        if (enabled) {
-            clearForeignAppOnSecondary("dual screen enabled")
-            reprobeSecondaryDisplay()
-            ensureCompanionLaunched()
-        } else {
-            teardownCompanion()
-        }
-    }
-
     /**
      * Clears a recorded companion-initialization failure so the next launch attempt re-probes the
      * display. Called when the display topology changes or the user re-enables dual screen.
@@ -516,9 +485,7 @@ class DualScreenManager(
         companionLaunchAttempts = 0
         displayAffinityHelper.secondaryDisplayUsable = true
         sessionStateStore.setSecondaryDisplayUsable(true)
-        setSecondaryHomeComponentEnabled(
-            sessionStateStore.isDualScreenEnabled() || displayAffinityHelper.isDockedDark
-        )
+        setSecondaryHomeComponentEnabled(true)
         _isDualScreenDevice.value = displayAffinityHelper.hasSecondaryDisplay
     }
 
@@ -553,7 +520,6 @@ class DualScreenManager(
     fun onDesktopModeChanged() {
         val active = displayAffinityHelper.isDesktopMode
         Log.i(TAG, "Samsung DeX ${if (active) "active" else "inactive"}")
-        screenEventTick.update { it + 1 }
         if (active) {
             teardownCompanion()
             setSecondaryHomeComponentEnabled(false)
@@ -567,7 +533,7 @@ class DualScreenManager(
         ensureCompanionLaunched()
     }
 
-    private fun setSecondaryHomeComponentEnabled(enabled: Boolean) {
+    internal fun setSecondaryHomeComponentEnabled(enabled: Boolean) {
         com.nendo.argosy.util.SecondaryHomeComponent.setEnabled(
             appContext,
             enabled && !displayAffinityHelper.isDesktopMode
@@ -1109,6 +1075,22 @@ class DualScreenManager(
             dualScreen && companionActive && !swapped
         }.stateIn(activityIndependentScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
+    class PresentationDock(
+        val home: com.nendo.argosy.ui.screens.home.HomeViewModel,
+        val input: com.nendo.argosy.ui.input.InputDispatcher
+    )
+
+    private val _presentationDock = MutableStateFlow<PresentationDock?>(null)
+    val presentationDock: StateFlow<PresentationDock?> = _presentationDock
+
+    fun attachPresentationDock(dock: PresentationDock) {
+        _presentationDock.value = dock
+    }
+
+    fun detachPresentationDock(dock: PresentationDock) {
+        _presentationDock.compareAndSet(dock, null)
+    }
+
     val presentationShowsHints: StateFlow<Boolean> =
         kotlinx.coroutines.flow.combine(_hasPresentationScreen, _isCompanionActive) { presentation, companion ->
             presentation && companion
@@ -1633,19 +1615,16 @@ class DualScreenManager(
     private val displayListener: DisplayManager.DisplayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {
             if (!isScreenEvent(displayId)) return
-            screenEventTick.update { it + 1 }
             onScreenAdded(displayId)
         }
 
         override fun onDisplayRemoved(displayId: Int) {
             if (!isScreenEvent(displayId)) return
-            screenEventTick.update { it + 1 }
             onScreenRemoved(displayId)
         }
 
         override fun onDisplayChanged(displayId: Int) {
             if (!isScreenEvent(displayId)) return
-            screenEventTick.update { it + 1 }
             onScreenChanged(displayId)
         }
     }
@@ -2282,15 +2261,13 @@ class DualScreenManager(
         Log.d(
             TAG,
             "ensureCompanionLaunched: secondary=${displayAffinityHelper.hasSecondaryDisplay} " +
-                "(enabled=${displayAffinityHelper.dualScreenEnabled} usable=${displayAffinityHelper.secondaryDisplayUsable} " +
+                "(usable=${displayAffinityHelper.secondaryDisplayUsable} " +
                 "physical=${displayAffinityHelper.hasPhysicalSecondaryDisplay} docked=${displayAffinityHelper.isDockedDark}) " +
                 "companionActive=${_isCompanionActive.value} session=${sessionStateStore.hasActiveSession()} " +
                 "foreground=${sessionStateStore.isArgosyForeground()}"
         )
         if (!displayAffinityHelper.hasSecondaryDisplay) return
-        if (sessionStateStore.isDualScreenEnabled() || displayAffinityHelper.isDockedDark) {
-            setSecondaryHomeComponentEnabled(true)
-        }
+        setSecondaryHomeComponentEnabled(true)
         if (_isCompanionActive.value) return
         val sessionInTheWay = !allowDuringSession && sessionStateStore.hasActiveSession()
         if (sessionInTheWay && !sessionStateStore.isArgosyForeground()) return
@@ -2317,7 +2294,6 @@ class DualScreenManager(
      */
     fun ensureAppScreenLaunched() {
         releaseStaleAppScreens()
-        if (!sessionStateStore.isDualScreenEnabled()) return
         val displayId = displayAffinityHelper.appScreenDisplayId(_isRolesSwapped.value) ?: return
         if (appScreenHosts.hostFor(displayId) != null) return
         val options = displayAffinityHelper.getAppScreenLaunchOptions(_isRolesSwapped.value) ?: return

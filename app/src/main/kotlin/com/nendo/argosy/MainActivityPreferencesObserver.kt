@@ -25,10 +25,11 @@ class MainActivityPreferencesObserver(
 ) {
 
     private var previousPrimaryColor: Int? = null
-    private var previousDualScreenEnabled: Boolean? = null
     private var previousWantScreenCapture: Boolean? = null
 
     fun collectIn(scope: CoroutineScope) {
+        onDualScreenChanged(displayAffinityHelper.hasSecondaryDisplay)
+        dualScreenManager.setSecondaryHomeComponentEnabled(displayAffinityHelper.secondaryDisplayUsable)
         scope.launch {
             preferencesRepository.preferences.collect { prefs ->
                 Logger.configure(
@@ -56,16 +57,6 @@ class MainActivityPreferencesObserver(
                 }
                 previousPrimaryColor = prefs.primaryColor
 
-                if (prefs.dualScreenEnabled != previousDualScreenEnabled) {
-                    displayAffinityHelper.dualScreenEnabled = prefs.dualScreenEnabled
-                    sessionStateStore.setDualScreenEnabled(prefs.dualScreenEnabled)
-                    onDualScreenChanged(displayAffinityHelper.hasSecondaryDisplay)
-                    dualScreenManager.applyDualScreenEnabled(
-                        prefs.dualScreenEnabled,
-                        isToggle = previousDualScreenEnabled != null
-                    )
-                }
-                previousDualScreenEnabled = prefs.dualScreenEnabled
 
                 val wantScreenCapture = shouldInitializeScreenCapture(prefs)
                 if (previousWantScreenCapture != null && wantScreenCapture != previousWantScreenCapture) {

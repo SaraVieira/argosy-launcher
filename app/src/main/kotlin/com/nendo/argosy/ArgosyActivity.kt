@@ -247,7 +247,7 @@ class ArgosyActivity : ComponentActivity() {
         if (ownDisplayId != Display.DEFAULT_DISPLAY) {
             val launch = nonDefaultDisplayLaunch(
                 desktopMode = desktopMode,
-                dualScreenEnabled = sessionStateStore.isDualScreenEnabled(),
+                dualScreenEnabled = true,
                 docked = !desktopMode && DisplayAffinityHelper.dockedExternalDisplayId(this) != null,
                 launchedAsHome = intent?.hasCategory(Intent.CATEGORY_HOME) == true
             )
@@ -270,7 +270,6 @@ class ArgosyActivity : ComponentActivity() {
         keepAwakeWhileUserActive()
         dimWhileMediaIdle()
 
-        displayAffinityHelper.dualScreenEnabled = sessionStateStore.isDualScreenEnabled()
         displayAffinityHelper.secondaryDisplayUsable = sessionStateStore.isSecondaryDisplayUsable()
 
         val existingDsm = DualScreenManagerHolder.instance
@@ -805,8 +804,6 @@ class ArgosyActivity : ComponentActivity() {
     private fun initCacheAndPreferences() {
         activityScope.launch {
             val prefs = preferencesRepository.preferences.first()
-            displayAffinityHelper.dualScreenEnabled = prefs.dualScreenEnabled
-            sessionStateStore.setDualScreenEnabled(prefs.dualScreenEnabled)
             sessionStateStore.setSaveSyncEnabled(prefs.saveSyncEnabled)
             dualScreenManager.setDualScreenDevice(displayAffinityHelper.hasSecondaryDisplay)
             imageCacheManager.setCustomCachePath(prefs.imageCachePath)

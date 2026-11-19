@@ -40,14 +40,12 @@ import com.nendo.argosy.ui.theme.Dimens
 
 internal data class DisplaysLayoutState(
     val display: DisplayState,
-    val hasPhysicalSecondaryDisplay: Boolean = false,
-    val dualScreenEnabled: Boolean = false
+    val hasPhysicalSecondaryDisplay: Boolean = false
 ) {
     companion object {
         fun from(state: SettingsUiState) = DisplaysLayoutState(
             display = state.display,
-            hasPhysicalSecondaryDisplay = state.display.hasPhysicalSecondaryDisplay,
-            dualScreenEnabled = state.display.dualScreenEnabled
+            hasPhysicalSecondaryDisplay = state.display.hasPhysicalSecondaryDisplay
         )
     }
 }
@@ -87,13 +85,11 @@ internal sealed class DisplaysItem(
         visibleWhen = { it.display.lidSleepSupported }
     )
 
-    data object DualScreenEnabled :
-        Row("dualScreenEnabled", "displays", R.string.settings_displays_dual_screen_title)
     data object DisplayRoles : Row(
         key = "displayRoles",
         section = "displays",
         labelRes = R.string.settings_displays_display_roles_title,
-        visibleWhen = { it.dualScreenEnabled && !it.display.secondaryDisplayUnsupported }
+        visibleWhen = { it.hasPhysicalSecondaryDisplay && !it.display.secondaryDisplayUnsupported }
     )
     data object ScreenLayout : Row(
         key = "screenLayout",
@@ -150,7 +146,7 @@ internal sealed class DisplaysItem(
                 ScreenSafetyHeader,
                 ScreenDimmer, DimAfter, DimLevel, LidSleep,
                 DisplaysSpacer, DisplaysHeader,
-                DualScreenEnabled, DisplayRoles, ScreenLayout,
+                DisplayRoles, ScreenLayout,
                 AmbientLedSettings,
                 DisplayTargetsSpacer, DisplayTargetsHeader,
                 GamesTarget, AppsTarget, ByPlatformAndApp
@@ -247,15 +243,13 @@ fun DisplaysSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val layoutState = remember(
         display.ambientLedAvailable,
         display.hasPhysicalSecondaryDisplay,
-        display.dualScreenEnabled,
         display.secondaryDisplayUnsupported,
         display.lidSleepSupported,
         display.lidSleepEnabled
     ) {
         DisplaysLayoutState(
             display,
-            display.hasPhysicalSecondaryDisplay,
-            display.dualScreenEnabled
+            display.hasPhysicalSecondaryDisplay
         )
     }
 
@@ -341,19 +335,6 @@ fun DisplaysSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 isFocused = isFocused(item),
                 onToggle = { viewModel.setLidSleepEnabled(it) }
             )
-
-            is DisplaysItem.DualScreenEnabled -> SwitchPreference(
-                title = stringResource(item.labelRes),
-                subtitle = if (display.secondaryDisplayUnsupported) {
-                    stringResource(R.string.settings_displays_dual_screen_subtitle_unsupported)
-                } else {
-                    stringResource(R.string.settings_displays_dual_screen_subtitle)
-                },
-                isEnabled = display.dualScreenEnabled,
-                isFocused = isFocused(item),
-                onToggle = { viewModel.setDualScreenEnabled(it) }
-            )
-
 
             is DisplaysItem.DisplayRoles -> CyclePreference(
                 title = stringResource(item.labelRes),

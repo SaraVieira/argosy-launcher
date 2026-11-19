@@ -22,7 +22,6 @@ class DesktopModeLaunchTargetTest {
         },
         screenCatalog = mockk(relaxed = true)
     ).apply {
-        dualScreenEnabled = true
         appTargetDisplayId = APP_TARGET_DISPLAY
         roleDisplayIds = 0 to APP_TARGET_DISPLAY
         desktopModeDisplayId = DEX_DISPLAY

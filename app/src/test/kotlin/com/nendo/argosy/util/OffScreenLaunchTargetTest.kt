@@ -36,7 +36,6 @@ class OffScreenLaunchTargetTest {
         )
     }
     private val helper = DisplayAffinityHelper(context, screenCatalog).apply {
-        dualScreenEnabled = true
         roleDisplayIds = Display.DEFAULT_DISPLAY to Display.DEFAULT_DISPLAY
     }
 

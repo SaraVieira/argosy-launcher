@@ -1267,7 +1267,6 @@ class SettingsViewModel @Inject constructor(
     fun setAppLanguage(tag: String) = routeSetAppLanguage(this, tag)
     fun cycleAppLanguage(direction: Int = 1) = routeCycleAppLanguage(this, direction)
 
-    fun setDualScreenEnabled(enabled: Boolean) = routeSetDualScreenEnabled(this, enabled)
     fun setLidSleepEnabled(enabled: Boolean) = displayDelegate.setLidSleepEnabled(viewModelScope, enabled)
 
 
