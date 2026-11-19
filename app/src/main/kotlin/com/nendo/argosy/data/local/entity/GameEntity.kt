@@ -223,7 +223,11 @@ data class GameListItem(
     val status: String?,
     val developer: String?,
     val igdbId: Long?,
-    val timeToBeatMainSec: Int?
+    val timeToBeatMainSec: Int?,
+    val regions: String? = null,
+    val rommFileName: String? = null,
+    val fileSizeBytes: Long? = null,
+    val sha1Hash: String? = null
 ) {
     val isExternallyManaged: Boolean
         get() = steamLauncher != null && steamLauncher != GameEntity.LAUNCHER_UNSPECIFIED

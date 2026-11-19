@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.screens.home
 
+import com.nendo.argosy.ui.common.physicalMediaModelFor
 import android.content.Context
 import android.content.Intent
 import androidx.annotation.StringRes
@@ -140,7 +141,8 @@ data class HomeGameUi(
     val timeToBeatMainSec: Int? = null,
     val timeToBeatExtraSec: Int? = null,
     val timeToBeatCompletionistSec: Int? = null,
-    val players: String? = null
+    val players: String? = null,
+    val physicalMediaModel: String? = physicalMediaModelFor(platformSlug, title = title)
 )
 
 object HomeGameUiSortProps : SortableProps<HomeGameUi> {

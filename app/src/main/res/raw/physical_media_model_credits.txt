@@ -1,0 +1,94 @@
+Argosy renders these models into rotating images and applies game artwork to their label areas.
+
+ZNeko cartridge and optical disc collection
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+
+ZNeko Launcher physical model collection
+https://github.com/zneko-org/zneko-launcher/tree/4419be7fc213ce92da2ea080d91caffe7740a6a4/models
+
+3DS Cartridge — SGLilac
+https://sketchfab.com/3d-models/3ds-cartridge-e075af04a56f4d31bbd7d92365f1d8fc
+
+Compact Disc (CD) – Simple 3D Model for Games — GAMICO
+https://sketchfab.com/3d-models/compact-disc-cd-simple-3d-model-for-games-2323d70c8ad64cfda72741e875c24966
+
+Nintendo Ds cartridge (preset) — littlengvfx
+https://sketchfab.com/3d-models/nintendo-ds-cartridge-preset-01e161c3e7c24b40888fdf94ad003501
+
+Gameboy Cartridge lowpoly — Bob
+https://sketchfab.com/3d-models/gameboy-cartridge-lowpoly-8b9728eab16c4056ac2636ae7f0f038f
+
+Pokemon Cartridge (Gameboy) — thegraphicsgeek
+https://sketchfab.com/3d-models/pokemon-cartridge-gameboy-7d79300f91a441d0ba520fdbd268aa5f
+
+Game Boy Color Cartridge — Guigashow
+https://github.com/zneko-org/zneko-launcher/blob/4419be7fc213ce92da2ea080d91caffe7740a6a4/models/gbc.glb
+
+Game Gear Cartridge — Guigashow
+https://github.com/zneko-org/zneko-launcher/blob/4419be7fc213ce92da2ea080d91caffe7740a6a4/models/gg.glb
+
+Sonic 2 Mega Drive Cartridge — Naser
+https://sketchfab.com/3d-models/sonic-2-mega-drive-cartridge-4c453f8527384c718f652a9f04067119
+
+N64_ Starfox — c4m5ron
+https://sketchfab.com/3d-models/n64--starfox-c12d177a45a447189848953e930ee9e9
+
+NES Cartridge | Super Mario Bros — ConnorMartin
+https://sketchfab.com/3d-models/nes-cartridge-super-mario-bros-098096e53cfc4f42a2ec833aff20fbea
+
+PSP UMD — Cutlass Digital (credited as topoleer in the source model)
+https://sketchfab.com/3d-models/psp-umd-c7948faaa2f14d65a0c701cebbf93729
+
+Master System Cartridge — Guigashow
+https://github.com/zneko-org/zneko-launcher/blob/4419be7fc213ce92da2ea080d91caffe7740a6a4/models/sms.glb
+
+Super Nintendo Cartridge — SomeKevin
+https://sketchfab.com/3d-models/super-nintendo-cartridge-b2076d8a65d648ff99bf51ca9d5fca2a
+
+Super Nintendo Cartridge (US) — Guigashow
+https://github.com/zneko-org/zneko-launcher/blob/4419be7fc213ce92da2ea080d91caffe7740a6a4/models/snes.glb
+
+Nintendo Switch Cartridge — crocoman2019
+https://sketchfab.com/3d-models/nintendo-switch-cartridge-94e7c74e664849d490f136cb8acca86a
+
+TurboGrafx-16 HuCard — Guigashow
+https://github.com/zneko-org/zneko-launcher/blob/4419be7fc213ce92da2ea080d91caffe7740a6a4/models/tg16.glb
+
+Floppy disks
+Creative Commons Attribution-NonCommercial 4.0 International
+https://creativecommons.org/licenses/by-nc/4.0/
+
+3.5" High Density Floppy Disk | FREE VERSION — Kami Rapacz (kuroderuta)
+https://sketchfab.com/3d-models/35-high-density-floppy-disk-free-version-daaf642dbd084517a371b3ba03453a5f
+
+5.25" Floppy Disk | FREE VERSION — Kami Rapacz (kuroderuta)
+https://sketchfab.com/3d-models/525-floppy-disk-free-version-bfdda98888784956b085b10fc7466525
+
+Atari 2600 cartridge
+Ms. Pacman ATARI 2600 — Shon (ShonJohn)
+https://sketchfab.com/3d-models/ms-pacman-atari-2600-2e1bd4f652444913bb32a2e6e5054392
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Argosy renders rotation frames from the model and replaces the original printing with each game's artwork.
+
+GameCube mini DVD, Famicom cartridge and Dreamcast GD-ROM
+Cartridge and disc models from Cartouche by Hakimba, exported to glTF.
+https://github.com/Hakimba/cartouche/tree/ce1de3d4cb66a4db7810ac79886ec874f91808fa/app/carousel
+GNU General Public License, version 3 or later
+https://www.gnu.org/licenses/gpl-3.0.html
+Argosy renders the shells, fits game artwork to the label meshes and recreates the optical discs’ reflective faces.
+
+Cassette Tape — Ozen (credited as Re:Re:Re:Re:Re:Re:Re: in the supplied model)
+https://sketchfab.com/3d-models/cassette-tape-1333f3d1d41d4d779cb93e3fd26509fe
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Argosy replaces the printed stickers on both sides and fits each game's artwork to the front.
+
+MSX cartridge — supplied as Untitled.glb. Creator and license unspecified in the source file. Argosy renders the shell and applies per-game labels.
+
+Arcade Cabinet — Lluc Guardiolaa
+https://sketchfab.com/3d-models/arcade-cabinet-122e641e25ee4fe9904fc79399d822b0
+Creative Commons Attribution-NonCommercial 4.0 International
+https://creativecommons.org/licenses/by-nc/4.0/
+Argosy renders rotation frames from the cabinet and replaces its marquee, screen and side artwork.

@@ -31,6 +31,9 @@ object ComponentDefaults {
         const val edgeAlpha = 0.4f
         const val edgeClearRatio = 0.5f
         const val titleCenterAlpha = 0.5f
+        const val cartridgeArtScrimAlpha = 0.51f
+        const val cartridgeTextScrimAlpha = 0.84f
+        const val cartridgeWidthFraction = 0.64f
         const val titleMidAlpha = 0.32f
         const val titleMidRatio = 0.6f
         const val titleOverscanRatio = 0.2f
@@ -246,6 +249,8 @@ object ComponentDefaults {
     }
 
     object Carousel {
+        const val cartridgeFocusedWidthFraction = 0.58f
+        const val cartridgeMinimumRestingScale = 0.78f
         const val compactWidthDp = 600
         const val headerEdgePaddingDp = 12
         const val edgeTouchHeightDp = 80

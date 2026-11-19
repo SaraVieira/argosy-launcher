@@ -8,6 +8,7 @@ fun HomeGameUi.toCompanionDetail(): CompanionDetail =
         title = title,
         subtitle = platformDisplayName,
         platformSlug = platformSlug,
+        physicalMediaModel = physicalMediaModel,
         artUrl = coverPath,
         backdropUrl = backgroundPath,
         backdropIsScreenshotOrArt = backgroundIsScreenshotOrArt,

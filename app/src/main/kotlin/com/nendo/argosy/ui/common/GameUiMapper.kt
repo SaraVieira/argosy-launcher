@@ -41,6 +41,9 @@ suspend fun GameEntity.toHomeGameUi(
     val downloaded = resolveDownloaded(downloadStatus)
     return HomeGameUi(
         id = id,
+        physicalMediaModel = physicalMediaModelFor(
+            platformSlug, regions, rommFileName, title, fileSizeBytes, localPath, sha1Hash
+        ),
         title = title,
         platformId = platformId,
         platformSlug = platformSlug,
@@ -134,6 +137,9 @@ suspend fun GameListItem.toHomeGameUi(
     val downloaded = resolveDownloaded(downloadStatus)
     return HomeGameUi(
         id = id,
+        physicalMediaModel = physicalMediaModelFor(
+            platformSlug, regions, rommFileName, title, fileSizeBytes, localPath, sha1Hash
+        ),
         title = title,
         platformId = platformId,
         platformSlug = platformSlug,

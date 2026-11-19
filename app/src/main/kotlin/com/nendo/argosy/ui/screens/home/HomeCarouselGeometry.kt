@@ -1,6 +1,8 @@
 package com.nendo.argosy.ui.screens.home
 
 import com.nendo.argosy.domain.model.HomeRowAlignment
+import com.nendo.argosy.ui.components.PHYSICAL_MEDIA_FRAME_ASPECT_RATIO
+import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import com.nendo.argosy.ui.components.HERO_MAX_WIDTH_FRACTION
 import com.nendo.argosy.ui.components.HERO_START_PADDING_SCREEN_RATIO
 
@@ -14,6 +16,39 @@ internal data class HomeCarouselGeometry(
     val titleMaxWidth: Float,
     val titleAbove: Boolean
 )
+
+internal fun cartridgeCarouselGeometry(
+    width: Float,
+    height: Float,
+    headerHeight: Float,
+    footerHeight: Float,
+    edge: Float,
+    gap: Float,
+    titleReserve: Float,
+    badgeOverflow: Float,
+    restingScale: Float
+): HomeCarouselGeometry {
+    val titleGap = if (titleReserve > 0f) gap else 0f
+    val top = headerHeight + titleReserve + titleGap + badgeOverflow / restingScale
+    val bottom = (height - footerHeight - edge).coerceAtLeast(top)
+    val center = (height / 2f).coerceIn(top, bottom)
+    val focusedHeight = minOf(
+        width * ComponentDefaults.Carousel.cartridgeFocusedWidthFraction / PHYSICAL_MEDIA_FRAME_ASPECT_RATIO,
+        (center - top) * 2f,
+        (bottom - center) * 2f
+    )
+    val cardHeight = focusedHeight * restingScale
+    return HomeCarouselGeometry(
+        cardWidth = cardHeight * PHYSICAL_MEDIA_FRAME_ASPECT_RATIO,
+        cardHeight = cardHeight,
+        railTop = center - focusedHeight / 2f,
+        railHeight = focusedHeight,
+        titleCenterX = width / 2f,
+        titleCenterY = headerHeight + titleReserve / 2f,
+        titleMaxWidth = (width - edge * 2f).coerceAtLeast(0f),
+        titleAbove = true
+    )
+}
 
 internal fun homeCarouselGeometry(
     width: Float,

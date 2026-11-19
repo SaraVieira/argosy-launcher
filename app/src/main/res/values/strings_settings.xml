@@ -4772,6 +4772,8 @@
 
     <!-- ===== Licenses dialog (Settings > dialogs > LicensesDialog) ===== -->
 
+    <!-- Credits for the three-dimensional models of cartridges, optical discs and floppy disks. -->
+    <string name="settings_licenses_physical_media_models">Physical media models</string>
     <!-- Dialog title. Noun phrase. -->
     <string name="settings_licenses_dialog_title">Open Source Licenses</string>
     <!-- Heading over the note about emulator core licensing. Noun phrase. "Core" is the

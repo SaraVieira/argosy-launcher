@@ -352,7 +352,8 @@ data class RomMLaunchboxMetadata(
 
 @JsonClass(generateAdapter = true)
 data class RomMGamelistMetadata(
-    @Json(name = "box3d_path") val box3dPath: String? = null
+    @Json(name = "box3d_path") val box3dPath: String? = null,
+    @Json(name = "physical_path") val physicalPath: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -364,7 +365,18 @@ data class RomMSsMetadata(
     @Json(name = "logo_path") val logoPath: String? = null,
     @Json(name = "fanart_path") val fanartPath: String? = null,
     @Json(name = "fanart_url") val fanartUrl: String? = null,
-    @Json(name = "video_normalized_path") val videoNormalizedPath: String? = null
+    @Json(name = "video_normalized_path") val videoNormalizedPath: String? = null,
+    @Json(name = "physical_path") val physicalPath: String? = null,
+    @Json(name = "physical_url") val physicalUrl: String? = null,
+    @Json(name = "physical_disc") val physicalDisc: Int? = null,
+    @Json(name = "physical_extra_discs") val physicalExtraDiscs: List<RomMPhysicalDisc>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RomMPhysicalDisc(
+    @Json(name = "disc") val disc: Int,
+    @Json(name = "path") val path: String? = null,
+    @Json(name = "url") val url: String? = null
 )
 
 @JsonClass(generateAdapter = true)

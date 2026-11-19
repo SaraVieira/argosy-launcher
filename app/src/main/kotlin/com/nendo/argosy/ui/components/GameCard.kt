@@ -117,7 +117,8 @@ fun GameCard(
     alphaOverride: Float? = null,
     saturationOverride: Float? = null,
     useBoxArt: Boolean = false,
-    showRunningMark: Boolean = true
+    showRunningMark: Boolean = true,
+    physicalMediaModel: String? = null
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
     val runningGame = if (showRunningMark) LocalRunningGames.current.markFor(game.id) else null
@@ -150,7 +151,7 @@ fun GameCard(
         coverPath = effectiveCoverPath,
         allowSpineRender = false
     ).firstWorking(failedRoutes)
-    val drawsAs3d = route == BoxArtRoute.BOX_3D_IMAGE
+    val drawsAs3d = physicalMediaModel != null || route == BoxArtRoute.BOX_3D_IMAGE
 
     val spineActiveForBackground = !drawsAs3d && showPlatformBadge &&
         boxArtStyle.platformIndicatorStyle == com.nendo.argosy.data.preferences.PlatformIndicatorStyle.SPINE
@@ -189,7 +190,8 @@ fun GameCard(
                 alphaOverride = alphaOverride,
                 artworkGradient = coverGradientColors,
                 background = cardBackgroundBrush,
-                drawBorder = !spineActiveForBackground && route != BoxArtRoute.BOX_3D_IMAGE
+                drawOuterEffect = physicalMediaModel == null,
+                drawBorder = !spineActiveForBackground && !drawsAs3d
             )
     ) {
         val spineBlurredBackdrop = spineActiveForBackground &&
@@ -390,6 +392,23 @@ fun GameCard(
                         )
                     }
                 }
+            }
+        } else if (physicalMediaModel != null) {
+            box3dBody {
+                PhysicalMediaModel(
+                    model = physicalMediaModel,
+                    carouselPreview = true,
+                    gameId = game.id,
+                    artPath = effectiveCoverPath.ifEmpty { null },
+                    title = game.title,
+                    modifier = Modifier.fillMaxSize(),
+                    onArtLoaded = { bitmap -> onCoverLoaded?.invoke(game.id, bitmap) },
+                    onArtLoadFailed = {
+                        if (effectiveCoverPath.startsWith("/")) {
+                            onCoverLoadFailed?.invoke(game.id, effectiveCoverPath) ?: repairArt(game.id, ArtSlot.COVER)
+                        }
+                    }
+                )
             }
         } else {
             coverBody()
@@ -674,10 +693,11 @@ fun GameCardWithNewBadge(
     useBoxArt: Boolean = false,
     newBadgePlacement: NewBadgePlacement = NewBadgePlacement.RIGHT,
     showDownloadedIndicator: Boolean = true,
-    interactionModifier: Modifier = Modifier
+    interactionModifier: Modifier = Modifier,
+    physicalMediaModel: String? = null
 ) {
     val isRunning = LocalRunningGames.current.isRunning(game.id)
-    val showNewBadge = game.isNew && !downloadIndicator.isActive && !isRunning &&
+    val showNewBadge = physicalMediaModel == null && game.isNew && !downloadIndicator.isActive && !isRunning &&
         newBadgePlacement != NewBadgePlacement.HIDDEN
     val badgeWidthDp = ComponentDefaults.Carousel.newBadgeWidthDp.dp
     val badgeHeightDp = ComponentDefaults.Carousel.newBadgeHeightDp.dp
@@ -707,6 +727,7 @@ fun GameCardWithNewBadge(
                 showPlatformBadge = showPlatformBadge,
                 showDownloadedIndicator = showDownloadedIndicator,
                 useBoxArt = useBoxArt,
+                physicalMediaModel = physicalMediaModel,
                 coverPathOverride = coverPathOverride,
                 onCoverLoadFailed = onCoverLoadFailed,
                 onCoverLoaded = onCoverLoaded,

@@ -16,12 +16,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +36,9 @@ import com.nendo.argosy.ui.primitives.ActionButton
 import com.nendo.argosy.ui.primitives.ModalScaffold
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalArgosyTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class LicenseEntry(
     val name: String,
@@ -72,6 +76,12 @@ fun LicensesDialog(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val scrollStepPx = with(LocalDensity.current) { (Dimens.menuRowHeight * 3).toPx() }
     val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val resources = LocalContext.current.resources
+    val modelCredits by produceState("", resources) {
+        value = withContext(Dispatchers.IO) {
+            resources.openRawResource(R.raw.physical_media_model_credits).bufferedReader().use { it.readText().trimEnd() }
+        }
+    }
 
     val inputHandler = remember {
         object : InputHandler {
@@ -156,6 +166,18 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                 Spacer(Modifier.height(Dimens.spacingXs))
                 Text(
                     text = stringResource(R.string.settings_licenses_dialog_cores_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.textDim
+                )
+                Spacer(Modifier.height(Dimens.spacingMd))
+                Text(
+                    text = stringResource(R.string.settings_licenses_physical_media_models),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = theme.textPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = modelCredits,
                     style = MaterialTheme.typography.bodySmall,
                     color = theme.textDim
                 )

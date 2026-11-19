@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -342,7 +346,8 @@ fun CarouselRail(
     onCoverLoaded: ((Long, Bitmap) -> Unit)? = null,
     onPosterLoaded: ((String, Bitmap) -> Unit)? = null,
     availableWidth: Dp = LocalConfiguration.current.screenWidthDp.dp,
-    verticalContentPadding: Dp = 0.dp
+    verticalContentPadding: Dp = 0.dp,
+    snapToCenter: Boolean = false
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
     /**
@@ -369,6 +374,9 @@ fun CarouselRail(
         top = verticalContentPadding,
         bottom = verticalContentPadding
     )
+    val slotModifier = if (snapToCenter) {
+        Modifier.width(metrics.cardWidth + badgeSideReserveDp * 2).wrapContentWidth(Alignment.CenterHorizontally)
+    } else Modifier
     val indicatorFor by rememberUpdatedState(downloadIndicatorFor)
 
     /**
@@ -385,6 +393,7 @@ fun CarouselRail(
     LazyRow(
         state = listState,
         reverseLayout = metrics.reversed,
+        flingBehavior = if (snapToCenter) rememberSnapFlingBehavior(listState) else ScrollableDefaults.flingBehavior(),
         contentPadding = contentPadding,
         horizontalArrangement = Arrangement.spacedBy((metrics.itemGap - badgeSideReserveDp * 2).coerceAtLeast(0.dp)),
         verticalAlignment = metrics.verticalAlignment,
@@ -412,6 +421,7 @@ fun CarouselRail(
                         Modifier
                     }
                 )
+                .then(slotModifier)
             val indicator by remember(item) { derivedStateOf { indicatorFor(item) } }
             when (item) {
                 is CarouselItem.Game -> {
@@ -424,6 +434,7 @@ fun CarouselRail(
                         overrides = overrides,
                         nativeAspectRatio = boxArtStyle.nativeAspectRatio,
                         fallbackAspectRatio = boxArtStyle.aspectRatio,
+                        fitInCartridgeSlot = snapToCenter,
                         showPlatformBadge = showPlatformBadge,
                         newBadgePlacement = newBadgePlacement,
                         showDownloadedIndicator = showDownloadedIndicator,
@@ -541,6 +552,7 @@ private fun CarouselGameCard(
     overrides: CarouselOverrides,
     nativeAspectRatio: Boolean,
     fallbackAspectRatio: Float,
+    fitInCartridgeSlot: Boolean,
     showPlatformBadge: Boolean,
     newBadgePlacement: NewBadgePlacement,
     showDownloadedIndicator: Boolean,
@@ -552,7 +564,10 @@ private fun CarouselGameCard(
 ) {
     val maxWidth = if (isFocused) metrics.focusedCardWidth else metrics.cardWidth
     val maxHeight = if (isFocused) metrics.focusedCardHeight else metrics.cardHeight
-    val cardSize = if (nativeAspectRatio) {
+    val model = item.game.physicalMediaModel
+    val cardSize = if (model != null) {
+        coverSizeWithin(maxWidth, maxHeight, if (model == "pico8") 160f / 205f else PHYSICAL_MEDIA_FRAME_ASPECT_RATIO)
+    } else if (nativeAspectRatio) {
         val ratio = rememberGameArtAspectRatio(
             game = item.game,
             useBoxArt = useBoxArt,
@@ -560,6 +575,8 @@ private fun CarouselGameCard(
             fallback = fallbackAspectRatio
         )
         coverSizeWithin(maxWidth, maxHeight, ratio)
+    } else if (fitInCartridgeSlot) {
+        coverSizeWithin(maxWidth, maxHeight, fallbackAspectRatio)
     } else {
         DpSize(maxWidth, maxHeight)
     }
@@ -569,6 +586,7 @@ private fun CarouselGameCard(
     GameCardWithNewBadge(
         game = item.game,
         isFocused = isFocused && showFocusVisuals,
+        physicalMediaModel = model,
         cardWidth = cardSize.width,
         cardHeight = cardSize.height,
         focusScale = metrics.focusScale,

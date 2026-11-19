@@ -181,7 +181,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE isGroupVisible = 1
         AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -195,7 +195,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE platformId = :platformId
         AND isGroupVisible = 1
@@ -209,7 +209,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE source = :source
         AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -222,7 +222,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE isGroupVisible = 1
         AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -238,7 +238,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE isFavorite = 1
         AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -252,7 +252,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         ORDER BY sortTitle ASC
     """)
@@ -263,7 +263,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = g.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                g.isMultiDisc, g.rommId, g.steamAppId, g.packageName, g.steamLauncher, g.playCount, g.playTimeMinutes,
                g.lastPlayed, g.genre, g.players, g.rating, g.userRating, g.userDifficulty, g.releaseYear, g.addedAt,
-               g.achievementCount, g.earnedAchievementCount, g.completion, g.status, g.developer, g.igdbId, g.timeToBeatMainSec
+               g.achievementCount, g.earnedAchievementCount, g.completion, g.status, g.developer, g.igdbId, g.timeToBeatMainSec, g.regions, g.rommFileName, g.fileSizeBytes, g.sha1Hash
         FROM games g
         INNER JOIN platforms p ON g.platformId = p.id
         WHERE p.syncEnabled = 1
@@ -319,7 +319,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE platformId = :platformId
         ORDER BY sortTitle ASC
@@ -331,7 +331,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE isFavorite = 1
         ORDER BY (source = 'ROMM_REMOTE') ASC, sortTitle ASC
@@ -343,7 +343,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
         AND $ENABLED_PLATFORM_SQL
@@ -356,7 +356,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE platformId = :platformId
         AND EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -369,7 +369,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE platformId = :platformId AND isFavorite = 1
         AND NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
@@ -382,7 +382,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE platformId = :platformId
         AND isGroupVisible = 1
@@ -1035,7 +1035,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
         AND id != :excludeGameId
@@ -1058,7 +1058,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
         AND id != :excludeGameId
@@ -1081,7 +1081,7 @@ interface GameDao {
                EXISTS(SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId)) AS isHidden,
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher, playCount, playTimeMinutes,
                lastPlayed, genre, players, rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         WHERE NOT EXISTS (SELECT 1 FROM user_roms_hidden h WHERE h.gameId = games.id AND (h.ownerUserId IS NULL OR h.ownerUserId IS :ownerUserId))
         AND id != :excludeGameId
@@ -1383,7 +1383,7 @@ interface GameDao {
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher,
                playCount, playTimeMinutes, lastPlayed, genre, players,
                rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         $COVER_ART_JOIN
         WHERE $RESOLVED_ART_SQL LIKE '/%'
@@ -1398,7 +1398,7 @@ interface GameDao {
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher,
                playCount, playTimeMinutes, lastPlayed, genre, players,
                rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         $COVER_ART_JOIN
         WHERE $RESOLVED_ART_SQL LIKE '/%' AND lastPlayed IS NOT NULL AND localPath IS NOT NULL
@@ -1414,7 +1414,7 @@ interface GameDao {
                isMultiDisc, rommId, steamAppId, packageName, steamLauncher,
                playCount, playTimeMinutes, lastPlayed, genre, players,
                rating, userRating, userDifficulty, releaseYear, addedAt,
-               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec
+               achievementCount, earnedAchievementCount, completion, status, developer, igdbId, timeToBeatMainSec, regions, rommFileName, fileSizeBytes, sha1Hash
         FROM games
         $COVER_ART_JOIN
         WHERE $RESOLVED_ART_SQL LIKE '/%' AND lastPlayed IS NOT NULL

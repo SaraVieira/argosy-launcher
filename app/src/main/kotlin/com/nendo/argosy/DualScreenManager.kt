@@ -42,6 +42,7 @@ import com.nendo.argosy.hardware.FocusDirectorActivity
 import com.nendo.argosy.hardware.SecondaryHomeActivity
 import com.nendo.argosy.hardware.withLiveQuickActionState
 import com.nendo.argosy.ui.dualscreen.CompanionDetail
+import com.nendo.argosy.ui.dualscreen.PresentationCartridge
 import com.nendo.argosy.util.DisplayAffinityHelper
 import com.nendo.argosy.util.SecondaryDisplayType
 import kotlinx.coroutines.CoroutineScope
@@ -1105,6 +1106,22 @@ class DualScreenManager(
         MutableStateFlow(com.nendo.argosy.domain.model.PresentationStyle())
     val presentationStyle: StateFlow<com.nendo.argosy.domain.model.PresentationStyle> =
         _presentationStyle
+
+    private val _presentationCartridge = MutableStateFlow<PresentationCartridge?>(null)
+    val presentationCartridge = _presentationCartridge.asStateFlow()
+
+    fun showPresentationCartridge(gameId: Long) {
+        _presentationCartridge.value = PresentationCartridge(gameId)
+    }
+
+    fun hidePresentationCartridge(gameId: Long) {
+        _presentationCartridge.update { it?.takeUnless { cartridge -> cartridge.gameId == gameId } }
+    }
+
+    fun rotatePresentationCartridge(gameId: Long, direction: Int): Boolean {
+        val current = _presentationCartridge.value?.takeIf { it.gameId == gameId } ?: return false
+        return _presentationCartridge.compareAndSet(current, current.copy(rotationSteps = current.rotationSteps + direction))
+    }
 
     private val _presentationBackgroundBlur =
         MutableStateFlow(preferencesRepository.latest?.presentationBackgroundBlur ?: 0)

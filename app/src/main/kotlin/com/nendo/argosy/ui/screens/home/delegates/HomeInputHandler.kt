@@ -172,6 +172,19 @@ class HomeInputHandler(
         return state.appBarMenu != null
     }
 
+    override fun onRightStickLeft(): InputResult = rotateCartridge(-1)
+    override fun onRightStickRight(): InputResult = rotateCartridge(1)
+
+    private fun rotateCartridge(direction: Int): InputResult {
+        val state = actions.uiState.value
+        if (state.layoutKind != HomeLayoutKind.CAROUSEL || state.appBarFocused || state.appBarMenu != null ||
+            state.showGameMenu || state.showAddToCollectionModal || state.showCreateCollectionDialog || focusPicker != null
+        ) return InputResult.UNHANDLED
+        val game = state.focusedGame ?: return InputResult.UNHANDLED
+        val manager = com.nendo.argosy.DualScreenManagerHolder.instance ?: return InputResult.UNHANDLED
+        return if (manager.rotatePresentationCartridge(game.id, direction)) InputResult.HANDLED else InputResult.UNHANDLED
+    }
+
     override fun onUp(): InputResult {
         if (actions.uiState.value.appBarMenu != null) {
             actions.moveAppBarAppMenu(-1)

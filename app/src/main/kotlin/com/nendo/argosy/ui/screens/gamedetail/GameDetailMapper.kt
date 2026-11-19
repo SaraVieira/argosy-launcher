@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.screens.gamedetail
 
+import com.nendo.argosy.ui.common.physicalMediaModelFor
 import com.nendo.argosy.core.game.AchievementUi
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.entity.GameEntity
@@ -38,6 +39,9 @@ fun GameEntity.toGameDetailUi(
         ?: screenshotRows.filter { it.isOfficial }.minByOrNull { it.position }?.sourceUrl
     return GameDetailUi(
         id = id,
+        physicalMediaModel = physicalMediaModelFor(
+            platformSlug, regions, rommFileName, title, fileSizeBytes, localPath, sha1Hash
+        ),
         title = title,
         platformId = platformId,
         platformSlug = platformSlug,

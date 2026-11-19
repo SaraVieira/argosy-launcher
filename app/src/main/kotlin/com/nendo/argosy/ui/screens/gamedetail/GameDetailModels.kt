@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.screens.gamedetail
 
+import com.nendo.argosy.ui.common.physicalMediaModelFor
 import android.content.Intent
 import androidx.annotation.StringRes
 import com.nendo.argosy.core.game.AchievementUi
@@ -124,7 +125,8 @@ data class GameDetailUi(
     val titleId: String? = null,
     val igdbId: Long? = null,
     val steamAppId: Long? = null,
-    val rommFileName: String? = null
+    val rommFileName: String? = null,
+    val physicalMediaModel: String? = physicalMediaModelFor(platformSlug, title = title)
 )
 
 sealed class LaunchEvent {

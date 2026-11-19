@@ -57,7 +57,8 @@ fun Modifier.boxArtFrame(
     artworkGradient: Pair<Color, Color>? = null,
     background: Brush? = null,
     drawBorder: Boolean = true,
-    shapeOverride: Shape? = null
+    shapeOverride: Shape? = null,
+    drawOuterEffect: Boolean = true
 ): Modifier {
     val boxArtStyle = LocalBoxArtStyle.current
     val themeConfig = LocalLauncherTheme.current
@@ -89,7 +90,7 @@ fun Modifier.boxArtFrame(
         label = "boxArtAlpha"
     )
 
-    val outerEffect = boxArtStyle.outerEffect
+    val outerEffect = if (drawOuterEffect) boxArtStyle.outerEffect else BoxArtOuterEffect.OFF
     val outerEffectRadius = boxArtStyle.outerEffectThicknessPx
     val showOuterEffect = isFocused && outerEffect != BoxArtOuterEffect.OFF
     val glowColor = boxArtStyle.accentColor ?: themeConfig.focusGlowColor

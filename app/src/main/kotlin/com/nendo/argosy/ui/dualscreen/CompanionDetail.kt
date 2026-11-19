@@ -27,7 +27,8 @@ data class CompanionDetail(
     val stats: CompanionGameStats? = null,
     val gameId: Long? = null,
     val videoPath: String? = null,
-    val youtubeVideoId: String? = null
+    val youtubeVideoId: String? = null,
+    val physicalMediaModel: String? = null
 )
 
 /**
@@ -49,6 +50,8 @@ data class CompanionGameStats(
     val achievementCount: Int = 0,
     val earnedAchievementCount: Int = 0
 )
+
+data class PresentationCartridge(val gameId: Long, val rotationSteps: Int = 0)
 
 data class CompanionFact(
     val label: String,

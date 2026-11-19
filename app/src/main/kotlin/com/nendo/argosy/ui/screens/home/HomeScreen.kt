@@ -145,6 +145,8 @@ import com.nendo.argosy.ui.components.HomeAutoGrid
 import com.nendo.argosy.ui.components.HomeCustomGridPage
 import com.nendo.argosy.ui.components.HomeTilePickerModal
 import com.nendo.argosy.ui.components.TileEditMode
+import com.nendo.argosy.domain.model.HomeRowAlignment
+import com.nendo.argosy.ui.components.PHYSICAL_MEDIA_FRAME_ASPECT_RATIO
 import com.nendo.argosy.domain.model.HomeFocusPosition
 import com.nendo.argosy.domain.model.HomeLayoutKind
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -167,7 +169,6 @@ import com.nendo.argosy.ui.screens.media.components.MediaSignedOutState
 import com.nendo.argosy.ui.screens.media.modals.MediaResumeModalHost
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 import com.nendo.argosy.ui.theme.LocalUiScale
@@ -219,6 +220,18 @@ fun HomeScreen(
     val gridState = rememberLazyGridState()
     val isAutoGrid = uiState.layoutKind == HomeLayoutKind.AUTO_GRID
     val isCustomGrid = uiState.layoutKind == HomeLayoutKind.CUSTOM_GRID
+    val currentItems = uiState.currentItems
+    val hasCartridges = !isAutoGrid && !isCustomGrid && remember(currentItems) {
+        currentItems.any { it is HomeRowItem.Game && it.game.physicalMediaModel != null }
+    }
+    val carouselConfig = if (hasCartridges) {
+        uiState.carouselConfig.copy(
+            focusPosition = HomeFocusPosition.CENTER,
+            rowAlignment = HomeRowAlignment.CENTER,
+            restingScale = uiState.carouselConfig.restingScale.coerceAtLeast(ComponentDefaults.Carousel.cartridgeMinimumRestingScale)
+        )
+    } else uiState.carouselConfig
+    val anchor = if (carouselConfig.focusPosition == HomeFocusPosition.CENTER) CarouselAnchor.CENTER else CarouselAnchor.START
     val showDownloadedDot = !uiState.installedOnlyHome || uiState.currentRow == HomeRow.Recommendations
     val quickNavigation by viewModel.quickNavigationEnabled.collectAsState()
     val dockReorder by viewModel.dockReorder.collectAsState()
@@ -257,7 +270,8 @@ fun HomeScreen(
     }
     val currentOnDrawerToggle by rememberUpdatedState(toggleDrawer)
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(anchor, isAutoGrid, isCustomGrid) {
+        if (isAutoGrid || isCustomGrid) return@LaunchedEffect
         snapshotFlow { Triple(uiState.focusedGameIndex, uiState.currentRow, uiState.currentItems.size) }
             .collectLatest { (focusedIndex, _, itemsSize) ->
                 if (itemsSize > 0) {
@@ -265,18 +279,20 @@ fun HomeScreen(
                         skipNextProgrammaticScroll = false
                     } else {
                         isProgrammaticScroll = true
-                        listState.animateScrollToItem(
-                            index = focusedIndex.coerceIn(0, itemsSize - 1),
-                            scrollOffset = CarouselAnchor.START.snapOffsetPx
-                        )
-                        snapshotFlow { listState.isScrollInProgress }.first { !it }
-                        isProgrammaticScroll = false
+                        try {
+                            listState.animateScrollToItem(
+                                index = focusedIndex.coerceIn(0, itemsSize - 1),
+                                scrollOffset = anchor.snapOffsetPx
+                            )
+                        } finally {
+                            isProgrammaticScroll = false
+                        }
                     }
                 }
             }
     }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, anchor) {
         snapshotFlow {
             Triple(
                 listState.isScrollInProgress,
@@ -289,9 +305,7 @@ fun HomeScreen(
                 val viewportStart = layoutInfo.viewportStartOffset
                 val visibleItems = layoutInfo.visibleItemsInfo
                 if (visibleItems.isNotEmpty()) {
-                    val landedOn = if (
-                        uiState.carouselConfig.focusPosition == HomeFocusPosition.CENTER
-                    ) {
+                    val landedOn = if (anchor == CarouselAnchor.CENTER) {
                         val centre = (viewportStart + layoutInfo.viewportEndOffset) / 2
                         visibleItems.minByOrNull {
                             kotlin.math.abs(it.offset + it.size / 2 - centre)
@@ -814,7 +828,7 @@ fun HomeScreen(
             val titleMetadata = if (showTitle) rememberHomeTitleMetadata(uiState) else emptyList()
             val aboveReserve = if (showTitle) rememberHomeTitleReserve(titleMetadata, fullTitleWidth) else 0.dp
             val mirrored = (LocalLayoutDirection.current == LayoutDirection.Rtl) xor uiState.carouselConfig.inverted
-            val coverAspectRatio = LocalBoxArtStyle.current.aspectRatio
+            val coverAspectRatio = if (hasCartridges) PHYSICAL_MEDIA_FRAME_ASPECT_RATIO else LocalBoxArtStyle.current.aspectRatio
             val scrollAnchorOffset = with(localDensity) {
                 kotlin.math.abs(CarouselAnchor.START.snapOffsetPx).toDp()
             }
@@ -828,7 +842,7 @@ fun HomeScreen(
                 titleReserve = reserve.value,
                 aboveTitleReserve = aboveReserve.value,
                 aspectRatio = coverAspectRatio,
-                restingScale = uiState.carouselConfig.restingScale,
+                restingScale = carouselConfig.restingScale,
                 rowAlignment = uiState.carouselConfig.rowAlignment,
                 centeredFocus = uiState.carouselConfig.focusPosition == HomeFocusPosition.CENTER,
                 mirrored = mirrored,
@@ -836,11 +850,24 @@ fun HomeScreen(
                 scrollAnchorOffset = scrollAnchorOffset.value,
                 showTitle = showTitle
             )
-            val candidate = resolveGeometry(aboveReserve)
-            val sideReserve = if (showTitle && !candidate.titleAbove) {
-                rememberHomeTitleReserve(titleMetadata, candidate.titleMaxWidth.dp)
-            } else aboveReserve
-            val fittedGeometry = resolveGeometry(sideReserve)
+            val fittedGeometry = if (hasCartridges) {
+                cartridgeCarouselGeometry(
+                    width = maxWidth.value,
+                    height = maxHeight.value,
+                    headerHeight = headerBlockHeight.value,
+                    footerHeight = footerHeight.value,
+                    edge = edge.value,
+                    gap = gap.value,
+                    titleReserve = aboveReserve.value,
+                    badgeOverflow = NEW_BADGE_TOP_OVERFLOW.value,
+                    restingScale = carouselConfig.restingScale
+                )
+            } else {
+                val candidate = resolveGeometry(aboveReserve)
+                if (showTitle && !candidate.titleAbove) {
+                    resolveGeometry(rememberHomeTitleReserve(titleMetadata, candidate.titleMaxWidth.dp))
+                } else candidate
+            }
             val content = homeCarouselContent(
                 fitted = fittedGeometry,
                 width = maxWidth.value,
@@ -851,7 +878,7 @@ fun HomeScreen(
                 gap = gap.value,
                 titleReserve = aboveReserve.value,
                 aspectRatio = coverAspectRatio,
-                restingScale = uiState.carouselConfig.restingScale,
+                restingScale = carouselConfig.restingScale,
                 badgeOverflow = NEW_BADGE_TOP_OVERFLOW.value,
                 minimumFocusedExtent = ComponentDefaults.FrostedSurface.minimumTouchTargetDp.toFloat(),
                 preferredCardHeight = (
@@ -1046,8 +1073,9 @@ fun HomeScreen(
                                 metrics = CarouselMetrics.hero(
                                     cardWidth = cardSize.width,
                                     cardHeight = cardSize.height,
-                                    config = uiState.carouselConfig
+                                    config = carouselConfig
                                 ),
+                                snapToCenter = hasCartridges,
                                 overrides = CarouselOverrides(
                                     focusedScale = if (uiState.isVideoPreviewActive) 1f else null,
                                     unfocusedAlpha = if (uiState.isVideoPreviewActive) 0f else null,

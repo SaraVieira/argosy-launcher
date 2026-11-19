@@ -58,6 +58,77 @@ class RomMServerArtTest {
     )
 
     @Test
+    fun `cartridge art prefers stored scans and regional cart fronts before the index and external ScreenScraper`() {
+        val cart = rom.copy(
+            regions = listOf("USA"),
+            ssMetadata = RomMSsMetadata(physicalPath = "a.png", physicalUrl = "https://ss.test/cart"),
+            gamelistMetadata = RomMGamelistMetadata(physicalPath = "a.png"),
+            launchboxMetadata = RomMLaunchboxMetadata(images = listOf(
+                RomMLaunchboxImage("https://lb.test/jp", "Cart - Front", "Japan"),
+                RomMLaunchboxImage("file:///local", "Cart - Front", "USA"),
+                RomMLaunchboxImage("https://lb.test/box", "Box - Front", "USA"),
+                RomMLaunchboxImage("https://lb.test/us", "Cart - Front", "North America")
+            ))
+        )
+
+        assertEquals(
+            listOf("$base/assets/romm/resources/a.png", "https://lb.test/us", "https://lb.test/jp",
+                "https://lb.test/index", "https://ss.test/cart"),
+            client.physicalMediaImages(cart, "gba", PhysicalMediaImage("https://lb.test/index")).map { it.url }
+        )
+        assertEquals(listOf("https://lb.test/index"), client.physicalMediaImages(null, "gba", PhysicalMediaImage("https://lb.test/index")).map { it.url })
+    }
+
+    @Test
+    fun `discs prefer the matching stored SS disc and exclude cartridge scans`() {
+        val second = rom.copy(
+            tags = listOf("Disc 2"),
+            ssMetadata = RomMSsMetadata(
+                physicalDisc = 1, physicalPath = "first.png", physicalUrl = "https://ss.test/1",
+                physicalExtraDiscs = listOf(RomMPhysicalDisc(2, "second.png", "https://ss.test/2"))
+            ),
+            launchboxMetadata = RomMLaunchboxMetadata(images = listOf(
+                lb("Cart - Front", "https://lb.test/wrong"), lb("Disc", "https://lb.test/disc")
+            ))
+        )
+        for (model in listOf("disc", "gc_mini_dvd", "dreamcast_gd")) {
+            assertEquals(
+                listOf("$base/assets/romm/resources/second.png", "https://lb.test/disc", "https://ss.test/2"),
+                client.physicalMediaImages(second, model, null).map { it.url }
+            )
+        }
+    }
+
+    @Test
+    fun `floppy candidates prefer physical disk scans and ignore cart scans on mixed platforms`() {
+        val disk = rom.copy(launchboxMetadata = RomMLaunchboxMetadata(images = listOf(
+            lb("Cart - Front", "https://lb.test/cassette"),
+            lb("Disc", "https://lb.test/media"),
+            lb("Box - Front", "https://lb.test/box")
+        )))
+        for (model in listOf("floppy35", "floppy525")) {
+            assertEquals(
+                listOf("https://lb.test/media"),
+                client.physicalMediaImages(disk, model, null).map { it.url }
+            )
+        }
+    }
+
+    @Test
+    fun `cassette sources use physical media and LaunchBox front scans on tape platforms`() {
+        val tape = rom.copy(
+            ssMetadata = RomMSsMetadata(physicalPath = "tape.png"),
+            launchboxMetadata = RomMLaunchboxMetadata(images = listOf(
+                lb("Disc", "https://lb.test/disk"), lb("Cart - Front", "https://lb.test/tape")
+            ))
+        )
+        assertEquals(
+            listOf("$base/assets/romm/resources/tape.png", "https://lb.test/tape"),
+            client.physicalMediaImages(tape, "cassette", null).map { it.url }
+        )
+    }
+
+    @Test
     fun `background lists ScreenScraper fanart, then every LaunchBox fanart, then screenshots`() {
         assertEquals(
             listOf(

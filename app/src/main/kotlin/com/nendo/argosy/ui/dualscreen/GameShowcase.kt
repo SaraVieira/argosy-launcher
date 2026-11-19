@@ -41,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -80,6 +81,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nendo.argosy.R
+import com.nendo.argosy.DualScreenManagerHolder
 import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.domain.model.PresentationArt
 import com.nendo.argosy.domain.model.PresentationLayout
@@ -95,6 +97,7 @@ import com.nendo.argosy.ui.common.rememberFileImageModel
 import com.nendo.argosy.data.model.ArtSlot
 import com.nendo.argosy.ui.components.Box3dCover
 import com.nendo.argosy.ui.components.BoxArtRoute
+import com.nendo.argosy.ui.components.PhysicalMediaModel
 import com.nendo.argosy.ui.components.boxArtRoutes
 import com.nendo.argosy.ui.components.firstWorking
 import com.nendo.argosy.ui.components.LocalFrostedBackdrop
@@ -201,6 +204,8 @@ private fun GameShowcaseContent(
 ) {
     val contentBottom = bottomInset + Dimens.spacingMd
     val theme = LocalArgosyTheme.current
+    val cartridgeShowcase = style.layout == PresentationLayout.CINEMATIC && style.art != PresentationArt.TITLE &&
+        detail.physicalMediaModel != null
     val backdrop = LocalFrostedBackdrop.current ?: rememberFrostedBackdrop()
     val backgroundBlurRadius = when (style.scrim) {
         PresentationScrim.GRADIENT -> backgroundBlur.backgroundBlurDp
@@ -257,9 +262,20 @@ private fun GameShowcaseContent(
                 }
             )
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = chromeAlpha }) {
-                ShowcaseScrim(style = style, color = theme.surfaceBase)
+                if (cartridgeShowcase) {
+                    val color = presentationScrimColor()
+                    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(
+                        color.copy(alpha = if (detail.physicalMediaModel == "arcade")
+                            ComponentDefaults.Presentation.cartridgeTextScrimAlpha
+                        else ComponentDefaults.Presentation.cartridgeArtScrimAlpha),
+                        color.copy(alpha = ComponentDefaults.Presentation.cartridgeTextScrimAlpha),
+                        color.copy(alpha = ComponentDefaults.Presentation.cartridgeTextScrimAlpha)
+                    ))))
+                } else {
+                    ShowcaseScrim(style = style, color = theme.surfaceBase)
+                }
             }
-            if (style.layout == PresentationLayout.CINEMATIC && style.scrim == PresentationScrim.GRADIENT) {
+            if (!cartridgeShowcase && style.layout == PresentationLayout.CINEMATIC && style.scrim == PresentationScrim.GRADIENT) {
                 val color = presentationScrimColor()
                 val strength = style.scrimStrength / DEFAULT_STRENGTH
                 Box(Modifier.fillMaxSize().drawBehind {
@@ -311,6 +327,7 @@ private fun GameShowcaseContent(
                     bottom = bottomInset,
                     viewportWidth = viewportWidth,
                     viewportHeight = viewportHeight,
+                    videoPlaying = videoPlaying,
                     onTitleBoundsChanged = { titleBounds = it },
                     coverLayer = rememberShowcaseLayer(
                         motion, durations, durations.coverDelayMs, durations.coverDriftDp, horizontal = true
@@ -495,6 +512,7 @@ private fun CinematicShowcase(
     bottom: Dp,
     viewportWidth: Dp,
     viewportHeight: Dp,
+    videoPlaying: Boolean,
     onTitleBoundsChanged: (Rect) -> Unit,
     coverLayer: Modifier,
     textLayer: Modifier
@@ -519,7 +537,8 @@ private fun CinematicShowcase(
             .onGloballyPositioned {
                 onTitleBoundsChanged(Rect(it.positionInRoot(), Size(it.size.width.toFloat(), it.size.height.toFloat())))
             },
-        interactiveCover = true,
+        interactiveCover = detail.physicalMediaModel == null || !videoPlaying,
+        physicalMediaModel = detail.physicalMediaModel,
         coverLayer = coverLayer,
         textLayer = textLayer,
         showsRunning = true
@@ -552,6 +571,7 @@ internal fun GameHero(
     modifier: Modifier = Modifier,
     metadataModifier: Modifier = Modifier,
     interactiveCover: Boolean = false,
+    physicalMediaModel: String? = null,
     coverLayer: Modifier = Modifier,
     textLayer: Modifier = Modifier,
     showsRunning: Boolean = false
@@ -567,6 +587,7 @@ internal fun GameHero(
                 minOf(coverMaxHeight, coverWidth / LocalBoxArtStyle.current.aspectRatio,
                     if (boundedHeight) maxHeight / 3 else coverMaxHeight)
             } else coverMaxHeight
+            val cartridgeVisible = physicalMediaModel != null && style.art != PresentationArt.TITLE && boundedHeight
             val cover: @Composable () -> Unit = {
                 if (style.art != PresentationArt.TITLE) {
                     Box(
@@ -580,11 +601,49 @@ internal fun GameHero(
             val metadata: @Composable (Modifier) -> Unit = { containerModifier ->
                 Box(containerModifier) {
                     CompositionLocalProvider(LocalLayoutDirection provides textDirection) {
-                        GameHeroMetadata(detail, style, metadataModifier, textLayer, showsRunning)
+                        GameHeroMetadata(detail, style, metadataModifier, textLayer, showsRunning, cartridgeVisible)
                     }
                 }
             }
-            if (stacked) {
+            if (cartridgeVisible && physicalMediaModel != null) {
+                val manager = DualScreenManagerHolder.instance
+                val gameId = detail.gameId?.takeIf { interactiveCover }
+                DisposableEffect(manager, gameId) {
+                    if (gameId != null) manager?.showPresentationCartridge(gameId)
+                    onDispose { if (gameId != null) manager?.hidePresentationCartridge(gameId) }
+                }
+                val rotation = manager?.presentationCartridge?.collectAsState()?.value
+                val cartridge: @Composable (Modifier) -> Unit = { space ->
+                    Box(space.clipToBounds(), contentAlignment = Alignment.Center) {
+                        PhysicalMediaModel(
+                            model = physicalMediaModel,
+                            gameId = detail.gameId,
+                            artPath = detail.artUrl,
+                            title = detail.title,
+                            modifier = Modifier.fillMaxSize().then(coverLayer),
+                            interactive = interactiveCover,
+                            rotationSteps = rotation?.takeIf { it.gameId == gameId }?.rotationSteps ?: 0
+                        )
+                    }
+                }
+                if (maxWidth < maxHeight) {
+                    val metadataLimit = (maxHeight - gap).coerceAtLeast(0.dp) * 2 / 3
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(gap)) {
+                        cartridge(Modifier.fillMaxWidth().weight(1f))
+                        metadata(Modifier.fillMaxWidth().heightIn(max = metadataLimit))
+                    }
+                } else {
+                    Row(
+                        Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(gap),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val share = ComponentDefaults.Presentation.cartridgeWidthFraction
+                        cartridge(Modifier.weight(share).fillMaxHeight())
+                        metadata(Modifier.weight(1f - share))
+                    }
+                }
+            } else if (stacked) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap)) {
                     cover()
                     metadata(if (boundedHeight) Modifier.weight(1f, fill = false) else Modifier)
@@ -609,7 +668,8 @@ private fun GameHeroMetadata(
     style: PresentationStyle,
     modifier: Modifier,
     textLayer: Modifier,
-    showsRunning: Boolean
+    showsRunning: Boolean,
+    cartridgeVisible: Boolean
 ) {
     val theme = LocalArgosyTheme.current
     val journey = rememberJourney(detail.stats, style)
@@ -637,7 +697,7 @@ private fun GameHeroMetadata(
     Column(modifier = modifier) {
         Column(textLayer) {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)) {
-                ShowcaseTitle(detail = detail)
+                ShowcaseTitle(detail, cartridgeVisible)
                 developer?.let {
                     Text(text = it, style = MaterialTheme.typography.titleMedium, color = theme.textDim)
                 }
@@ -801,16 +861,17 @@ private fun ShowcaseTrack(fraction: Float, color: Color, modifier: Modifier = Mo
 }
 
 @Composable
-private fun ShowcaseTitle(detail: CompanionDetail) {
+private fun ShowcaseTitle(detail: CompanionDetail, cartridgeVisible: Boolean) {
     val theme = LocalArgosyTheme.current
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
         detail.subtitle?.let { ShowcaseSubtitle(it, detail.platformSlug, pill = false) }
         GameTitle(
             title = detail.title,
-            titleStyle = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
+            titleStyle = (if (cartridgeVisible) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.displayMedium)
+                .copy(fontWeight = FontWeight.Bold),
             titleColor = theme.textPrimary,
-            maxLines = 2,
-            adaptiveSize = true
+            maxLines = if (cartridgeVisible) 3 else 2,
+            adaptiveSize = !cartridgeVisible
         )
     }
 }
