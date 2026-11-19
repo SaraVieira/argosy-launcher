@@ -17,7 +17,7 @@ class SettingsSearchLauncherSectionsTest {
     @Test
     fun `presentation rows need a usable second screen`() {
         val single = SettingsUiState(display = DisplayState())
-        val dual = SettingsUiState(display = DisplayState(dualScreenEnabled = true, hasSecondaryDisplay = true))
+        val dual = SettingsUiState(display = DisplayState(hasSecondaryDisplay = true))
 
         assertTrue(buildSettingsSearchIndex(single).rowKeysIn(SettingsSection.PRESENTATION).isEmpty())
         assertTrue(buildSettingsSearchIndex(dual).rowKeysIn(SettingsSection.PRESENTATION).isNotEmpty())

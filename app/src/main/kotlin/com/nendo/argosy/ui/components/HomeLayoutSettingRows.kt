@@ -81,6 +81,7 @@ val HomeLayoutSettingField.titleRes: Int
         HomeLayoutSettingField.SCROLL_AXIS -> R.string.ui_home_layout_scroll_axis
         HomeLayoutSettingField.AUTO_GRID_LANES -> R.string.ui_home_layout_lanes_columns
         HomeLayoutSettingField.SHOW_TITLES -> R.string.ui_home_layout_show_titles
+        HomeLayoutSettingField.CAROUSEL_SHOW_ALL -> R.string.fork_home_layout_carousel_show_all_games
         HomeLayoutSettingField.AUTO_GRID_SHOW_ALL -> R.string.ui_home_layout_show_all_games
         HomeLayoutSettingField.CUSTOM_GRID_COLUMNS -> R.string.ui_home_layout_custom_grid_columns
         HomeLayoutSettingField.CUSTOM_GRID_ROWS -> R.string.ui_home_layout_custom_grid_rows
