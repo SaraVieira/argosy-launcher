@@ -195,14 +195,12 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val hasPresentationScreen by (
-        com.nendo.argosy.DualScreenManagerHolder.instance?.hasPresentationScreen
-            ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }
-        ).collectAsState()
     val presentationShowsHints by (
         com.nendo.argosy.DualScreenManagerHolder.instance?.presentationShowsHints
             ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }
         ).collectAsState()
+    val swapped = com.nendo.argosy.DualScreenManagerHolder.instance?.isRolesSwapped?.collectAsState()?.value == true
+    val dockOnPresentation = presentationShowsHints && swapped
     var navigationPillWidth by remember { mutableStateOf(0.dp) }
     val downloadIndicators = viewModel.downloadIndicators.collectAsState()
     val streamFirst by viewModel.streamLauncher.streamFirst.collectAsState()
@@ -502,8 +500,8 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
+                Lifecycle.Event.ON_STOP -> viewModel.dismissAppBarTools()
                 Lifecycle.Event.ON_PAUSE -> {
-                    viewModel.dismissAppBarTools()
                     viewModel.deactivateVideoPreview()
                     videoPlayedForGameId = uiState.focusedGame?.id
                 }
@@ -766,7 +764,7 @@ fun HomeScreen(
         ) {
             val availableCarouselWidth = maxWidth
             val showTitle = !presentationShowsHints && !isAutoGrid && !isCustomGrid && !uiState.isMediaRow
-            val footerHeight = if (presentationShowsHints) {
+            val footerHeight = if (dockOnPresentation) chromeVerticalPadding else if (presentationShowsHints) {
                 dockHeight + chromeVerticalPadding
             } else {
                 withNavBarClearance(Dimens.footerHeight)
@@ -1378,7 +1376,7 @@ fun HomeScreen(
                 onNextRow = viewModel::nextRow,
                 onSelectRow = viewModel::selectRow,
                 isStacked = isPortrait,
-                showStatus = !presentationShowsHints &&
+                showStatus = dockOnPresentation || !presentationShowsHints &&
                     (!isPortrait || com.nendo.argosy.ui.components.LocalTransientHomeStatusVisible.current),
                 onNavigationWidthChanged = { navigationPillWidth = it },
                 edgePadding = ComponentDefaults.Carousel.headerEdgePaddingDp.dp,
@@ -1388,54 +1386,14 @@ fun HomeScreen(
             )
         }
 
-        val focusPickerIndex by (
-            dsmForFocus?.focusPickerIndex
-                ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0) }
-            ).collectAsState()
-        val focusDisplays = remember(hasPresentationScreen, focusPickerOpen) {
-            dsmForFocus?.focusableDisplays()?.map { screen ->
-                com.nendo.argosy.ui.components.DisplayFocusTarget(screen.displayId, screen.number)
-            }.orEmpty()
+        DisposableEffect(dsmForFocus, dockOnPresentation, viewModel, inputDispatcher) {
+            val dock = com.nendo.argosy.DualScreenManager.PresentationDock(viewModel, inputDispatcher)
+            if (dockOnPresentation) dsmForFocus?.attachPresentationDock(dock)
+            onDispose { dsmForFocus?.detachPresentationDock(dock) }
         }
-        val canSwapRoles = com.nendo.argosy.ui.dualscreen.selectSwapModeState() != null
-        if (presentationShowsHints) {
-            com.nendo.argosy.ui.components.CompanionAppBar(
-                apps = uiState.homeApps,
-                onAppClick = { viewModel.launchTileApp(it) },
-                reorder = dockReorder,
-                onReorderStart = { com.nendo.argosy.DualScreenManagerHolder.instance?.beginDockReorder(it, false) },
-                onReorderTarget = { token, target -> com.nendo.argosy.DualScreenManagerHolder.instance?.targetDockReorder(token, target) },
-                onReorderSave = { com.nendo.argosy.DualScreenManagerHolder.instance?.saveDockReorder(it) },
-                onReorderCancel = { com.nendo.argosy.DualScreenManagerHolder.instance?.cancelDockReorder(it) },
-                onAppHold = { viewModel.openDockAppMenuFor(it) },
-                focusedIndex = if (uiState.appBarFocused) {
-                    uiState.appBarIndex
-                } else {
-                    com.nendo.argosy.ui.components.APP_BAR_NOTHING_FOCUSED
-                },
-                onOpenDrawer = { viewModel.openAppsScreen() },
-                onKeyboardToggle = {
-                    com.nendo.argosy.DualScreenManagerHolder.instance?.toggleUpperKeyboard()
-                },
-                focusDisplays = focusDisplays,
-                focusPickerOpen = focusPickerOpen,
-                focusPickerIndex = focusPickerIndex,
-                onFocusPickerToggle = dsmForFocus?.let {
-                    { if (focusPickerOpen) it.closeFocusPicker() else it.openFocusPicker() }
-                },
-                onFocusPickerMove = { dsmForFocus?.moveFocusPicker(it) },
-                onFocusDisplay = { displayId ->
-                    dsmForFocus?.focusDisplay(displayId)
-                    dsmForFocus?.closeFocusPicker()
-                },
-                onSwapRoles = dsmForFocus
-                    ?.takeIf { canSwapRoles }
-                    ?.let { { it.swapRoles() } },
-                toolsOpen = uiState.appBarToolsOpen,
-                toolIndex = uiState.appBarToolIndex,
-                onToolsToggle = viewModel::toggleAppBarTools,
-                onToolFocus = viewModel::focusAppBarTool,
-                onToolsDismiss = viewModel::dismissAppBarTools,
+        if (presentationShowsHints && !dockOnPresentation) {
+            HomeDock(
+                viewModel = viewModel,
                 maximumWidth = navigationPillWidth.takeIf { it > 0.dp } ?: Dimens.breadcrumbMaxWidth,
                 modifier = Modifier.align(Alignment.BottomCenter)
                     .padding(
@@ -2306,4 +2264,60 @@ private fun MenuOption(
             color = contentColor
         )
     }
+}
+
+@Composable
+internal fun HomeDock(viewModel: HomeViewModel, maximumWidth: Dp, modifier: Modifier = Modifier) {
+    val uiState by viewModel.uiState.collectAsState()
+    val dockReorder by viewModel.dockReorder.collectAsState()
+    val dsmForFocus = com.nendo.argosy.DualScreenManagerHolder.instance
+    val focusPickerOpen = dsmForFocus?.focusPickerOpen?.collectAsState()?.value == true
+    val focusPickerIndex = dsmForFocus?.focusPickerIndex?.collectAsState()?.value ?: 0
+    val hasPresentationScreen = dsmForFocus?.hasPresentationScreen?.collectAsState()?.value == true
+    val focusDisplays = remember(hasPresentationScreen, focusPickerOpen) {
+        dsmForFocus?.focusableDisplays()?.map { screen ->
+            com.nendo.argosy.ui.components.DisplayFocusTarget(screen.displayId, screen.number)
+        }.orEmpty()
+    }
+    val canSwapRoles = com.nendo.argosy.ui.dualscreen.selectSwapModeState() != null
+    com.nendo.argosy.ui.components.CompanionAppBar(
+        apps = uiState.homeApps,
+        onAppClick = { viewModel.launchTileApp(it) },
+        reorder = dockReorder,
+        onReorderStart = { dsmForFocus?.beginDockReorder(it, false) },
+        onReorderTarget = { token, target -> dsmForFocus?.targetDockReorder(token, target) },
+        onReorderSave = { dsmForFocus?.saveDockReorder(it) },
+        onReorderCancel = { dsmForFocus?.cancelDockReorder(it) },
+        onAppHold = { viewModel.openDockAppMenuFor(it) },
+        focusedIndex = if (uiState.appBarFocused) {
+            uiState.appBarIndex
+        } else {
+            com.nendo.argosy.ui.components.APP_BAR_NOTHING_FOCUSED
+        },
+        onOpenDrawer = { viewModel.openAppsScreen() },
+        onKeyboardToggle = {
+            dsmForFocus?.toggleUpperKeyboard()
+        },
+        focusDisplays = focusDisplays,
+        focusPickerOpen = focusPickerOpen,
+        focusPickerIndex = focusPickerIndex,
+        onFocusPickerToggle = dsmForFocus?.let {
+            { if (focusPickerOpen) it.closeFocusPicker() else it.openFocusPicker() }
+        },
+        onFocusPickerMove = { dsmForFocus?.moveFocusPicker(it) },
+        onFocusDisplay = { displayId ->
+            dsmForFocus?.focusDisplay(displayId)
+            dsmForFocus?.closeFocusPicker()
+        },
+        onSwapRoles = dsmForFocus
+            ?.takeIf { canSwapRoles }
+            ?.let { { it.swapRoles() } },
+        toolsOpen = uiState.appBarToolsOpen,
+        toolIndex = uiState.appBarToolIndex,
+        onToolsToggle = viewModel::toggleAppBarTools,
+        onToolFocus = viewModel::focusAppBarTool,
+        onToolsDismiss = viewModel::dismissAppBarTools,
+        maximumWidth = maximumWidth,
+        modifier = modifier
+    )
 }

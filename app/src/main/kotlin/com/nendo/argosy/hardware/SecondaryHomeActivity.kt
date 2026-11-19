@@ -126,13 +126,6 @@ class SecondaryHomeActivity :
             return
         }
 
-        val docked = com.nendo.argosy.util.DisplayAffinityHelper.dockedExternalDisplayId(this) != null
-        if (!docked && !SessionStateStore(applicationContext).isDualScreenEnabled()) {
-            android.util.Log.d("SecondaryHome", "dualScreenEnabled=false, finishing")
-            finish()
-            return
-        }
-
         if (releaseUnsupportedDisplay()) return
         applyDockedOrientation()
 

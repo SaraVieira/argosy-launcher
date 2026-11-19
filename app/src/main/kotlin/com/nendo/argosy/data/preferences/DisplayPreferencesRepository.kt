@@ -13,7 +13,6 @@ import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.domain.model.GripAutoControllers
 import com.nendo.argosy.domain.model.ScreenLayouts
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
-import com.nendo.argosy.util.DisplayAffinityHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -121,7 +120,6 @@ data class DisplayPreferences(
     val screenDimmerTimeoutMinutes: Int = 2,
     val screenDimmerLevel: Int = 50,
     val lidSleepEnabled: Boolean = true,
-    val dualScreenEnabled: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
     val gamesDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
     val appsDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
@@ -250,7 +248,6 @@ class DisplayPreferencesRepository @Inject constructor(
         val SCREEN_DIMMER_TIMEOUT_MINUTES = intPreferencesKey("screen_dimmer_timeout_minutes")
         val SCREEN_DIMMER_LEVEL = intPreferencesKey("screen_dimmer_level")
         val LID_SLEEP_ENABLED = booleanPreferencesKey("lid_sleep_enabled")
-        val DUAL_SCREEN_ENABLED = booleanPreferencesKey("dual_screen_enabled")
         val DISPLAY_ROLE_OVERRIDE = stringPreferencesKey("display_role_override")
         val GAMES_DISPLAY_TARGET = stringPreferencesKey("games_display_target")
         val APPS_DISPLAY_TARGET = stringPreferencesKey("apps_display_target")
@@ -369,7 +366,6 @@ class DisplayPreferencesRepository @Inject constructor(
             screenDimmerTimeoutMinutes = prefs[Keys.SCREEN_DIMMER_TIMEOUT_MINUTES] ?: 2,
             screenDimmerLevel = prefs[Keys.SCREEN_DIMMER_LEVEL] ?: 50,
             lidSleepEnabled = prefs[Keys.LID_SLEEP_ENABLED] ?: true,
-            dualScreenEnabled = prefs[Keys.DUAL_SCREEN_ENABLED] ?: DisplayAffinityHelper.isKnownDualScreenDevice(),
             displayRoleOverride = DisplayRoleOverride.fromString(prefs[Keys.DISPLAY_ROLE_OVERRIDE]),
             gamesDisplayTarget = EmulatorDisplayTarget.gamesDefaultFrom(prefs[Keys.GAMES_DISPLAY_TARGET]),
             appsDisplayTarget = EmulatorDisplayTarget.appsDefaultFrom(prefs[Keys.APPS_DISPLAY_TARGET]),
@@ -839,9 +835,6 @@ class DisplayPreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.LID_SLEEP_ENABLED] = enabled }
     }
 
-    suspend fun setDualScreenEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.DUAL_SCREEN_ENABLED] = enabled }
-    }
 
     suspend fun setDisplayRoleOverride(override: DisplayRoleOverride) {
         dataStore.edit { it[Keys.DISPLAY_ROLE_OVERRIDE] = override.name }

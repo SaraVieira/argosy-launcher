@@ -153,7 +153,7 @@ internal sealed class HomeScreenItem(
 
         private fun playsVideo(state: DisplayState): Boolean =
             drawsBackgroundArt(state) ||
-                (state.dualScreenEnabled && state.hasSecondaryDisplay && !state.secondaryDisplayUnsupported)
+                (state.hasSecondaryDisplay && !state.secondaryDisplayUnsupported)
 
         private val BackgroundHeader =
             Header("backgroundHeader", "background", R.string.settings_home_screen_section_background)

@@ -374,7 +374,6 @@ class SetupViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { setupState.declineDefaultHome() }
-        coVerify(exactly = 0) { preferences.setDualScreenEnabled(any()) }
         assertEquals(SetupPage.CONTROLLER, vm.currentState().page)
         assertEquals(false, SetupPage.SCREENS in vm.currentState().plan)
     }

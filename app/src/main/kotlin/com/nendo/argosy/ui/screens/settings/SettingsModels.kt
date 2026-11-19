@@ -331,7 +331,6 @@ data class DisplayState(
     val hasPhysicalSecondaryDisplay: Boolean = false,
     val lidSleepSupported: Boolean = false,
     val lidSleepEnabled: Boolean = true,
-    val dualScreenEnabled: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
     val gamesLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
     val appsLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
@@ -348,7 +347,7 @@ data class DisplayState(
     val showStatusNetwork: Boolean = false
 ) {
     val secondaryDisplayUnsupported: Boolean
-        get() = dualScreenEnabled && hasPhysicalSecondaryDisplay && !hasSecondaryDisplay
+        get() = hasPhysicalSecondaryDisplay && !hasSecondaryDisplay
 
     val iconPackOptions: List<String?>
         get() = listOf<String?>(null) + iconPacks.map { it.packageName }

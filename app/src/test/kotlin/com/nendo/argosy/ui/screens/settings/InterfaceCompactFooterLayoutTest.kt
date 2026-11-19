@@ -56,11 +56,9 @@ class InterfaceCompactFooterLayoutTest {
 
     @Test
     fun `presentation shows only while dual screen has a second display`() {
-        val off = InterfaceLayoutState(display = DisplayState(dualScreenEnabled = false, hasSecondaryDisplay = true))
-        val noScreen = InterfaceLayoutState(display = DisplayState(dualScreenEnabled = true, hasSecondaryDisplay = false))
-        val on = InterfaceLayoutState(display = DisplayState(dualScreenEnabled = true, hasSecondaryDisplay = true))
+        val noScreen = InterfaceLayoutState(display = DisplayState(hasSecondaryDisplay = false))
+        val on = InterfaceLayoutState(display = DisplayState(hasSecondaryDisplay = true))
 
-        assertFalse(InterfaceItem.Presentation.visibleWhen(off))
         assertFalse(InterfaceItem.Presentation.visibleWhen(noScreen))
         assertTrue(InterfaceItem.Presentation.visibleWhen(on))
         val index = interfaceFocusIndexOf(InterfaceItem.Presentation, on)

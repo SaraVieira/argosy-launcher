@@ -69,7 +69,7 @@ internal sealed class InterfaceItem(
         key = "presentation",
         section = SECTION_SCREENS,
         visibleWhen = {
-            it.display.dualScreenEnabled && it.display.hasSecondaryDisplay &&
+            it.display.hasSecondaryDisplay &&
                 !it.display.secondaryDisplayUnsupported
         }
     )

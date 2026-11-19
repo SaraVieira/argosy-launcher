@@ -621,8 +621,14 @@ private fun GameHeroMetadata(
             listOf(RailGroup.FACTS to detail.facts.map { RailItem(null, null, it.value) })
                 .filter { it.second.isNotEmpty() }
         } else {
+            val achievementRow = if (items.any { it.first.railGroup == RailGroup.RATINGS }) {
+                RailGroup.RATINGS
+            } else RailGroup.FACTS
             RailGroup.entries.mapNotNull { group ->
-                val groupItems = items.filter { it.first.railGroup == group && it.first != PresentationStat.DEVELOPER }
+                val groupItems = items.filter { (stat, _) ->
+                    val row = if (stat == PresentationStat.ACHIEVEMENTS) achievementRow else stat.railGroup
+                    row == group && stat != PresentationStat.DEVELOPER
+                }
                     .map { it.second } + if (group == RailGroup.PROGRESS) progressDetails else emptyList()
                 groupItems.takeIf { it.isNotEmpty() }?.let { group to it }
             }

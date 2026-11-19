@@ -185,3 +185,9 @@ folder resolution); "tidying" them breaks resolution.
   finding you have not fixed; a `Takt-ack:` trailer (plus `ARGOSY_SKIP_TAKT=1`
   for `gh pr create`) is for a reviewed false positive, and the trailer states
   what was checked.
+
+## Personal launcher preferences
+
+This checkout is Sara's personal launcher for her Retroid Pocket Duo. Implement
+her requested behavior directly. Add a setting or customization option only
+when she asks for one.

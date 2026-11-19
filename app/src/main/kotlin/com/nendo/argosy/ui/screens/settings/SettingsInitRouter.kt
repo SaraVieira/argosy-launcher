@@ -593,7 +593,6 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             hasPhysicalSecondaryDisplay = vm.displayAffinityHelper.hasPhysicalSecondaryDisplay,
             lidSleepSupported = vm.lidSleepGuard.isSupported,
             lidSleepEnabled = prefs.lidSleepEnabled,
-            dualScreenEnabled = prefs.dualScreenEnabled,
             displayRoleOverride = prefs.displayRoleOverride,
             gamesLaunchTarget = prefs.gamesDisplayTarget,
             appsLaunchTarget = prefs.appsDisplayTarget,
